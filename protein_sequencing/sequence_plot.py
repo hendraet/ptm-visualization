@@ -57,10 +57,7 @@ def create_plot(input_file: str | os.PathLike, output_path: str | os.PathLike) -
         region_end_pixel = region_end * pixels_per_protein + 1
         region_boundaries.append((region_name, region_start_pixel, region_end_pixel, region_color))
 
-    width = sequence_length_pixels
-    height = parameters.SEQUENCE_PLOT_HEIGHT
-
-    fig = create_sequence_plot(width, height, region_boundaries)
+    fig = create_sequence_plot(sequence_length_pixels, parameters.SEQUENCE_PLOT_HEIGHT, region_boundaries)
     
     fig.show()
     fig.write_image(f'{output_path}/fig1.png')
@@ -69,37 +66,61 @@ def create_plot(input_file: str | os.PathLike, output_path: str | os.PathLike) -
 
     return output_file
 
-def create_sequence_plot(width: int, height: int, region_boundaries: list[tuple[str, int, int, str]]) -> go.Figure:
+def create_sequence_plot(sequence_width: int, sequence_height: int, region_boundaries: list[tuple[str, int, int, str]]) -> go.Figure:
     fig = go.Figure()
+    
+    width = parameters.FIGURE_WIDTH
+    height = parameters.FIGURE_HEIGHT
+
+    if parameters.FIGURE_ORIENTATION == 1:
+        width, height = height, width
+
+    # General Layout
+    fig.update_layout(
+        title="Rectangle Divided into Regions",
+        width = width,
+        height = height,
+        xaxis=dict(range=[0, width], autorange=False),
+        yaxis=dict(range=[0, height], autorange=False),
+        plot_bgcolor="white"
+    )
 
     for region_name, region_start_pixel, region_end_pixel, region_color in region_boundaries:
-        x = (region_start_pixel + region_end_pixel) / 2
+        
+        x0 = region_start_pixel
+        x1 = region_end_pixel
+        y0 = 0
+        y1 = sequence_height
+        
+        if parameters.FIGURE_ORIENTATION == 1:
+            y0 = width/2 - sequence_height/2
+            y1 += y0
+            x0, x1, y0, y1 = y0, y1, x0, x1
+        else:
+            y0 = height/2 - sequence_height/2
+            y1 += y0
+
+        # Region rects
         fig.add_shape(
             type="rect",
-            x0=region_start_pixel,
-            y0=0,
-            x1=region_end_pixel,
-            y1=height,
-            line=dict(color="darkgrey", width=1),
+            x0=x0,
+            y0=y0,
+            x1=x1,
+            y1=y1,
+            line=dict(color="darkgrey", width=2),
             fillcolor=region_color
         )
 
-        # Add region name in the middle of the region
+        # Labels
+        x = (x0 + x1) / 2
+        y = (y0 + y1) / 2
         fig.add_annotation(
             x=x,
-            y=height / 2,
+            y=y,
             text=region_name,
             showarrow=False,
-            font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="black")
-        )
-
-        fig.update_layout(
-            title="Rectangle Divided into Regions",
-            width = parameters.FIGURE_WIDTH,
-            height = parameters.FIGURE_HEIGHT,
-            xaxis=dict(range=[0, parameters.FIGURE_WIDTH], autorange=False),
-            yaxis=dict(range=[0, parameters.FIGURE_HEIGHT], autorange=False),
-            plot_bgcolor="white"
+            font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="black"),
+            textangle= 90 if parameters.FIGURE_ORIENTATION == 1 else 0
         )
 
     return fig

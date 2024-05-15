@@ -1,7 +1,9 @@
 FONT_SIZE = 12
 FIGURE_WIDTH = 1500
 FIGURE_HEIGHT = 400
+FIGURE_ORIENTATION = 0  # 0 for horizontal, 1 for vertical
 
+# TODO: extract color and set default colors
 REGIONS = [
     ('', 44, 'white'),
     ('N1', 73, 'lightgrey'),
