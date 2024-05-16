@@ -45,7 +45,8 @@ def create_plot(input_file: str | os.PathLike, output_path: str | os.PathLike) -
     # different_possibilities_plot(max_sequence_length, 50, different_possibilities)
 
     # basis for all pixel calculations
-    max_sequence_length_pixels = parameters.FIGURE_WIDTH * (1 - parameters.LEFT_MARGIN - parameters.RIGHT_MARGIN)
+    margins = parameters.LEFT_MARGIN + parameters.RIGHT_MARGIN if parameters.FIGURE_ORIENTATION == 0 else parameters.TOP_MARGIN + parameters.BOTTOM_MARGIN
+    max_sequence_length_pixels = parameters.FIGURE_WIDTH * (1 - margins)
     pixels_per_protein = int(max_sequence_length_pixels // max_sequence_length)
 
     sequence_length_pixels = max_sequence_length * pixels_per_protein
@@ -179,7 +180,7 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
                 y_start = height - (protein_position * pixels_per_protein) - top_margin
                 y_end = y_start
 
-            fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black'), name='TODO'))
+            fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1), showlegend=False, hoverinfo='none'))
             
             
 

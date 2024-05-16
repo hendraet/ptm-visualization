@@ -1,7 +1,7 @@
 FONT_SIZE = 12
 FIGURE_WIDTH = 1500
 FIGURE_HEIGHT = 400
-FIGURE_ORIENTATION = 0  # 0 for horizontal, 1 for vertical
+FIGURE_ORIENTATION = 1  # 0 for horizontal, 1 for vertical
 
 REGIONS = [
     ('', 44, 'A'),
@@ -19,9 +19,9 @@ REGIONS = [
 # Default Parameters
 
 # Margins
-LEFT_MARGIN = 0.1
+LEFT_MARGIN = 0.2
 RIGHT_MARGIN = 0.1
-TOP_MARGIN = 0.1
+TOP_MARGIN = 0.3
 BOTTOM_MARGIN = 0.1
 
 # Sequence Plot
