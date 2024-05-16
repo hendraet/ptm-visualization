@@ -86,6 +86,9 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
     if parameters.FIGURE_ORIENTATION == 1:
         width, height = height, width
 
+    left_margin = parameters.LEFT_MARGIN * width
+    top_margin = parameters.TOP_MARGIN * height
+
     # General Layout
     fig.update_layout(
         title="Plot",
@@ -103,13 +106,18 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
         y0 = 0
         y1 = sequence_height
         
-        if parameters.FIGURE_ORIENTATION == 1:
+        if parameters.FIGURE_ORIENTATION == 0:
+            y0 = height/2 - sequence_height/2
+            y1 += y0
+            x1 += left_margin
+            x0 += left_margin
+        else:
             y0 = width/2 - sequence_height/2
             y1 += y0
             x0, x1, y0, y1 = y0, y1, height-x0, height-x1
-        else:
-            y0 = height/2 - sequence_height/2
-            y1 += y0
+            y0 -= top_margin
+            y1 -= top_margin
+
 
         # Region rects
         fig.add_shape(
@@ -160,7 +168,7 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
                 continue
             
             if parameters.FIGURE_ORIENTATION == 0:
-                x_start = protein_position * pixels_per_protein
+                x_start = (protein_position * pixels_per_protein) + left_margin
                 x_end = x_start
                 y_start = y1
                 # TODO: calculate height dynamically
@@ -168,7 +176,7 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
             else:
                 x_start = x1
                 x_end = x_start + 40
-                y_start = height - (protein_position * pixels_per_protein)
+                y_start = height - (protein_position * pixels_per_protein) - top_margin
                 y_end = y_start
 
             fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black'), name='TODO'))
