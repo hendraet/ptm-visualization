@@ -3,18 +3,17 @@ FIGURE_WIDTH = 1500
 FIGURE_HEIGHT = 400
 FIGURE_ORIENTATION = 0  # 0 for horizontal, 1 for vertical
 
-# TODO: extract color and set default colors
 REGIONS = [
-    ('', 44, 'white'),
-    ('N1', 73, 'lightgrey'),
-    ('N2', 112, 'lightgrey'),
-    ('2N4R-Tau', 151, 'white'),
-    ('Proline-rich region', 242, 'lightgrey'),
-    ('R1', 273, 'lightgrey'),
-    ('R2', 304, 'lightgrey'),
-    ('R3', 334, 'lightgrey'),
-    ('R4', 372, 'lightgrey'),
-    ('', 441, 'white'),
+    ('', 44, 'A'),
+    ('N1', 73, 'B'),
+    ('N2', 102, 'B'),
+    ('2N4R-Tau', 150, 'A'),
+    ('Proline-rich region', 241, 'B'),
+    ('R1', 272, 'B'),
+    ('R2', 303, 'B'),
+    ('R3', 334, 'B'),
+    ('R4', 371, 'B'),
+    ('', 441, 'A'),
 ]
 
 # Default Parameters
@@ -28,3 +27,9 @@ BOTTOM_MARGIN = 0.1
 # Sequence Plot
 SEQUENCE_PLOT_FONT_SIZE = FONT_SIZE
 SEQUENCE_PLOT_HEIGHT = 50
+
+# Region Colors
+REGION_COLORS = {
+    'A': 'white',
+    'B': 'lightgrey',
+}

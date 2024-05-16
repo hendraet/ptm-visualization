@@ -1,3 +1,5 @@
+from collections import defaultdict
+import time
 import plotly.graph_objects as go
 import os
 import uniprot_align
@@ -12,7 +14,6 @@ def create_plot(input_file: str | os.PathLike, output_path: str | os.PathLike) -
     for alignment in alignments:
         if len(alignment.seq) > max_sequence_length:
             max_sequence_length = len(alignment.seq)
-        # print(alignment.seq)
 
     assert all(len(alignment.seq) == max_sequence_length for alignment in alignments)
 
@@ -31,9 +32,6 @@ def create_plot(input_file: str | os.PathLike, output_path: str | os.PathLike) -
         else:
             different_possibilities[i] = len(proteins)
 
-    # print(max_sequence_length)
-    # print(different_possibilities)
-
     # TODO: needed later for different starts/ endings
     count, i = 0, 0
     while i < len(different_possibilities):
@@ -42,6 +40,9 @@ def create_plot(input_file: str | os.PathLike, output_path: str | os.PathLike) -
             while i < len(different_possibilities) and different_possibilities[i+1] == 2:
                 i += 1
         i += 1
+
+    # For debugging purposes
+    # different_possibilities_plot(max_sequence_length, 50, different_possibilities)
 
     # basis for all pixel calculations
     max_sequence_length_pixels = parameters.FIGURE_WIDTH * (1 - parameters.LEFT_MARGIN - parameters.RIGHT_MARGIN)
@@ -55,9 +56,12 @@ def create_plot(input_file: str | os.PathLike, output_path: str | os.PathLike) -
     for region_name, region_end, region_color in parameters.REGIONS:
         region_start_pixel = region_end_pixel
         region_end_pixel = region_end * pixels_per_protein + 1
-        region_boundaries.append((region_name, region_start_pixel, region_end_pixel, region_color))
+        region_boundaries.append((region_name, region_start_pixel, region_end_pixel, parameters.REGION_COLORS[region_color]))
 
-    fig = create_sequence_plot(sequence_length_pixels, parameters.SEQUENCE_PLOT_HEIGHT, region_boundaries)
+    # TODO: create this file
+    input_file = 'data/chris/PPc_COMPLETE_cutoff_0-05FDR_reformat_XX_reduced.csv'
+
+    fig = create_sequence_plot(pixels_per_protein, parameters.SEQUENCE_PLOT_HEIGHT, region_boundaries, input_file)
     
     fig.show()
     fig.write_image(f'{output_path}/fig1.png')
@@ -66,7 +70,14 @@ def create_plot(input_file: str | os.PathLike, output_path: str | os.PathLike) -
 
     return output_file
 
-def create_sequence_plot(sequence_width: int, sequence_height: int, region_boundaries: list[tuple[str, int, int, str]]) -> go.Figure:
+def different_possibilities_plot(width: int, height: int, different_possibilities: list[int]):
+    rectangle = np.zeros((height, width))
+    for i, value in enumerate(different_possibilities):        
+        rectangle[:, i] = value
+    fig = go.Figure(data=go.Heatmap(z=rectangle))
+    fig.show()
+
+def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_boundaries: list[tuple[str, int, int, str]], file_path: str) -> go.Figure:
     fig = go.Figure()
     
     width = parameters.FIGURE_WIDTH
@@ -77,7 +88,7 @@ def create_sequence_plot(sequence_width: int, sequence_height: int, region_bound
 
     # General Layout
     fig.update_layout(
-        title="Rectangle Divided into Regions",
+        title="Plot",
         width = width,
         height = height,
         xaxis=dict(range=[0, width], autorange=False),
@@ -95,7 +106,7 @@ def create_sequence_plot(sequence_width: int, sequence_height: int, region_bound
         if parameters.FIGURE_ORIENTATION == 1:
             y0 = width/2 - sequence_height/2
             y1 += y0
-            x0, x1, y0, y1 = y0, y1, x0, x1
+            x0, x1, y0, y1 = y0, y1, height-x0, height-x1
         else:
             y0 = height/2 - sequence_height/2
             y1 += y0
@@ -123,6 +134,51 @@ def create_sequence_plot(sequence_width: int, sequence_height: int, region_bound
             textangle= 90 if parameters.FIGURE_ORIENTATION == 1 else 0
         )
 
+    # Protein Annotations
+    with open(file_path, 'r') as f:
+
+        start_time = time.time()
+
+        rows = f.readlines()[1:3]
+        entries = rows[1].strip().split(',')
+
+        read_time = time.time() - start_time
+        print(f'time to read rows: {read_time}')
+
+        groups = defaultdict(list)
+        for entry in entries[2:]:
+            char, position = entry[0], int(entry[1:])
+            groups[position].append((char, position))
+
+        group_time = time.time() - read_time
+        print(f'time to group entries: {group_time}')
+        
+        for protein_position, entries in groups.items():
+            max_y_offset = len(entries)-1
+            
+            if entries[0][0] in ['X', 'Q', 'M']:
+                continue
+            
+            if parameters.FIGURE_ORIENTATION == 0:
+                x_start = protein_position * pixels_per_protein
+                x_end = x_start
+                y_start = y1
+                # TODO: calculate height dynamically
+                y_end = y_start + 40
+            else:
+                x_start = x1
+                x_end = x_start + 40
+                y_start = height - (protein_position * pixels_per_protein)
+                y_end = y_start
+
+            fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black'), name='TODO'))
+            
+            
+
+        plot_time = time.time() - group_time
+        print(f'time to plot entries: {plot_time}')
+                
+    
     return fig
 
 def clean_up():
