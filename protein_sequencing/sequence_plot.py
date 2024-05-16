@@ -57,7 +57,7 @@ def create_plot(input_file: str | os.PathLike, output_path: str | os.PathLike) -
     for region_name, region_end, region_color in parameters.REGIONS:
         region_start_pixel = region_end_pixel
         region_end_pixel = region_end * pixels_per_protein + 1
-        region_boundaries.append((region_name, region_start_pixel, region_end_pixel, parameters.REGION_COLORS[region_color]))
+        region_boundaries.append((region_name, region_start_pixel, region_end_pixel, parameters.SEQUENCE_REGION_COLORS[region_color]))
 
     # TODO: create this file
     input_file = 'data/chris/PPc_COMPLETE_cutoff_0-05FDR_reformat_XX_reduced.csv'
@@ -146,48 +146,48 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
     # Protein Annotations
     with open(file_path, 'r') as f:
 
-        start_time = time.time()
-
         rows = f.readlines()[1:3]
-        entries = rows[1].strip().split(',')
-
-        read_time = time.time() - start_time
-        print(f'time to read rows: {read_time}')
+        modification_types = rows[0].strip().split(',')
+        labels = rows[1].strip().split(',')
 
         groups = defaultdict(list)
-        for entry in entries[2:]:
-            char, position = entry[0], int(entry[1:])
-            groups[position].append((char, position))
-
-        group_time = time.time() - read_time
-        print(f'time to group entries: {group_time}')
+        for i, (label) in enumerate(labels[2:]):
+            position = int(label[1:])
+            groups[position].append((label, modification_types[i]))
         
-        for protein_position, entries in groups.items():
-            max_y_offset = len(entries)-1
-            
-            if entries[0][0] in ['X', 'Q', 'M']:
-                continue
-            
-            if parameters.FIGURE_ORIENTATION == 0:
-                x_start = (protein_position * pixels_per_protein) + left_margin
-                x_end = x_start
-                y_start = y1
-                # TODO: calculate height dynamically
-                y_end = y_start + 40
-            else:
-                x_start = x1
-                x_end = x_start + 40
-                y_start = height - (protein_position * pixels_per_protein) - top_margin
-                y_end = y_start
+        for protein_position, modification_types in groups.items():
+            line_plotted = False
+            for i, modification_type in enumerate(modification_types):
+                if modification_type[1] not in parameters.MODIFICATIONS:
+                    continue
 
-            fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1), showlegend=False, hoverinfo='none'))
-            
-            
+                # TODO: calculate offset
+                current_offset = 0
+                if parameters.FIGURE_ORIENTATION == 0:
+                    x_start = (protein_position * pixels_per_protein) + left_margin
+                    x_end = x_start
+                    y_start = y1
+                    # TODO: calculate height dynamically
+                    y_end = y_start + parameters.SEQUENCE_MIN_LINE_LENGTH + current_offset
+                else:
+                    x_start = x1
+                    x_end = x_start + parameters.SEQUENCE_MIN_LINE_LENGTH + current_offset
+                    y_start = height - (protein_position * pixels_per_protein) - top_margin
+                    y_end = y_start
 
-        plot_time = time.time() - group_time
-        print(f'time to plot entries: {plot_time}')
-                
-    
+                # TODO Plot modifcation label
+                fig.add_annotation(
+                    x=x_end,
+                    y=y_end+5,
+                    text=modification_type[0],
+                    showarrow=False,
+                    font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=parameters.MODIFICATIONS[modification_type[1]][1]),
+                )
+
+                # Plot line for modification
+                if not line_plotted:
+                    fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1), showlegend=False, hoverinfo='none'))  
+                    line_plotted = True
     return fig
 
 def clean_up():

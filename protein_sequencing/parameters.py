@@ -1,7 +1,7 @@
 FONT_SIZE = 12
 FIGURE_WIDTH = 1500
 FIGURE_HEIGHT = 400
-FIGURE_ORIENTATION = 1  # 0 for horizontal, 1 for vertical
+FIGURE_ORIENTATION = 0  # 0 for horizontal, 1 for vertical
 
 REGIONS = [
     ('', 44, 'A'),
@@ -16,6 +16,14 @@ REGIONS = [
     ('', 441, 'A'),
 ]
 
+MODIFICATIONS = {
+    'Acetyl': ('Acetylation', 'purple'),
+    'Phospho': ('Phosphorylation', 'black'),
+    'Methyl': ('Methylation', 'brown'),
+    'GG': ('Ubiquitination', 'green'),
+    'Deamidated': ('Citrullination', 'pink'),
+}
+
 # Default Parameters
 
 # Margins
@@ -27,9 +35,10 @@ BOTTOM_MARGIN = 0.1
 # Sequence Plot
 SEQUENCE_PLOT_FONT_SIZE = FONT_SIZE
 SEQUENCE_PLOT_HEIGHT = 50
-
-# Region Colors
-REGION_COLORS = {
+# Sequence Region Colors
+SEQUENCE_REGION_COLORS = {
     'A': 'white',
     'B': 'lightgrey',
 }
+# Sequence Minimum Line Length
+SEQUENCE_MIN_LINE_LENGTH = 20
