@@ -25,10 +25,10 @@ MODIFICATIONS = {
     'Acetyl': ('Acetylation', 'purple', 'B'),
     'Methyl': ('Methylation', 'brown', 'B'),
     'GG': ('Ubiquitination', 'green', 'B'),
-    'Deamidated': ('Citrullination', 'pink', 'B'),
+    'Citrullination': ('Citrullination', 'pink', 'B'),
 }
 
-EXCLUDED_MODIFICATIONS = ['Q']
+EXCLUDED_MODIFICATIONS = ['Q', 'X']
 
 # Input Output Settings
 FASTA_INPUT_FILE = 'data/uniprot_data/tau_isoforms2N4R.fasta'
