@@ -1,8 +1,11 @@
-FONT_SIZE = 12
+# Plot Settings
 FIGURE_WIDTH = 1500
 FIGURE_HEIGHT = 400
-FIGURE_ORIENTATION = 0  # 0 for horizontal, 1 for vertical
+FIGURE_ORIENTATION = 1  # 0 for horizontal, 1 for vertical
 
+FONT_SIZE = 12
+
+# Sequence Settings
 REGIONS = [
     ('', 44, 'A'),
     ('N1', 73, 'B'),
@@ -16,15 +19,24 @@ REGIONS = [
     ('', 441, 'A'),
 ]
 
+# Modification Settings
 MODIFICATIONS = {
-    'Acetyl': ('Acetylation', 'purple'),
-    'Phospho': ('Phosphorylation', 'black'),
-    'Methyl': ('Methylation', 'brown'),
-    'GG': ('Ubiquitination', 'green'),
-    'Deamidated': ('Citrullination', 'pink'),
+    'Phospho': ('Phosphorylation', 'black', 'A'),
+    'Acetyl': ('Acetylation', 'purple', 'B'),
+    'Methyl': ('Methylation', 'brown', 'B'),
+    'GG': ('Ubiquitination', 'green', 'B'),
+    'Deamidated': ('Citrullination', 'pink', 'B'),
 }
 
+EXCLUDED_MODIFICATIONS = ['Q']
+
+# Input Output Settings
+FASTA_INPUT_FILE = 'data/uniprot_data/tau_isoforms2N4R.fasta'
+OUTPUT_FOLDER = 'output'
+
+
 # Default Parameters
+FONT = 'Courier New, monospace'
 
 # Margins
 LEFT_MARGIN = 0.2

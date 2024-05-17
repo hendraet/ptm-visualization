@@ -150,44 +150,67 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
         modification_types = rows[0].strip().split(',')
         labels = rows[1].strip().split(',')
 
-        groups = defaultdict(list)
-        for i, (label) in enumerate(labels[2:]):
+        groups_by_position = defaultdict(list)
+        for i, (label) in enumerate(labels):
+            if label == '':
+                continue
             position = int(label[1:])
-            groups[position].append((label, modification_types[i]))
+            letter = label[0]
+            if letter in parameters.EXCLUDED_MODIFICATIONS:
+                continue
+            groups_by_position[position].append((label, modification_types[i]))
         
-        for protein_position, modification_types in groups.items():
-            line_plotted = False
+        for protein_position, modification_types in groups_by_position.items():
+            line_plotted_A, line_plotted_B = False, False
+            vertical_text_offset = 0
             for i, modification_type in enumerate(modification_types):
                 if modification_type[1] not in parameters.MODIFICATIONS:
                     continue
-
-                # TODO: calculate offset
-                current_offset = 0
+                
                 if parameters.FIGURE_ORIENTATION == 0:
                     x_start = (protein_position * pixels_per_protein) + left_margin
                     x_end = x_start
                     y_start = y1
-                    # TODO: calculate height dynamically
-                    y_end = y_start + parameters.SEQUENCE_MIN_LINE_LENGTH + current_offset
+                    y_end = y_start + parameters.SEQUENCE_MIN_LINE_LENGTH
                 else:
                     x_start = x1
-                    x_end = x_start + parameters.SEQUENCE_MIN_LINE_LENGTH + current_offset
+                    x_end = x_start + parameters.SEQUENCE_MIN_LINE_LENGTH
                     y_start = height - (protein_position * pixels_per_protein) - top_margin
                     y_end = y_start
+                    vertical_text_offset = parameters.FONT_SIZE/2 * len(modification_type[0])
 
-                # TODO Plot modifcation label
-                fig.add_annotation(
-                    x=x_end,
-                    y=y_end+5,
-                    text=modification_type[0],
-                    showarrow=False,
-                    font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=parameters.MODIFICATIONS[modification_type[1]][1]),
-                )
+                if parameters.MODIFICATIONS[modification_type[1]][2] == 'A' and parameters.FIGURE_ORIENTATION == 1:
+                    x_start = x0
+                    x_end = x_start - parameters.SEQUENCE_MIN_LINE_LENGTH
+                if parameters.MODIFICATIONS[modification_type[1]][2] == 'B' and parameters.FIGURE_ORIENTATION == 0:
+                    y_start = y0
+                    y_end = y_start - parameters.SEQUENCE_MIN_LINE_LENGTH
 
-                # Plot line for modification
-                if not line_plotted:
+                if not line_plotted_A:
                     fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1), showlegend=False, hoverinfo='none'))  
-                    line_plotted = True
+                    line_plotted_A = True
+
+                if not line_plotted_B:
+                    fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1), showlegend=False, hoverinfo='none'))  
+                    line_plotted_B = True
+
+                if parameters.FIGURE_ORIENTATION == 0:
+                    fig.add_annotation(
+                        x=x_end,
+                        y=y_end+5 if parameters.MODIFICATIONS[modification_type[1]][2] == 'A' else y_end-5,
+                        text=modification_type[0],
+                        showarrow=False,
+                        font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=parameters.MODIFICATIONS[modification_type[1]][1]),
+                    )
+                else:
+                    fig.add_annotation(
+                        x=x_end-vertical_text_offset-5 if parameters.MODIFICATIONS[modification_type[1]][2] == 'A' else x_end+vertical_text_offset+5,
+                        y=y_end,
+                        text=modification_type[0],
+                        showarrow=False,
+                        font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=parameters.MODIFICATIONS[modification_type[1]][1]),
+                    )
+
     return fig
 
 def clean_up():
@@ -200,4 +223,4 @@ def clean_up():
         if os.path.isfile(file_path):
             os.remove(file_path)
 
-create_plot('data/uniprot_data/tau_isoforms2N4R.fasta', 'output')
+create_plot(parameters.FASTA_INPUT_FILE, parameters.OUTPUT_FOLDER)
