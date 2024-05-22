@@ -1,7 +1,7 @@
 # Plot Settings
+FIGURE_ORIENTATION = 0  # 0 for horizontal, 1 for vertical, note figure height and width are then automatically swapped
 FIGURE_WIDTH = 1500
-FIGURE_HEIGHT = 400
-FIGURE_ORIENTATION = 1  # 0 for horizontal, 1 for vertical
+FIGURE_HEIGHT = 1000
 
 FONT_SIZE = 12
 
@@ -36,7 +36,7 @@ OUTPUT_FOLDER = 'output'
 
 
 # Default Parameters
-FONT = 'Courier New, monospace'
+FONT = 'Arial'
 
 # Margins
 LEFT_MARGIN = 0.2

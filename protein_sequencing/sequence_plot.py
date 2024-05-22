@@ -97,7 +97,8 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
         height = height,
         xaxis=dict(range=[0, width], autorange=False),
         yaxis=dict(range=[0, height], autorange=False),
-        plot_bgcolor="white"
+        plot_bgcolor="white",
+        font_family=parameters.FONT,
     )
 
     for region_name, region_start_pixel, region_end_pixel, region_color in region_boundaries:
@@ -159,14 +160,17 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
             if letter in parameters.EXCLUDED_MODIFICATIONS:
                 continue
             groups_by_position[position].append((label, modification_types[i]))
+        for position, mods in groups_by_position.items():
+            groups_by_position[position] = list(set(mods))
         
+        previous_labels = {'A': {}, 'B': {}}
         for protein_position, modification_types in groups_by_position.items():
             line_plotted_A, line_plotted_B = False, False
-            vertical_text_offset = 0
             for i, modification_type in enumerate(modification_types):
                 if modification_type[1] not in parameters.MODIFICATIONS:
                     continue
                 
+                # Calculate line start and end points
                 if parameters.FIGURE_ORIENTATION == 0:
                     x_start = (protein_position * pixels_per_protein) + left_margin
                     x_end = x_start
@@ -177,8 +181,8 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
                     x_end = x_start + parameters.SEQUENCE_MIN_LINE_LENGTH
                     y_start = height - (protein_position * pixels_per_protein) - top_margin
                     y_end = y_start
-                    vertical_text_offset = parameters.FONT_SIZE/2 * len(modification_type[0])
 
+                # Calculate offset for different modification groups
                 if parameters.MODIFICATIONS[modification_type[1]][2] == 'A' and parameters.FIGURE_ORIENTATION == 1:
                     x_start = x0
                     x_end = x_start - parameters.SEQUENCE_MIN_LINE_LENGTH
@@ -186,17 +190,44 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
                     y_start = y0
                     y_end = y_start - parameters.SEQUENCE_MIN_LINE_LENGTH
 
-                if not line_plotted_A:
+
+                vertical_text_offset = parameters.FONT_SIZE/2 * len(modification_type[0])
+                horizontal_text_offset = parameters.FONT_SIZE+10
+                height_offset = 0
+                # Check for overlaps
+                previous_label = previous_labels[parameters.MODIFICATIONS[modification_type[1]][2]]
+                if 'height_offset' in previous_label:
+                    if parameters.FIGURE_ORIENTATION == 0:
+                        if x_end-vertical_text_offset < previous_label['x']:
+                            height_offset = previous_label['height_offset'] + 1
+                    else:
+                        pass
+                
+                # Calculate offset
+                if parameters.FIGURE_ORIENTATION == 0:
+                    if parameters.MODIFICATIONS[modification_type[1]][2] == 'A':
+                        y_end = y_end+height_offset*horizontal_text_offset
+                        previous_labels['A'] = {'x': x_end, 'y': y_end, 'height_offset': height_offset}
+                    else:
+                        y_end = y_end-height_offset*horizontal_text_offset
+                        previous_labels['B'] = {'x': x_end, 'y': y_end, 'height_offset': height_offset}
+                else:
+                    pass
+
+                # TODO Check if line needs to be longer when two modifications are at the same position
+                # Plot line if not already present
+                if not line_plotted_A and parameters.MODIFICATIONS[modification_type[1]][2] == 'A':
                     fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1), showlegend=False, hoverinfo='none'))  
                     line_plotted_A = True
 
-                if not line_plotted_B:
+                if not line_plotted_B and parameters.MODIFICATIONS[modification_type[1]][2] == 'B':
                     fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1), showlegend=False, hoverinfo='none'))  
                     line_plotted_B = True
 
+                # Add label for modification at end of line
                 if parameters.FIGURE_ORIENTATION == 0:
                     fig.add_annotation(
-                        x=x_end,
+                        x=x_end-vertical_text_offset/2,
                         y=y_end+5 if parameters.MODIFICATIONS[modification_type[1]][2] == 'A' else y_end-5,
                         text=modification_type[0],
                         showarrow=False,
