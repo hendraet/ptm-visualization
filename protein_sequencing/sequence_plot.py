@@ -159,7 +159,7 @@ def plot_labels(fig, pixels_per_protein, file_path, left_margin, y0, y1):
         modification_types = rows[0].strip().split(',')
         labels = rows[1].strip().split(',')
 
-        groups_by_position = defaultdict(list)
+        modifications_by_position = defaultdict(list)
         for i, (label) in enumerate(labels):
             if label == '':
                 continue
@@ -167,11 +167,13 @@ def plot_labels(fig, pixels_per_protein, file_path, left_margin, y0, y1):
             letter = label[0]
             if letter in parameters.EXCLUDED_MODIFICATIONS:
                 continue
-            groups_by_position[position].append((label, modification_types[i]))
-        for position, mods in groups_by_position.items():
-            groups_by_position[position] = list(set(mods))
+            if modification_types[i] not in parameters.MODIFICATIONS:
+                continue
+            modifications_by_position[position].append((label, modification_types[i], parameters.MODIFICATIONS[modification_types[i]][2]))
+        for position, mods in modifications_by_position.items():
+            modifications_by_position[position] = list(set(mods))
 
-        label_offsets_with_orientation = get_label_offsets_with_orientation(groups_by_position, pixels_per_protein)
+        label_offsets_with_orientation = get_label_offsets_with_orientation(modifications_by_position, pixels_per_protein)
         for protein_position in label_offsets_with_orientation.keys():
             line_plotted_A, line_plotted_B = False, False
             for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[protein_position]:
@@ -204,121 +206,124 @@ def plot_labels(fig, pixels_per_protein, file_path, left_margin, y0, y1):
                     pass
     return fig
 
-def separate_by_group(resulting_offsets_with_orientation):
+def separate_by_group(groups_by_position):
     group_a = defaultdict(list)
     group_b = defaultdict(list)
 
-    for protein_position, offsets in resulting_offsets_with_orientation.items():
-        for offset in offsets:
-            if offset[1] == 'A':  # group A
-                group_a[protein_position].append(offset)
+    for protein_position in groups_by_position.keys():
+        modification_sights = groups_by_position[protein_position]
+        for modification_sight in modification_sights:
+            if modification_sight[2] == 'A':  # group A
+                group_a[protein_position].append(modification_sight)
             else:  # group B
-                group_b[protein_position].append(offset)
+                group_b[protein_position].append(modification_sight)
     
     return group_a, group_b
 
-def check_and_adjust_overlaps(resulting_offsets_with_orientation, pixels_per_protein):
-    def process_group(group):
-        sorted_positions = sorted(group.keys())
-        for i in range(len(sorted_positions)):
-            current_position = sorted_positions[i]
-            current_labels = group[current_position]
-
-            # Only need to get the length of one label, since they are all the same at this position
-            current_label_length = get_label_length(current_labels[0][2])
-            additional_offset = 0
-            
-            # Compare with subsequent labels within potential overlap range
-            for k in range(i + 1, len(sorted_positions)):
-                compare_position = sorted_positions[k]
-                
-                # Check if the positions are within the overlap range
-                if (compare_position - current_position) * pixels_per_protein < current_label_length + get_label_length(group[compare_position][0][2]):
-                    if current_labels[0][4] == 'right' and group[compare_position][0][4] == 'left':
-                        compare_labels = group[compare_position]
-                        
-                        # Adjust the height offset of all labels at the compare position uniformly
-                        for l in range(len(compare_labels)):
-                            compare_height_offset, compare_group, compare_label, compare_modification_type, compare_orientation = compare_labels[l]
-                            new_height_offset = current_labels[-1][0]+additional_offset
-                            group[compare_position][l] = (
-                                new_height_offset, compare_group, compare_label, compare_modification_type, compare_orientation
-                            )
+def get_distance_groups(group, pixels_per_protein):
+    distance_groups = []
+    last_sight = {'position': None, 'mod': None}
+    distance_groups = [defaultdict(list)]
+    new_group = True
+    for protein_position in group.keys():
+        for modification in group[protein_position]:
+            current_sight = {'position': protein_position, 'mod': modification}
+            if last_sight['position'] is not None:
+                if check_distance(last_sight, current_sight, pixels_per_protein) == -1:
+                    if new_group:
+                        distance_groups[-1][last_sight['position']].append(last_sight['mod'])
+                        new_group = False
+                    distance_groups[-1][protein_position].append(modification)
                 else:
-                    # No need to check further if positions are beyond the overlap range
-                    additional_offset = 0
-                    break
+                    if new_group:
+                        distance_groups[-1][last_sight['position']].append(last_sight['mod'])
+                    new_group = True
+                    distance_groups.append(defaultdict(list))
+            last_sight = current_sight
+    return distance_groups
 
-        return group
+# TODO refactor
+def get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label):
+    n = len(distance_group)
+    mid = n // 2
 
-    group_a, group_b = separate_by_group(resulting_offsets_with_orientation)
+    for i, position in enumerate(distance_group.keys()):
+        mod = distance_group[position]
 
-    adjusted_group_a = process_group(group_a)
-    adjusted_group_b = process_group(group_b)
+        if i < mid:
+            # Entries from start to mid
+            offset = i
+            orientation = 'left'
+        elif i > mid:
+            # Entries from mid to end
+            offset = n - 1 - i
+            orientation = 'right'
+        else:
+            # Center entry (handle both even and uneven cases)
+            offset = mid-1 if n % 2 == 0 else mid
+            orientation = 'center' if n % 2 != 0 else ('right' if i == mid else 'left')
 
-    # Combine adjusted groups back into one dictionary
-    adjusted_offsets_with_orientation = {**adjusted_group_a, **adjusted_group_b}
+        label_offsets_with_orientation[position].append((offset, group_label, mod[0], mod[1], orientation))
+    
+    return label_offsets_with_orientation
 
-    return adjusted_offsets_with_orientation
+def find_nearest_positions(label_offsets_with_orientation, distance_group):
+    first_position = min(distance_group.keys())
+    last_position = max(distance_group.keys())
+
+    nearest_smaller = None
+    nearest_larger = None
+    min_distance_smaller = float('inf')
+    min_distance_larger = float('inf')
+
+    for position in label_offsets_with_orientation.keys():
+        if position < first_position:
+            distance = abs(position - first_position)
+            if distance < min_distance_smaller:
+                min_distance_smaller = distance
+                nearest_smaller = position
+        elif position > last_position:
+            distance = abs(position - last_position)
+            if distance < min_distance_larger:
+                min_distance_larger = distance
+                nearest_larger = position
+
+    return nearest_smaller, nearest_larger
 
 def get_label_offsets_with_orientation(groups_by_position, pixels_per_protein):
-    # new algo idea:
-    # calculate height offset for each label from smallest position to highest if labels placed left to the line
-    # calculate height offset for each label from highest position to smallest if labels placed right to the line
-    # retrieve minimal height offset for each label based on previous two steps, check if labels overlap due to left and right placement
-    # check if label can be placed in the center between two lines, if yes do so
-    # check if due to previous step surrounding labels can be dropped a layer
-    # last iteration go through all labels, if left and right are smaller position label in the center
+    group_a, group_b = separate_by_group(groups_by_position)
+    label_offsets_with_orientation = defaultdict(list)
 
-    # step 1 and 2
-    height_offsets = calculate_height_offset(groups_by_position, pixels_per_protein, False)
-    height_offsets_reversed = calculate_height_offset(groups_by_position, pixels_per_protein, True)
+    for group in [group_a, group_b]:
+        group_label = 'A' if group == group_a else 'B'
+        group_distance_groups = get_distance_groups(group, pixels_per_protein)
+        for distance_group in sorted(group_distance_groups, key=len, reverse=True):
+            nearest_left, nearest_right = find_nearest_positions(label_offsets_with_orientation, distance_group)
+            get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label)
+            # means label_offsets_with_orientation is empty
+            # if not nearest_left and not nearest_right:
+            #     get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label)
+            # else:
+            #     if nearest_left:
+            #         if check_distance({'position': nearest_left, 'mod': label_offsets_with_orientation[nearest_left][0]}, distance_group[0], pixels_per_protein) == 1:
+            #             get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label)
+            #     if nearest_right:
+            #         pass
+       
 
-    # step 3.1
-    resulting_offsets_with_orientation = defaultdict(list)
-    for protein_position in height_offsets.keys():
-        for i, (height_offset, group, label, modification_type) in enumerate(height_offsets[protein_position]):
-            height_offset_reversed = height_offsets_reversed[protein_position][i][0]
-            if height_offset_reversed < height_offset:
-                resulting_offsets_with_orientation[protein_position].append((height_offset_reversed, group, label, modification_type, 'right'))
-            else:
-                resulting_offsets_with_orientation[protein_position].append((height_offset, group, label, modification_type, 'left'))
+    return label_offsets_with_orientation
 
-    # step 3.2
-    adjusted_offsets = check_and_adjust_overlaps(resulting_offsets_with_orientation, pixels_per_protein)
-
-    return adjusted_offsets
-
-def calculate_height_offset(groups_by_position, pixels_per_protein, reversed):
-    previous_labels = {'A': {}, 'B': {}}
-    height_offsets = defaultdict(list)
-    for protein_position in sorted(groups_by_position.keys(), reverse=reversed):
-        modification_types = groups_by_position[protein_position]
-        
-        for modification_type in modification_types:
-            if modification_type[1] not in parameters.MODIFICATIONS:
-                continue
-            # TODO check if this is correct for all font sizes
-
-            horizontal_text_offset = get_label_length(modification_type[0])
-            vertical_text_offset = get_label_height()
-            height_offset = 0
-
-            # Check for overlaps
-            group = parameters.MODIFICATIONS[modification_type[1]][2]
-            previous_label = previous_labels[group]
-            if 'protein_position' in previous_label:
-                if parameters.FIGURE_ORIENTATION == 0:
-                    if abs(protein_position-previous_label['protein_position'])*pixels_per_protein < horizontal_text_offset:
-                        height_offset = previous_label['height_offset'] + 1
-                else:
-                    # TODO implement vertical orientation
-                    pass
-            
-            height_offsets[protein_position].append((height_offset, group, modification_type[0], modification_type[1]))
-            previous_labels[group] = {'protein_position': protein_position, 'height_offset': height_offset}
-
-    return height_offsets
+# distance between positions, -1 if label must be positioned left or right, 0 if label must be positioned in the center, 1 if label can be positioned anywhere
+def check_distance(first_modification, second_modification, pixels_per_protein):
+    distance_between_modifications = abs(first_modification['position'] - second_modification['position']) * pixels_per_protein
+    label_length = get_label_length(first_modification['mod'][0]) + get_label_length(second_modification['mod'][0])
+    if distance_between_modifications < label_length/2:
+        return -1
+    if distance_between_modifications < label_length:
+        return 0
+    if distance_between_modifications > label_length*2:
+        return 2
+    return 1
 
 def get_label_length(label):
     return parameters.FONT_SIZE/1.5 * len(label)
@@ -331,15 +336,19 @@ def plot_line(fig, x_start, x_end, y_start, y_end):
 
 def plot_label(fig, x, y, text, modification_type, position_label):
     # Label bounding box for debugging purposes
+    x0 = x
     x1 = x-get_label_length(text)
     y1 = y+get_label_height()
     if 'bottom' in position_label:
         y1 = y - get_label_height()
     if 'right' in position_label:
-        x1 = x + get_label_length(text)  
+        x1 = x + get_label_length(text)
+    if 'center' in position_label:
+        x1 = x + get_label_length(text)/2
+        x0 = x - get_label_length(text)/2
     fig.add_shape(
             type="rect",
-            x0=x,
+            x0=x0,
             y0=y,
             x1=x1,
             y1=y1,
