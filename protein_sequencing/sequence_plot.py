@@ -101,6 +101,12 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
         font_family=parameters.FONT,
     )
 
+    fig, y0, y1 = plot_regions(fig, region_boundaries, sequence_height, width, height, left_margin, top_margin)
+    fig = plot_labels(fig, pixels_per_protein, file_path, left_margin, y0, y1)
+
+    return fig
+
+def plot_regions(fig, region_boundaries, sequence_height, width, height, left_margin, top_margin):
     for region_name, region_start_pixel, region_end_pixel, region_color in region_boundaries:
         
         x0 = region_start_pixel
@@ -143,7 +149,9 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
             font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="black"),
             textangle= 90 if parameters.FIGURE_ORIENTATION == 1 else 0
         )
+    return fig, y0, y1
 
+def plot_labels(fig, pixels_per_protein, file_path, left_margin, y0, y1):
     # Protein Annotations
     with open(file_path, 'r') as f:
 
@@ -169,14 +177,11 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
             for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[protein_position]:
                 if modification_type not in parameters.MODIFICATIONS:
                     continue
-                
-                horizontal_text_offset = int(parameters.FONT_SIZE/2.5 * len(label))
-                vertical_text_offset = parameters.FONT_SIZE+5
 
                 if parameters.FIGURE_ORIENTATION == 0:
                     x_position_line = (protein_position * pixels_per_protein) + left_margin
 
-                    y_length = parameters.SEQUENCE_MIN_LINE_LENGTH + height_offset * (parameters.FONT_SIZE + 5)
+                    y_length = parameters.SEQUENCE_MIN_LINE_LENGTH + height_offset * get_label_height()
                     y_beginning_line = y0 if group == 'B' else y1
                     y_end_line = y_beginning_line - y_length if group == 'B' else y_beginning_line + y_length
                     
@@ -187,162 +192,102 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
                         plot_line(fig, x_position_line, x_position_line, y_beginning_line, y_end_line)
                         line_plotted_B = True
 
-
+                    position_label = 'top center'
+                    if group == 'B':
+                            position_label = 'bottom '+orientation
+                    if group == 'A':
+                        position_label = 'top '+orientation
                     
-                    x_position_label = x_position_line
-                    if orientation == 'r':
-                        x_position_label = x_position_line + horizontal_text_offset
-                    if orientation == 'l':
-                        x_position_label = x_position_line - horizontal_text_offset
-                    y_position_label = y_end_line + vertical_text_offset/2 if group == 'A' else y_end_line - vertical_text_offset/2
-                    
-                    plot_label(fig, x_position_label, y_end_line, label, modification_type)
+                    plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
                 else:
                     # TODO: implement vertical orientation
                     pass
-                    
-
-        # for protein_position, modification_types in groups_by_position.items():
-        #     line_plotted_A, line_plotted_B = False, False
-        #     for i, modification_type in enumerate(modification_types):
-        #         if modification_type[1] not in parameters.MODIFICATIONS:
-        #             continue
-                
-        #         # Calculate line start and minimal end points
-        #         if parameters.FIGURE_ORIENTATION == 0:
-        #             x_start = (protein_position * pixels_per_protein) + left_margin
-        #             x_end = x_start
-        #             y_start = y1
-        #             y_end = y_start + parameters.SEQUENCE_MIN_LINE_LENGTH
-        #         else:
-        #             x_start = x1
-        #             x_end = x_start + parameters.SEQUENCE_MIN_LINE_LENGTH
-        #             y_start = height - (protein_position * pixels_per_protein) - top_margin
-        #             y_end = y_start
-
-        #         # Calculate offset for different modification groups
-        #         if parameters.MODIFICATIONS[modification_type[1]][2] == 'A' and parameters.FIGURE_ORIENTATION == 1:
-        #             x_start = x0
-        #             x_end = x_start - parameters.SEQUENCE_MIN_LINE_LENGTH
-        #         if parameters.MODIFICATIONS[modification_type[1]][2] == 'B' and parameters.FIGURE_ORIENTATION == 0:
-        #             y_start = y0
-        #             y_end = y_start - parameters.SEQUENCE_MIN_LINE_LENGTH
-
-        #         previous_labels = {'A': {}, 'B': {}}
-        #         vertical_text_offset = parameters.FONT_SIZE/2 * len(modification_type[0])
-        #         horizontal_text_offset = parameters.FONT_SIZE+10
-        #         height_offset = 0
-        #         # Check for overlaps
-        #         previous_label = previous_labels[parameters.MODIFICATIONS[modification_type[1]][2]]
-        #         if 'height_offset' in previous_label:
-        #             if parameters.FIGURE_ORIENTATION == 0:
-        #                 if x_end-vertical_text_offset < previous_label['x']:
-        #                     height_offset = previous_label['height_offset'] + 1
-        #             else:
-        #                 pass
-                
-        #         # Calculate offset
-        #         if parameters.FIGURE_ORIENTATION == 0:
-        #             if parameters.MODIFICATIONS[modification_type[1]][2] == 'A':
-        #                 y_end = y_end+height_offset*horizontal_text_offset
-        #                 previous_labels['A'] = {'x': x_end, 'y': y_end, 'height_offset': height_offset}
-        #             else:
-        #                 y_end = y_end-height_offset*horizontal_text_offset
-        #                 previous_labels['B'] = {'x': x_end, 'y': y_end, 'height_offset': height_offset}
-        #         else:
-        #             pass
-
-        #         # Plot line
-        #         if not line_plotted_A and parameters.MODIFICATIONS[modification_type[1]][2] == 'A':
-        #             lines_to_plot[protein_position].append((x_start, x_end, y_start, y_end, height_offset))
-        #             line_plotted_A = True
-
-        #         if not line_plotted_B and parameters.MODIFICATIONS[modification_type[1]][2] == 'B':
-        #             lines_to_plot[protein_position].append((x_start, x_end, y_start, y_end, height_offset))
-        #             line_plotted_B = True
-
-        #         # Add label for modification at end of line
-        #         if parameters.FIGURE_ORIENTATION == 0:
-        #             fig.add_annotation(
-        #                 x=x_end-vertical_text_offset/2,
-        #                 y=y_end+5 if parameters.MODIFICATIONS[modification_type[1]][2] == 'A' else y_end-5,
-        #                 text=modification_type[0],
-        #                 showarrow=False,
-        #                 font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=parameters.MODIFICATIONS[modification_type[1]][1]),
-        #             )
-        #         else:
-        #             fig.add_annotation(
-        #                 x=x_end-vertical_text_offset-5 if parameters.MODIFICATIONS[modification_type[1]][2] == 'A' else x_end+vertical_text_offset+5,
-        #                 y=y_end,
-        #                 text=modification_type[0],
-        #                 showarrow=False,
-        #                 font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=parameters.MODIFICATIONS[modification_type[1]][1]),
-        #             )
-
     return fig
 
+def separate_by_group(resulting_offsets_with_orientation):
+    group_a = defaultdict(list)
+    group_b = defaultdict(list)
+
+    for protein_position, offsets in resulting_offsets_with_orientation.items():
+        for offset in offsets:
+            if offset[1] == 'A':  # group A
+                group_a[protein_position].append(offset)
+            else:  # group B
+                group_b[protein_position].append(offset)
+    
+    return group_a, group_b
+
+def check_and_adjust_overlaps(resulting_offsets_with_orientation, pixels_per_protein):
+    def process_group(group):
+        sorted_positions = sorted(group.keys())
+        for i in range(len(sorted_positions)):
+            current_position = sorted_positions[i]
+            current_labels = group[current_position]
+
+            # Only need to get the length of one label, since they are all the same at this position
+            current_label_length = get_label_length(current_labels[0][2])
+            additional_offset = 0
+            
+            # Compare with subsequent labels within potential overlap range
+            for k in range(i + 1, len(sorted_positions)):
+                compare_position = sorted_positions[k]
+                
+                # Check if the positions are within the overlap range
+                if (compare_position - current_position) * pixels_per_protein < current_label_length + get_label_length(group[compare_position][0][2]):
+                    if current_labels[0][4] == 'right' and group[compare_position][0][4] == 'left':
+                        compare_labels = group[compare_position]
+                        
+                        # Adjust the height offset of all labels at the compare position uniformly
+                        for l in range(len(compare_labels)):
+                            compare_height_offset, compare_group, compare_label, compare_modification_type, compare_orientation = compare_labels[l]
+                            new_height_offset = current_labels[-1][0]+additional_offset
+                            group[compare_position][l] = (
+                                new_height_offset, compare_group, compare_label, compare_modification_type, compare_orientation
+                            )
+                else:
+                    # No need to check further if positions are beyond the overlap range
+                    additional_offset = 0
+                    break
+
+        return group
+
+    group_a, group_b = separate_by_group(resulting_offsets_with_orientation)
+
+    adjusted_group_a = process_group(group_a)
+    adjusted_group_b = process_group(group_b)
+
+    # Combine adjusted groups back into one dictionary
+    adjusted_offsets_with_orientation = {**adjusted_group_a, **adjusted_group_b}
+
+    return adjusted_offsets_with_orientation
+
 def get_label_offsets_with_orientation(groups_by_position, pixels_per_protein):
+    # new algo idea:
+    # calculate height offset for each label from smallest position to highest if labels placed left to the line
+    # calculate height offset for each label from highest position to smallest if labels placed right to the line
+    # retrieve minimal height offset for each label based on previous two steps, check if labels overlap due to left and right placement
+    # check if label can be placed in the center between two lines, if yes do so
+    # check if due to previous step surrounding labels can be dropped a layer
+    # last iteration go through all labels, if left and right are smaller position label in the center
+
+    # step 1 and 2
     height_offsets = calculate_height_offset(groups_by_position, pixels_per_protein, False)
     height_offsets_reversed = calculate_height_offset(groups_by_position, pixels_per_protein, True)
 
-    # Join forward and reversed height offsets to retrieve minimal height offset
+    # step 3.1
     resulting_offsets_with_orientation = defaultdict(list)
     for protein_position in height_offsets.keys():
         for i, (height_offset, group, label, modification_type) in enumerate(height_offsets[protein_position]):
             height_offset_reversed = height_offsets_reversed[protein_position][i][0]
             if height_offset_reversed < height_offset:
-                resulting_offsets_with_orientation[protein_position].append((height_offset_reversed, group, label, modification_type, 'r'))
+                resulting_offsets_with_orientation[protein_position].append((height_offset_reversed, group, label, modification_type, 'right'))
             else:
-                resulting_offsets_with_orientation[protein_position].append((height_offset, group, label, modification_type, 'l'))
+                resulting_offsets_with_orientation[protein_position].append((height_offset, group, label, modification_type, 'left'))
 
-    # additional_height_offset_A = 0
-    # previous_orientation_A = None
-    # previous_position_A = None
-    # previous_offset_A = None
+    # step 3.2
+    adjusted_offsets = check_and_adjust_overlaps(resulting_offsets_with_orientation, pixels_per_protein)
 
-    # additional_height_offset_B = 0
-    # previous_orientation_B = None
-    # previous_position_B = None
-    # previous_offset_B = None
-    # for i, protein_position in enumerate(sorted(resulting_offsets_with_orientation.keys())):
-    #     for j, (height_offset, group, label, modification_type, orientation) in enumerate(resulting_offsets_with_orientation[protein_position]):
-    #         offset_raised = False
-    #         # TODO add vertical orientation
-    #         if group == 'A' and previous_position_A is not None:
-    #             if previous_offset_A == height_offset:
-    #                 horizontal_text_offset = parameters.FONT_SIZE/2 * len(label)
-    #                 if abs(protein_position-previous_position_A)*pixels_per_protein < 2*horizontal_text_offset:
-    #                     if orientation == 'l' and previous_orientation_A == 'r':
-    #                         additional_height_offset_A += 1
-    #                         resulting_offsets_with_orientation[protein_position][j] = (height_offset+additional_height_offset_A, group, label, modification_type, orientation)
-    #                         offset_raised = True
-    #             if height_offset < previous_offset_A:
-    #                 additional_height_offset_A = 0
-    #             elif not offset_raised:
-    #                 resulting_offsets_with_orientation[protein_position][j] = (height_offset+additional_height_offset_A, group, label, modification_type, orientation)
-
-    #         if group=='B' and previous_position_B is not None:
-    #             if previous_offset_B == height_offset:
-    #                 horizontal_text_offset = parameters.FONT_SIZE/2 * len(label)
-    #                 if abs(protein_position-previous_position_B)*pixels_per_protein < 2*horizontal_text_offset:
-    #                     if orientation == 'l' and previous_orientation_B == 'r':
-    #                         additional_height_offset_B += 1
-    #                         resulting_offsets_with_orientation[protein_position][j] = (height_offset+additional_height_offset_B, group, label, modification_type, orientation)
-    #                         offset_raised = True
-    #             if height_offset < previous_offset_B:
-    #                 additional_height_offset_B = 0
-    #             elif not offset_raised:
-    #                 resulting_offsets_with_orientation[protein_position][j] = (height_offset+additional_height_offset_B, group, label, modification_type, orientation)
-            
-    #         if group == 'A':
-    #             previous_position_A = protein_position
-    #             previous_offset_A = height_offset
-    #             previous_orientation_A = orientation
-    #         if group == 'B':
-    #             previous_position_B = protein_position
-    #             previous_offset_B = height_offset
-    #             previous_orientation_B = orientation
-    return resulting_offsets_with_orientation
+    return adjusted_offsets
 
 def calculate_height_offset(groups_by_position, pixels_per_protein, reversed):
     previous_labels = {'A': {}, 'B': {}}
@@ -354,8 +299,9 @@ def calculate_height_offset(groups_by_position, pixels_per_protein, reversed):
             if modification_type[1] not in parameters.MODIFICATIONS:
                 continue
             # TODO check if this is correct for all font sizes
-            horizontal_text_offset = parameters.FONT_SIZE/2 * len(modification_type[0])
-            vertical_text_offset = parameters.FONT_SIZE+10
+
+            horizontal_text_offset = get_label_length(modification_type[0])
+            vertical_text_offset = get_label_height()
             height_offset = 0
 
             # Check for overlaps
@@ -374,11 +320,32 @@ def calculate_height_offset(groups_by_position, pixels_per_protein, reversed):
 
     return height_offsets
 
+def get_label_length(label):
+    return parameters.FONT_SIZE/1.5 * len(label)
+
+def get_label_height():
+    return parameters.FONT_SIZE+parameters.FONT_SIZE/4
+
 def plot_line(fig, x_start, x_end, y_start, y_end):
     fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1), showlegend=False, hoverinfo='none'))
 
-def plot_label(fig, x, y, text, modification_type):
-    fig.add_annotation(x=x, y=y, text=text, showarrow=False, font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=parameters.MODIFICATIONS[modification_type][1]))
+def plot_label(fig, x, y, text, modification_type, position_label):
+    # Label bounding box for debugging purposes
+    x1 = x-get_label_length(text)
+    y1 = y+get_label_height()
+    if 'bottom' in position_label:
+        y1 = y - get_label_height()
+    if 'right' in position_label:
+        x1 = x + get_label_length(text)  
+    fig.add_shape(
+            type="rect",
+            x0=x,
+            y0=y,
+            x1=x1,
+            y1=y1,
+            line=dict(color="red", width=1),
+        )
+    fig.add_trace(go.Scatter(x=[x], y=[y], mode='text', text=text, textposition=position_label, showlegend=False, hoverinfo='none', textfont=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=parameters.MODIFICATIONS[modification_type][1])))
 
 def clean_up():
     directory = 'data/tmp'
