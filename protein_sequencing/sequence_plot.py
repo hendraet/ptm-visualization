@@ -257,26 +257,55 @@ def get_distance_groups(group, pixels_per_protein):
 
 # TODO refactor
 def get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label, nearest_left, nearest_right):
-    n = distance_group[0]
-    mid = n // 2
     additional_offset = 0
-    for i, position in enumerate(distance_group[1].keys()):
+    left_offset = 0
+    right_offset = 0
+    if nearest_left[0] is not None:
+        left_offset = nearest_left[1]+1
+    if nearest_right[0] is not None:
+        right_offset = nearest_right[1]+1
+    n = distance_group[0]
+    mid_count = (n - nearest_left[1] + nearest_right[1]) // 2
+    sum = 0
+    for position in distance_group[1].keys():
+        mid_position = position
+        if sum >= mid_count:
+            break
+        sum += len(distance_group[1][position])
+    highest_offset = 0
+    for i, position in enumerate(sorted((k for k in distance_group[1].keys() if k < mid_position))):
         for mod in distance_group[1][position]:
-            if i+additional_offset < mid:
-                # Entries from start to mid
-                offset = i+additional_offset
-                orientation = 'left'
-            elif i+additional_offset > mid:
-                # Entries from mid to end
-                offset = n - 1 - i - additional_offset
-                orientation = 'right'
-            else:
-                # Center entry (handle both even and uneven cases)
-                offset = mid-1 if n % 2 == 0 else mid
-                orientation = 'center' if n % 2 != 0 else ('right' if i+additional_offset == mid else 'left')
+            offset = i+additional_offset+left_offset
+            orientation = 'left'
             additional_offset += 1
             label_offsets_with_orientation[position].append((offset, group_label, mod[0], mod[1], orientation))
+            highest_offset = max(highest_offset, offset)
         additional_offset -= 1
+    
+    for i, position in enumerate(sorted((k for k in distance_group[1].keys() if k > mid_position), reverse=True)):
+        for mod in distance_group[1][position]:
+            offset = i + additional_offset + right_offset
+            orientation = 'right'
+            additional_offset += 1
+            label_offsets_with_orientation[position].append((offset, group_label, mod[0], mod[1], orientation))
+            highest_offset = max(highest_offset, offset)
+        additional_offset -= 1
+        
+    if highest_offset == 0:
+        highest_offset = max(left_offset, right_offset)
+        if n == 1:
+            highest_offset -= 2
+    for mod in distance_group[1][mid_position]:
+        if n%2 == 0:
+            offset = highest_offset + additional_offset
+            orientation = 'right'
+        else:
+            orientation = 'center'
+            offset = highest_offset + additional_offset + 1 
+        additional_offset += 1
+        label_offsets_with_orientation[mid_position].append((offset, group_label, mod[0], mod[1], orientation))
+        highest_offset = max(highest_offset, offset)
+    
     return label_offsets_with_orientation
 
 def find_nearest_positions(label_offsets_with_orientation, distance_group, pixels_per_protein):
@@ -285,8 +314,8 @@ def find_nearest_positions(label_offsets_with_orientation, distance_group, pixel
 
     nearest_smaller = None
     nearest_larger = None
-    smaller_offset = None
-    larger_offset = None
+    smaller_offset = 0
+    larger_offset = 0
 
     for position in sorted((k for k in label_offsets_with_orientation.keys() if k < first_position), reverse=True):
         if position < first_position:
@@ -316,7 +345,7 @@ def get_label_offsets_with_orientation(groups_by_position, pixels_per_protein):
     group_a, group_b = separate_by_group(groups_by_position)
     label_offsets_with_orientation = defaultdict(list)
 
-    for group in [group_a, group_b]:
+    for group in [group_a]:
         group_label = 'A' if group == group_a else 'B'
         distance_groups = get_distance_groups(group, pixels_per_protein)
         for distance_group in sorted(distance_groups, key=lambda x: x[0], reverse=True):
