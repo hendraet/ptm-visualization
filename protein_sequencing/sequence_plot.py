@@ -257,13 +257,12 @@ def get_distance_groups(group, pixels_per_protein):
 
 # TODO refactor
 def get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label, nearest_left, nearest_right):
-    additional_offset = 0
-    left_offset = 0
-    right_offset = 0
+    nearest_left_offset = 0
+    nearest_right_offset = 0
     if nearest_left[0] is not None:
-        left_offset = nearest_left[1]+1
+        nearest_left_offset = nearest_left[1]+1
     if nearest_right[0] is not None:
-        right_offset = nearest_right[1]+1
+        nearest_right_offset = nearest_right[1]+1
     n = distance_group[0]
     mid_count = (n - nearest_left[1] + nearest_right[1]) // 2
     sum = 0
@@ -272,39 +271,54 @@ def get_offsets_with_orientations(distance_group, label_offsets_with_orientation
         if sum >= mid_count:
             break
         sum += len(distance_group[1][position])
-    highest_offset = 0
+    left_offset, right_offset = -1, -1
+
+    additional_offset = 0
     for i, position in enumerate(sorted((k for k in distance_group[1].keys() if k < mid_position))):
         for mod in distance_group[1][position]:
-            offset = i+additional_offset+left_offset
+            offset = i+additional_offset+nearest_left_offset
             orientation = 'left'
             additional_offset += 1
             label_offsets_with_orientation[position].append((offset, group_label, mod[0], mod[1], orientation))
-            highest_offset = max(highest_offset, offset)
+            left_offset = max(left_offset, offset)
         additional_offset -= 1
     
+    additional_offset = 0
     for i, position in enumerate(sorted((k for k in distance_group[1].keys() if k > mid_position), reverse=True)):
         for mod in distance_group[1][position]:
-            offset = i + additional_offset + right_offset
+            offset = i + additional_offset + nearest_right_offset
             orientation = 'right'
             additional_offset += 1
             label_offsets_with_orientation[position].append((offset, group_label, mod[0], mod[1], orientation))
-            highest_offset = max(highest_offset, offset)
+            right_offset = max(right_offset, offset)
         additional_offset -= 1
         
-    if highest_offset == 0:
-        highest_offset = max(left_offset, right_offset)
-        if n == 1:
-            highest_offset -= 2
+    additional_offset = 0
+    if nearest_left_offset > 0:
+        left_offset = max(left_offset, nearest_left_offset-1)
+    if nearest_right_offset > 0:
+        right_offset = max(right_offset, nearest_right_offset-1)
     for mod in distance_group[1][mid_position]:
         if n%2 == 0:
-            offset = highest_offset + additional_offset
-            orientation = 'right'
+            if right_offset < left_offset:
+                offset = right_offset + additional_offset + 1
+                orientation = 'right'
+            else:
+                offset = left_offset + additional_offset + 1
+                orientation = 'left'
         else:
             orientation = 'center'
-            offset = highest_offset + additional_offset + 1 
+            offsets = []
+            if right_offset != -1:
+                offsets.append(right_offset)
+            if left_offset != -1:
+                offsets.append(left_offset)
+            if len(offsets) == 0:
+                offset = 0 + additional_offset
+            else:
+                offset = min(offsets) + additional_offset + 1
         additional_offset += 1
-        label_offsets_with_orientation[mid_position].append((offset, group_label, mod[0], mod[1], orientation))
-        highest_offset = max(highest_offset, offset)
+        label_offsets_with_orientation[mid_position].append((offset, group_label, mod[0], mod[1], orientation))        
     
     return label_offsets_with_orientation
 
@@ -343,16 +357,17 @@ def find_nearest_positions(label_offsets_with_orientation, distance_group, pixel
 
 def get_label_offsets_with_orientation(groups_by_position, pixels_per_protein):
     group_a, group_b = separate_by_group(groups_by_position)
-    label_offsets_with_orientation = defaultdict(list)
+    label_offsets_with_orientation_a = defaultdict(list)
+    label_offsets_with_orientation_b = defaultdict(list)
 
-    for group in [group_a]:
+    for group, label_offsets_with_orientation in [(group_a, label_offsets_with_orientation_a), (group_b, label_offsets_with_orientation_b)]:
         group_label = 'A' if group == group_a else 'B'
         distance_groups = get_distance_groups(group, pixels_per_protein)
         for distance_group in sorted(distance_groups, key=lambda x: x[0], reverse=True):
             nearest_left, nearest_right = find_nearest_positions(label_offsets_with_orientation, distance_group, pixels_per_protein)
             get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label, nearest_left, nearest_right)
 
-    return label_offsets_with_orientation
+    return {**label_offsets_with_orientation_a, **label_offsets_with_orientation_b}
 
 # distance between positions, -1 if label must be positioned left or right, 0 if label must be positioned in the center, 1 if label can be positioned anywhere, 2 if there is enogh space for both labels to be positioned left and right
 def check_distance(first_modification, second_modification, pixels_per_protein):
@@ -378,24 +393,24 @@ def plot_line(fig, x_start, x_end, y_start, y_end):
 
 def plot_label(fig, x, y, text, modification_type, position_label):
     # Label bounding box for debugging purposes
-    x0 = x
-    x1 = x-get_label_length(text)
-    y1 = y+get_label_height()
-    if 'bottom' in position_label:
-        y1 = y - get_label_height()
-    if 'right' in position_label:
-        x1 = x + get_label_length(text)
-    if 'center' in position_label:
-        x1 = x + get_label_length(text)/2
-        x0 = x - get_label_length(text)/2
-    fig.add_shape(
-            type="rect",
-            x0=x0,
-            y0=y,
-            x1=x1,
-            y1=y1,
-            line=dict(color="red", width=1),
-        )
+    # x0 = x
+    # x1 = x-get_label_length(text)
+    # y1 = y+get_label_height()
+    # if 'bottom' in position_label:
+    #     y1 = y - get_label_height()
+    # if 'right' in position_label:
+    #     x1 = x + get_label_length(text)
+    # if 'center' in position_label:
+    #     x1 = x + get_label_length(text)/2
+    #     x0 = x - get_label_length(text)/2
+    # fig.add_shape(
+    #         type="rect",
+    #         x0=x0,
+    #         y0=y,
+    #         x1=x1,
+    #         y1=y1,
+    #         line=dict(color="red", width=1),
+    #     )
     fig.add_trace(go.Scatter(x=[x], y=[y], mode='text', text=text, textposition=position_label, showlegend=False, hoverinfo='none', textfont=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=parameters.MODIFICATIONS[modification_type][1])))
 
 def clean_up():
