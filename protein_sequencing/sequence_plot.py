@@ -322,13 +322,12 @@ def get_offsets_with_orientations(distance_group, label_offsets_with_orientation
     if nearest_right_offset > 0:
         right_offset = max(right_offset, nearest_right_offset-1)
     for mod in distance_group[1][mid_position]:
-        if n%2 == 0:
-            if right_offset < left_offset:
-                offset = right_offset + additional_offset + 1
-                orientation = 'right'
-            else:
-                offset = left_offset + additional_offset + 1
-                orientation = 'left'
+        if right_offset < left_offset:
+            offset = right_offset + additional_offset + 1
+            orientation = 'right'
+        elif right_offset > left_offset:
+            offset = left_offset + additional_offset + 1
+            orientation = 'left'
         else:
             orientation = 'center'
             offsets = []
@@ -406,10 +405,10 @@ def check_distance(first_modification, second_modification, pixels_per_protein):
     return 1
 
 def get_label_length(label):
-    return parameters.FONT_SIZE/1.5 * len(label)
+    return parameters.FONT_SIZE/1.5 * len(label)+2
 
 def get_label_height():
-    return parameters.FONT_SIZE+parameters.FONT_SIZE/4
+    return parameters.FONT_SIZE+parameters.FONT_SIZE/4+2
 
 def plot_line(fig, x_start, x_end, y_start, y_end):
     fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1), showlegend=False, hoverinfo='none'))
