@@ -101,8 +101,8 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
         font_family=parameters.FONT,
     )
 
-    fig, y0, y1 = plot_regions(fig, region_boundaries, sequence_height, width, height, left_margin, top_margin)
-    fig = plot_labels(fig, pixels_per_protein, file_path, left_margin, y0, y1)
+    fig, x0, x1, y0, y1 = plot_regions(fig, region_boundaries, sequence_height, width, height, left_margin, top_margin)
+    fig = plot_labels(fig, pixels_per_protein, file_path, left_margin, top_margin, x0, x1, y0, y1)
 
     return fig
 
@@ -149,9 +149,9 @@ def plot_regions(fig, region_boundaries, sequence_height, width, height, left_ma
             font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="black"),
             textangle= 90 if parameters.FIGURE_ORIENTATION == 1 else 0
         )
-    return fig, y0, y1
+    return fig, x0, x1, y0, y1
 
-def plot_labels(fig, pixels_per_protein, file_path, left_margin, y0, y1):
+def plot_labels(fig, pixels_per_protein, file_path, left_margin, top_margin, x0, x1, y0, y1):
     # Protein Annotations
     with open(file_path, 'r') as f:
 
@@ -206,7 +206,30 @@ def plot_labels(fig, pixels_per_protein, file_path, left_margin, y0, y1):
                     plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
                 else:
                     # TODO: implement vertical orientation
-                    pass
+                    y_position_line = parameters.FIGURE_WIDTH - (protein_position * pixels_per_protein) - top_margin
+
+                    x_length = parameters.SEQUENCE_MIN_LINE_LENGTH + height_offset * get_label_length(label)
+                    x_beginning_line = x0 if group == 'B' else x1
+                    x_end_line = x_beginning_line - x_length if group == 'B' else x_beginning_line + x_length
+
+                    if not line_plotted_A and group == 'A':
+                        plot_line(fig, x_beginning_line, x_end_line, y_position_line, y_position_line)
+                        line_plotted_A = True
+                    if not line_plotted_B and group == 'B':
+                        plot_line(fig, x_beginning_line, x_end_line, y_position_line, y_position_line)
+                        line_plotted_B = True
+
+                    position_label = 'middle'
+                    if orientation == 'left':
+                        position_label = 'top'
+                    if orientation == 'right':
+                        position_label = 'bottom'
+                    if group == 'B':
+                        position_label = position_label + ' left'
+                    if group == 'A':
+                        position_label = position_label + ' right'
+
+                    plot_label(fig, x_end_line, y_position_line, label, modification_type, position_label)
     return fig
 
 def separate_by_group(groups_by_position):
@@ -371,13 +394,13 @@ def get_label_offsets_with_orientation(groups_by_position, pixels_per_protein):
 
 # distance between positions, -1 if label must be positioned left or right, 0 if label must be positioned in the center, 1 if label can be positioned anywhere, 2 if there is enogh space for both labels to be positioned left and right
 def check_distance(first_modification, second_modification, pixels_per_protein):
+    label_length = get_label_length(first_modification['mod'][0]) if parameters.FIGURE_ORIENTATION == 0 else get_label_height()
     distance_between_modifications = abs(first_modification['position'] - second_modification['position']) * pixels_per_protein
-    label_length = get_label_length(first_modification['mod'][0])
     if distance_between_modifications < label_length/2:
         return -1
     if distance_between_modifications < label_length:
         return 0
-    second_label_length = get_label_length(second_modification['mod'][0])
+    second_label_length = get_label_length(second_modification['mod'][0]) if parameters.FIGURE_ORIENTATION == 0 else get_label_height()
     if distance_between_modifications > label_length + second_label_length:
         return 2
     return 1
@@ -394,6 +417,7 @@ def plot_line(fig, x_start, x_end, y_start, y_end):
 def plot_label(fig, x, y, text, modification_type, position_label):
     # Label bounding box for debugging purposes
     # x0 = x
+    # y0 = y
     # x1 = x-get_label_length(text)
     # y1 = y+get_label_height()
     # if 'bottom' in position_label:
@@ -403,10 +427,14 @@ def plot_label(fig, x, y, text, modification_type, position_label):
     # if 'center' in position_label:
     #     x1 = x + get_label_length(text)/2
     #     x0 = x - get_label_length(text)/2
+    # if 'middle' in position_label:
+    #     y0 = y - get_label_height()/2
+    #     y1 = y + get_label_height()/2
+
     # fig.add_shape(
     #         type="rect",
     #         x0=x0,
-    #         y0=y,
+    #         y0=y0,
     #         x1=x1,
     #         y1=y1,
     #         line=dict(color="red", width=1),
