@@ -166,7 +166,10 @@ def plot_labels(fig, pixels_per_protein, file_path, left_margin, y0, y1):
             position = int(label[1:])
             letter = label[0]
             if letter in parameters.EXCLUDED_MODIFICATIONS:
-                continue
+                if parameters.EXCLUDED_MODIFICATIONS[letter] is None:
+                    continue
+                if modification_types[i] in parameters.EXCLUDED_MODIFICATIONS[letter]:
+                    continue
             if modification_types[i] not in parameters.MODIFICATIONS:
                 continue
             modifications_by_position[position].append((label, modification_types[i], parameters.MODIFICATIONS[modification_types[i]][2]))
@@ -221,74 +224,93 @@ def separate_by_group(groups_by_position):
     return group_a, group_b
 
 def get_distance_groups(group, pixels_per_protein):
-    distance_groups = []
+    result = []
     last_sight = {'position': None, 'mod': None}
-    distance_groups = [defaultdict(list)]
+    distance_group = defaultdict(list)
+    size = 0
     new_group = True
     for protein_position in group.keys():
         for modification in group[protein_position]:
             current_sight = {'position': protein_position, 'mod': modification}
             if last_sight['position'] is not None:
-                if check_distance(last_sight, current_sight, pixels_per_protein) == -1:
+                if check_distance(last_sight, current_sight, pixels_per_protein) <= 0:
                     if new_group:
-                        distance_groups[-1][last_sight['position']].append(last_sight['mod'])
+                        distance_group[last_sight['position']].append(last_sight['mod'])
+                        size += 1
                         new_group = False
-                    distance_groups[-1][protein_position].append(modification)
+                    distance_group[protein_position].append(modification)
+                    size += 1
                 else:
                     if new_group:
-                        distance_groups[-1][last_sight['position']].append(last_sight['mod'])
+                        distance_group[last_sight['position']].append(last_sight['mod'])
+                        size += 1
+                    result.append((size, distance_group))
                     new_group = True
-                    distance_groups.append(defaultdict(list))
+                    size = 0
+                    distance_group = defaultdict(list)
             last_sight = current_sight
-    return distance_groups
+    if not new_group:
+        result.append((size, distance_group))
+    else:
+        result.append((1, {last_sight['position']: [last_sight['mod']]}))
+    return result
 
 # TODO refactor
-def get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label):
-    n = len(distance_group)
+def get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label, nearest_left, nearest_right):
+    n = distance_group[0]
     mid = n // 2
-
-    for i, position in enumerate(distance_group.keys()):
-        mod = distance_group[position]
-
-        if i < mid:
-            # Entries from start to mid
-            offset = i
-            orientation = 'left'
-        elif i > mid:
-            # Entries from mid to end
-            offset = n - 1 - i
-            orientation = 'right'
-        else:
-            # Center entry (handle both even and uneven cases)
-            offset = mid-1 if n % 2 == 0 else mid
-            orientation = 'center' if n % 2 != 0 else ('right' if i == mid else 'left')
-
-        label_offsets_with_orientation[position].append((offset, group_label, mod[0], mod[1], orientation))
-    
+    additional_offset = 0
+    for i, position in enumerate(distance_group[1].keys()):
+        for mod in distance_group[1][position]:
+            if i+additional_offset < mid:
+                # Entries from start to mid
+                offset = i+additional_offset
+                orientation = 'left'
+            elif i+additional_offset > mid:
+                # Entries from mid to end
+                offset = n - 1 - i - additional_offset
+                orientation = 'right'
+            else:
+                # Center entry (handle both even and uneven cases)
+                offset = mid-1 if n % 2 == 0 else mid
+                orientation = 'center' if n % 2 != 0 else ('right' if i+additional_offset == mid else 'left')
+            additional_offset += 1
+            label_offsets_with_orientation[position].append((offset, group_label, mod[0], mod[1], orientation))
+        additional_offset -= 1
     return label_offsets_with_orientation
 
-def find_nearest_positions(label_offsets_with_orientation, distance_group):
-    first_position = min(distance_group.keys())
-    last_position = max(distance_group.keys())
+def find_nearest_positions(label_offsets_with_orientation, distance_group, pixels_per_protein):
+    first_position = min(distance_group[1].keys())
+    last_position = max(distance_group[1].keys())
 
     nearest_smaller = None
     nearest_larger = None
-    min_distance_smaller = float('inf')
-    min_distance_larger = float('inf')
+    smaller_offset = None
+    larger_offset = None
 
-    for position in label_offsets_with_orientation.keys():
+    for position in sorted((k for k in label_offsets_with_orientation.keys() if k < first_position), reverse=True):
         if position < first_position:
-            distance = abs(position - first_position)
-            if distance < min_distance_smaller:
-                min_distance_smaller = distance
+            distance = check_distance({'position': position, 'mod': (label_offsets_with_orientation[position][-1][2], label_offsets_with_orientation[position][-1][3])},
+                                      {'position': first_position, 'mod': distance_group[1][first_position][0]},
+                                      pixels_per_protein)
+            if distance < 2:
                 nearest_smaller = position
-        elif position > last_position:
-            distance = abs(position - last_position)
-            if distance < min_distance_larger:
-                min_distance_larger = distance
-                nearest_larger = position
+                smaller_offset = label_offsets_with_orientation[position][-1][0]
+            else:
+                break 
 
-    return nearest_smaller, nearest_larger
+    for position in sorted(k for k in label_offsets_with_orientation.keys() if k > last_position):
+        if position > last_position:
+            distance = check_distance({'position': position, 'mod': (label_offsets_with_orientation[position][-1][2], label_offsets_with_orientation[position][-1][3])},
+                                      {'position': last_position, 'mod': distance_group[1][last_position][0]},
+                                      pixels_per_protein)
+            if distance < 2:
+                nearest_larger = position
+                larger_offset = label_offsets_with_orientation[position][-1][0]
+            else:
+                break
+
+    return (nearest_smaller, smaller_offset), (nearest_larger, larger_offset)
 
 def get_label_offsets_with_orientation(groups_by_position, pixels_per_protein):
     group_a, group_b = separate_by_group(groups_by_position)
@@ -296,32 +318,23 @@ def get_label_offsets_with_orientation(groups_by_position, pixels_per_protein):
 
     for group in [group_a, group_b]:
         group_label = 'A' if group == group_a else 'B'
-        group_distance_groups = get_distance_groups(group, pixels_per_protein)
-        for distance_group in sorted(group_distance_groups, key=len, reverse=True):
-            nearest_left, nearest_right = find_nearest_positions(label_offsets_with_orientation, distance_group)
-            get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label)
-            # means label_offsets_with_orientation is empty
-            # if not nearest_left and not nearest_right:
-            #     get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label)
-            # else:
-            #     if nearest_left:
-            #         if check_distance({'position': nearest_left, 'mod': label_offsets_with_orientation[nearest_left][0]}, distance_group[0], pixels_per_protein) == 1:
-            #             get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label)
-            #     if nearest_right:
-            #         pass
-       
+        distance_groups = get_distance_groups(group, pixels_per_protein)
+        for distance_group in sorted(distance_groups, key=lambda x: x[0], reverse=True):
+            nearest_left, nearest_right = find_nearest_positions(label_offsets_with_orientation, distance_group, pixels_per_protein)
+            get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label, nearest_left, nearest_right)
 
     return label_offsets_with_orientation
 
-# distance between positions, -1 if label must be positioned left or right, 0 if label must be positioned in the center, 1 if label can be positioned anywhere
+# distance between positions, -1 if label must be positioned left or right, 0 if label must be positioned in the center, 1 if label can be positioned anywhere, 2 if there is enogh space for both labels to be positioned left and right
 def check_distance(first_modification, second_modification, pixels_per_protein):
     distance_between_modifications = abs(first_modification['position'] - second_modification['position']) * pixels_per_protein
-    label_length = get_label_length(first_modification['mod'][0]) + get_label_length(second_modification['mod'][0])
+    label_length = get_label_length(first_modification['mod'][0])
     if distance_between_modifications < label_length/2:
         return -1
     if distance_between_modifications < label_length:
         return 0
-    if distance_between_modifications > label_length*2:
+    second_label_length = get_label_length(second_modification['mod'][0])
+    if distance_between_modifications > label_length + second_label_length:
         return 2
     return 1
 

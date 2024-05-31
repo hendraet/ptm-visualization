@@ -28,7 +28,9 @@ MODIFICATIONS = {
     'Citrullination': ('Citrullination', 'pink', 'B'),
 }
 
-EXCLUDED_MODIFICATIONS = ['Q', 'X']
+EXCLUDED_MODIFICATIONS = {'Q': None,
+                          'X': None,
+                          'S': ['GG']}
 
 # Input Output Settings
 FASTA_INPUT_FILE = 'data/uniprot_data/tau_isoforms2N4R.fasta'
