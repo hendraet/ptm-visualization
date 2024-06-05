@@ -21,11 +21,11 @@ REGIONS = [
 
 # Modification Settings
 MODIFICATIONS = {
-    'Phospho': ('Phosphorylation', 'black', 'A'),
-    'Acetyl': ('Acetylation', 'purple', 'B'),
-    'Methyl': ('Methylation', 'brown', 'B'),
-    'GG': ('Ubiquitination', 'green', 'B'),
-    'Citrullination': ('Citrullination', 'pink', 'B'),
+    'Phospho': ('Phosphorylation', '#000000', 'A'),
+    'Acetyl': ('Acetylation', '#93478F', 'B'),
+    'Methyl': ('Methylation', '#C35728', 'B'),
+    'GG': ('Ubiquitination', '#7AB77C', 'B'),
+    'Citrullination': ('Citrullination', '#FF17E3', 'B'),
 }
 
 EXCLUDED_MODIFICATIONS = {'Q': None,
