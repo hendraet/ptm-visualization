@@ -94,7 +94,7 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
 
     # General Layout
     fig.update_layout(
-        title="Plot",
+        title="",
         width = width,
         height = height,
         xaxis=dict(range=[0, width], autorange=False),
@@ -102,6 +102,11 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
         plot_bgcolor="white",
         font_family=parameters.FONT,
     )
+    fig.update_xaxes(visible=False)
+    fig.update_yaxes(visible=False)
+
+    for i, modification in enumerate(parameters.MODIFICATIONS.values()):
+        fig.add_trace(go.Scatter(x=[0], y=[height - i*get_label_height()], mode='text', text=modification[0], textposition="bottom right", showlegend=False, hoverinfo='none', textfont=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=modification[1])))
 
     fig, x0, x1, y0, y1 = plot_regions(fig, region_boundaries, sequence_height, width, height, left_margin, top_margin)
     fig = plot_labels(fig, pixels_per_protein, file_path, left_margin, top_margin, x0, x1, y0, y1)
