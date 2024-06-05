@@ -405,10 +405,12 @@ def check_distance(first_modification, second_modification, pixels_per_protein):
     return 1
 
 def get_label_length(label):
-    return parameters.FONT_SIZE/1.5 * len(label)+2
+    if parameters.FIGURE_ORIENTATION == 1:
+        return parameters.FONT_SIZE/1.5 * len(label) + 4
+    return parameters.FONT_SIZE/1.5 * len(label)
 
 def get_label_height():
-    return parameters.FONT_SIZE+parameters.FONT_SIZE/4+2
+    return parameters.FONT_SIZE+parameters.FONT_SIZE/4
 
 def plot_line(fig, x_start, x_end, y_start, y_end):
     fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1), showlegend=False, hoverinfo='none'))
