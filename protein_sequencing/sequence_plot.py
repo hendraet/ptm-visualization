@@ -54,10 +54,12 @@ def create_plot(input_file: str | os.PathLike, output_path: str | os.PathLike) -
     # calculate region boundaries in pixels
     region_boundaries = []
     region_end_pixel = 0
+    region_start = 1
     for region_name, region_end, region_color in parameters.REGIONS:
         region_start_pixel = region_end_pixel
         region_end_pixel = region_end * pixels_per_protein + 1
-        region_boundaries.append((region_name, region_start_pixel, region_end_pixel, parameters.SEQUENCE_REGION_COLORS[region_color]))
+        region_boundaries.append((region_name, region_start_pixel, region_end_pixel, parameters.SEQUENCE_REGION_COLORS[region_color], region_start, region_end))
+        region_start = region_end + 1
 
     # TODO: create this file
     input_file = 'data/chris/PPc_COMPLETE_cutoff_0-05FDR_reformat_XX_reduced.csv'
@@ -78,7 +80,7 @@ def different_possibilities_plot(width: int, height: int, different_possibilitie
     fig = go.Figure(data=go.Heatmap(z=rectangle))
     fig.show()
 
-def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_boundaries: list[tuple[str, int, int, str]], file_path: str) -> go.Figure:
+def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_boundaries: list[tuple[str, int, int, str, int, int]], file_path: str) -> go.Figure:
     fig = go.Figure()
     
     width = parameters.FIGURE_WIDTH
@@ -107,7 +109,7 @@ def create_sequence_plot(pixels_per_protein: int, sequence_height: int, region_b
     return fig
 
 def plot_regions(fig, region_boundaries, sequence_height, width, height, left_margin, top_margin):
-    for region_name, region_start_pixel, region_end_pixel, region_color in region_boundaries:
+    for i, (region_name, region_start_pixel, region_end_pixel, region_color, region_start, region_end) in enumerate(region_boundaries):
         
         x0 = region_start_pixel
         x1 = region_end_pixel
@@ -149,6 +151,36 @@ def plot_regions(fig, region_boundaries, sequence_height, width, height, left_ma
             font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="black"),
             textangle= 90 if parameters.FIGURE_ORIENTATION == 1 else 0
         )
+
+        if i == 0:
+            if parameters.FIGURE_ORIENTATION == 0:
+                x = x0 - get_label_length(str(region_start))
+                y = y
+            else:
+                x = x
+                y = y0 + get_label_height()
+            fig.add_annotation(
+                x=x,
+                y=y,
+                text='1',
+                showarrow=False,
+                font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="gray"),
+                textangle= 0
+            )
+    if parameters.FIGURE_ORIENTATION == 0:
+        x = x1 + get_label_length(str(region_end))
+        y = y
+    else:
+        x = x
+        y = y1 - get_label_height()
+    fig.add_annotation(
+        x=x,
+        y=y,
+        text= region_end,
+        showarrow=False,
+        font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="gray"),
+        textangle= 0
+    )
     return fig, x0, x1, y0, y1
 
 def plot_labels(fig, pixels_per_protein, file_path, left_margin, top_margin, x0, x1, y0, y1):
