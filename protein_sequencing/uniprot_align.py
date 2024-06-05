@@ -1,32 +1,21 @@
 from Bio import AlignIO, SeqIO, Seq, Align
-
 import os
+import subprocess
 
-
-def align_protein(input_file: str | os.PathLike):
-    # code from: https://stackoverflow.com/questions/32833230/biopython-alignio-valueerror-says-strings-must-be-same-length
-
+def get_alignment(input_file: str | os.PathLike):
     records = list(SeqIO.parse(input_file, 'fasta'))
 
-    # get max sequence length
-    max_length = max(len(record.seq) for record in records)
-
-    # pad sequences so that they all have the same length
-    for record in records:
-        if len(record.seq) < max_length:
-            sequence = str(record.seq).ljust(max_length, '.')
-            record.seq = Seq.Seq(sequence)
-
-    # check that all sequences have the same length         
-    assert all(len(record.seq) == max_length for record in records)
-
     # write to temporary file and do alignment
-    output_file = f'{os.path.splitext(input_file)[0]}_padded.fasta'
-    with open(output_file, 'w') as f:
+    padded_sequences_path = f'data/tmp/{os.path.splitext(os.path.basename(input_file))[0]}_padded'
+    with open(f"{padded_sequences_path}.fasta", 'w') as f:
         SeqIO.write(records, f, 'fasta')
 
-    alignment = AlignIO.parse(output_file, "fasta")
-    os.remove(output_file)
+    # penalties für gap öffnung
 
-    # alignment ready
-    return alignment
+    # tau 2,4-8     0N3R Isoform 1N4R, 2N4R, ...
+    cmd = f"./clustalw-2.1-linux/clustalw2 -infile={padded_sequences_path}.fasta -GAPOPEN=0.1 -GAPEXT=0.1"
+    subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, text=True)
+    
+    align = AlignIO.read(f"{padded_sequences_path}.aln", "clustal")
+    
+    return align
