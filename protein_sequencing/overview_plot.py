@@ -6,8 +6,8 @@ from protein_sequencing import parameters, utils, sequence_plot as sequence
 
 
 
-def plot_labels(fig, pixels_per_protein, file_path, left_margin, top_margin, sequence_boundaries):
-    x0, x1, y0, y1 = sequence_boundaries
+def plot_labels(fig, file_path):
+    x0, x1, y0, y1 = utils.SEQUENCE_BOUNDARIES
     # Protein Annotations
     with open(file_path, 'r') as f:
 
@@ -32,7 +32,7 @@ def plot_labels(fig, pixels_per_protein, file_path, left_margin, top_margin, seq
         for position, mods in modifications_by_position.items():
             modifications_by_position[position] = list(set(mods))
 
-        label_offsets_with_orientation = get_label_offsets_with_orientation(modifications_by_position, pixels_per_protein)
+        label_offsets_with_orientation = get_label_offsets_with_orientation(modifications_by_position, utils.PIXELS_PER_PROTEIN)
         for protein_position in label_offsets_with_orientation.keys():
             line_plotted_A, line_plotted_B = False, False
             for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[protein_position]:
@@ -40,7 +40,7 @@ def plot_labels(fig, pixels_per_protein, file_path, left_margin, top_margin, seq
                     continue
 
                 if parameters.FIGURE_ORIENTATION == 0:
-                    x_position_line = (protein_position * pixels_per_protein) + left_margin
+                    x_position_line = (protein_position * utils.PIXELS_PER_PROTEIN) + utils.SEQUENCE_OFFSET
 
                     y_length = parameters.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_height()
                     y_beginning_line = y0 if group == 'B' else y1
@@ -61,8 +61,7 @@ def plot_labels(fig, pixels_per_protein, file_path, left_margin, top_margin, seq
                     
                     plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
                 else:
-                    # TODO: implement vertical orientation
-                    y_position_line = parameters.FIGURE_WIDTH - (protein_position * pixels_per_protein) - top_margin
+                    y_position_line = parameters.FIGURE_WIDTH - (protein_position * utils.PIXELS_PER_PROTEIN) - utils.SEQUENCE_OFFSET
 
                     x_length = parameters.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_length(label)
                     x_beginning_line = x0 if group == 'B' else x1
@@ -274,14 +273,22 @@ def plot_label(fig, x, y, text, modification_type, position_label):
     #         y1=y1,
     #         line=dict(color="red", width=1),
     #     )
-    fig.add_trace(go.Scatter(x=[x], y=[y], mode='text', text=text, textposition=position_label, showlegend=False, hoverinfo='none', textfont=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=parameters.MODIFICATIONS[modification_type][1])))
+    fig.add_trace(go.Scatter(x=[x], y=[y], mode='text',
+                             text=text,
+                             textposition=position_label,
+                             showlegend=False,
+                             hoverinfo='none',
+                             textfont=dict(
+                                 family=parameters.FONT,
+                                 size=parameters.SEQUENCE_PLOT_FONT_SIZE,
+                                 color=parameters.MODIFICATIONS[modification_type][1])))
 
 def create_overview_plot(input_file: str | os.PathLike, output_path: str | os.PathLike):
     fig = sequence.create_plot(input_file)
 
     # TODO: create this file
-    input_file = 'data/chris/PPc_COMPLETE_cutoff_0-05FDR_reformat_XX_reduced.csv'
-    fig = plot_labels(fig, utils.PIXELS_PER_PROTEIN, input_file, utils.get_left_margin(), utils.get_top_margin(), utils.SEQUENCE_BOUNDARIES)
+    input_file = 'data/chris/overview_plot/PPc_COMPLETE_cutoff_0-05FDR_reformat_XX_reduced.csv'
+    fig = plot_labels(fig, input_file)
 
     utils.show_plot(fig, output_path)
 

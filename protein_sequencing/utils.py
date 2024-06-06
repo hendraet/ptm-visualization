@@ -5,8 +5,9 @@ import plotly.graph_objects as go
 import numpy as np
 from protein_sequencing import parameters
 
-SEQUENCE_BOUNDARIES = ()
+SEQUENCE_BOUNDARIES = (None, None, None, None)
 PIXELS_PER_PROTEIN = 0
+SEQUENCE_OFFSET = 0
 
 def get_width():
     if parameters.FIGURE_ORIENTATION == 0:
@@ -23,6 +24,12 @@ def get_left_margin():
 
 def get_top_margin(): 
     return parameters.TOP_MARGIN * get_height()
+
+def get_right_margin():
+    return parameters.RIGHT_MARGIN * get_width()
+
+def get_bottom_margin():
+    return parameters.BOTTOM_MARGIN * get_height()
 
 def get_label_length(label):
     if parameters.FIGURE_ORIENTATION == 1:

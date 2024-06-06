@@ -45,33 +45,34 @@ def create_plot(input_file: str | os.PathLike) -> go.Figure:
     # different_possibilities_plot(max_sequence_length, 50, different_possibilities)
 
     # basis for all pixel calculations
-    margins = parameters.LEFT_MARGIN + parameters.RIGHT_MARGIN if parameters.FIGURE_ORIENTATION == 0 else parameters.TOP_MARGIN + parameters.BOTTOM_MARGIN
-    max_sequence_length_pixels = parameters.FIGURE_WIDTH * (1 - margins)
-    utils.PIXELS_PER_PROTEIN = int(max_sequence_length_pixels // max_sequence_length)
-
-    sequence_length_pixels = max_sequence_length * utils.PIXELS_PER_PROTEIN
+    if parameters.FIGURE_ORIENTATION == 0:
+        max_sequence_length_pixels = utils.get_width() - utils.get_left_margin() - utils.get_right_margin()
+        utils.PIXELS_PER_PROTEIN = int(max_sequence_length_pixels // max_sequence_length)
+        utils.SEQUENCE_OFFSET = (utils.get_width()-max_sequence_length * utils.PIXELS_PER_PROTEIN) //2
+    else:
+        max_sequence_length_pixels = utils.get_height() - utils.get_top_margin() - utils.get_bottom_margin()
+        utils.PIXELS_PER_PROTEIN = int(max_sequence_length_pixels // max_sequence_length)
+        utils.SEQUENCE_OFFSET = (utils.get_height()-max_sequence_length * utils.PIXELS_PER_PROTEIN) //2
 
     # calculate region boundaries in pixels
     region_boundaries = []
-    region_end_pixel = 0
+    region_end_pixel = utils.SEQUENCE_OFFSET
     region_start = 1
     for region_name, region_end, region_color in parameters.REGIONS:
         region_start_pixel = region_end_pixel
-        region_end_pixel = region_end * utils.PIXELS_PER_PROTEIN + 1
+        region_end_pixel = region_end * utils.PIXELS_PER_PROTEIN + 1 + utils.SEQUENCE_OFFSET
         region_boundaries.append((region_name, region_start_pixel, region_end_pixel, parameters.SEQUENCE_REGION_COLORS[region_color], region_start, region_end))
         region_start = region_end + 1
 
-    fig = create_sequence_plot(parameters.SEQUENCE_PLOT_HEIGHT, region_boundaries)
+    fig = create_sequence_plot(region_boundaries)
     
     return fig
 
-def create_sequence_plot(sequence_height: int, region_boundaries: list[tuple[str, int, int, str, int, int]]) -> go.Figure:
+def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, int]]) -> go.Figure:
     fig = go.Figure()
     
     width = utils.get_width()
     height = utils.get_height()
-    left_margin = utils.get_left_margin()
-    top_margin = utils.get_top_margin()
 
     # General Layout
     fig.update_layout(
@@ -86,33 +87,34 @@ def create_sequence_plot(sequence_height: int, region_boundaries: list[tuple[str
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False)
 
+    # Legend
+    x_legend = 0 if parameters.FIGURE_ORIENTATION == 0 else width/2 + parameters.SEQUENCE_PLOT_HEIGHT
     for i, modification in enumerate(parameters.MODIFICATIONS.values()):
-        fig.add_trace(go.Scatter(x=[0], y=[height - i*utils.get_label_height()], mode='text', text=modification[0], textposition="bottom right", showlegend=False, hoverinfo='none', textfont=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=modification[1])))
+        y_legend = height/2 + parameters.SEQUENCE_PLOT_HEIGHT + i*utils.get_label_height()
+        if parameters.FIGURE_ORIENTATION == 1:
+            y_legend = height - (i*utils.get_label_height()+1)
+        fig.add_trace(go.Scatter(x=[x_legend], y=[y_legend], mode='text', text=modification[0], textposition="bottom right", showlegend=False, hoverinfo='none', textfont=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=modification[1])))
 
-    fig = plot_regions(fig, region_boundaries, sequence_height, width, height, left_margin, top_margin)
+    # Sequence
+    fig = plot_sequence(fig, region_boundaries)
 
     return fig
 
-def plot_regions(fig, region_boundaries, sequence_height, width, height, left_margin, top_margin):
+def plot_sequence(fig, region_boundaries):
     for i, (region_name, region_start_pixel, region_end_pixel, region_color, region_start, region_end) in enumerate(region_boundaries):
         
-        x0 = region_start_pixel
-        x1 = region_end_pixel
-        y0 = 0
-        y1 = sequence_height
-        
-        if parameters.FIGURE_ORIENTATION == 0:
-            y0 = height/2 - sequence_height/2
-            y1 += y0
-            x1 += left_margin
-            x0 += left_margin
-        else:
-            y0 = width/2 - sequence_height/2
-            y1 += y0
-            x0, x1, y0, y1 = y0, y1, height-x0, height-x1
-            y0 -= top_margin
-            y1 -= top_margin
 
+        if parameters.FIGURE_ORIENTATION == 0:
+            x0 = region_start_pixel
+            x1 = region_end_pixel
+            y0 = utils.get_height()/2 - parameters.SEQUENCE_PLOT_HEIGHT/2
+            y1 = y0+parameters.SEQUENCE_PLOT_HEIGHT
+        else:
+            y0 = utils.get_height() - region_start_pixel
+            y1 = utils.get_height() - region_end_pixel
+            x0 = utils.get_width()/2 - parameters.SEQUENCE_PLOT_HEIGHT/2
+            x1 = x0+parameters.SEQUENCE_PLOT_HEIGHT
+            
 
         # Region rects
         fig.add_shape(
@@ -126,11 +128,11 @@ def plot_regions(fig, region_boundaries, sequence_height, width, height, left_ma
         )
 
         # Labels
-        x = (x0 + x1) / 2
-        y = (y0 + y1) / 2
+        x_label = (x0 + x1) / 2
+        y_label = (y0 + y1) / 2
         fig.add_annotation(
-            x=x,
-            y=y,
+            x=x_label,
+            y=y_label,
             text=region_name,
             showarrow=False,
             font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="black"),
@@ -140,9 +142,9 @@ def plot_regions(fig, region_boundaries, sequence_height, width, height, left_ma
         if i == 0:
             if parameters.FIGURE_ORIENTATION == 0:
                 x = x0 - utils.get_label_length(str(region_start))
-                y = y
+                y = y_label
             else:
-                x = x
+                x = x_label
                 y = y0 + utils.get_label_height()
             fig.add_annotation(
                 x=x,
