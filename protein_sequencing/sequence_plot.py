@@ -48,11 +48,11 @@ def create_plot(input_file: str | os.PathLike) -> go.Figure:
     if parameters.FIGURE_ORIENTATION == 0:
         max_sequence_length_pixels = utils.get_width() - utils.get_left_margin() - utils.get_right_margin()
         utils.PIXELS_PER_PROTEIN = int(max_sequence_length_pixels // max_sequence_length)
-        utils.SEQUENCE_OFFSET = (utils.get_width()-max_sequence_length * utils.PIXELS_PER_PROTEIN) //2
+        utils.SEQUENCE_OFFSET = utils.get_left_margin()
     else:
         max_sequence_length_pixels = utils.get_height() - utils.get_top_margin() - utils.get_bottom_margin()
         utils.PIXELS_PER_PROTEIN = int(max_sequence_length_pixels // max_sequence_length)
-        utils.SEQUENCE_OFFSET = (utils.get_height()-max_sequence_length * utils.PIXELS_PER_PROTEIN) //2
+        utils.SEQUENCE_OFFSET = utils.get_top_margin()
 
     # calculate region boundaries in pixels
     region_boundaries = []
