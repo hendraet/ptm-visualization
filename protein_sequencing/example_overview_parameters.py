@@ -3,10 +3,9 @@ FIGURE_ORIENTATION = 0  # 0 for horizontal, 1 for vertical, note figure height a
 FIGURE_WIDTH = 1500
 FIGURE_HEIGHT = 1000
 
-FONT_SIZE = 11
+FONT_SIZE = 12
 
 # Sequence Settings
-# First sequence is from (1, 44), second from (45, 73) and so on
 REGIONS = [
     ('', 44, 'A'),
     ('N1', 73, 'B'),
@@ -23,22 +22,15 @@ REGIONS = [
 # Modification Settings
 MODIFICATIONS = {
     'Phospho': ('Phosphorylation', '#000000', 'A'),
-    'Acetyl': ('Acetylation', '#FF08FF', 'A'),
-    'GG': ('Ubiquitination', '#0C0CFF', 'A'),
+    'Acetyl': ('Acetylation', '#93478F', 'B'),
+    'Methyl': ('Methylation', '#C35728', 'B'),
+    'GG': ('Ubiquitination', '#7AB77C', 'B'),
+    'Citrullination': ('Citrullination', '#FF17E3', 'B'),
 }
 
 EXCLUDED_MODIFICATIONS = {'Q': None,
                           'X': None,
                           'S': ['GG']}
-
-# Neuropathology Settings
-NEUROPATHOLOGIES = {'HMWC': 'HMW <br>Wessling et al. <br>identified',
-                    'HMW': 'HMW <br>Patient <br>frequency',
-                }
-
-# Bar Plot Settings
-MIN_BAR_WIDTH = 12
-INVERT_AXIS_GROUP_B = False
 
 # Input Output Settings
 FASTA_INPUT_FILE = 'data/uniprot_data/tau_isoforms2N4R.fasta'
@@ -48,11 +40,10 @@ OUTPUT_FOLDER = 'output'
 # Default Parameters
 FONT = 'Arial'
 
-# Margins for sequence Plot
-# TODO remove margins and auto calculate based on legend
-LEFT_MARGIN = 0.055
+# Margins
+LEFT_MARGIN = 0.025
 RIGHT_MARGIN = 0.025
-TOP_MARGIN = 0.055
+TOP_MARGIN = 0.025
 BOTTOM_MARGIN = 0.025
 
 # Sequence Plot

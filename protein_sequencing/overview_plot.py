@@ -7,84 +7,62 @@ from protein_sequencing import parameters, utils, sequence_plot as sequence
 
 
 def plot_labels(fig, file_path):
-    x0, x1, y0, y1 = utils.SEQUENCE_BOUNDARIES
-    # Protein Annotations
-    with open(file_path, 'r') as f:
+    x0 = utils.SEQUENCE_BOUNDARIES['x0']
+    x1 = utils.SEQUENCE_BOUNDARIES['x1']
+    y0 = utils.SEQUENCE_BOUNDARIES['y0']
+    y1 = utils.SEQUENCE_BOUNDARIES['y1']
+    modifications_by_position = utils.get_modifications_per_position(file_path)
 
-        rows = f.readlines()[1:3]
-        modification_types = rows[0].strip().split(',')
-        labels = rows[1].strip().split(',')
+    label_offsets_with_orientation = get_label_offsets_with_orientation(modifications_by_position, utils.PIXELS_PER_PROTEIN)
+    for protein_position in label_offsets_with_orientation.keys():
+        line_plotted_A, line_plotted_B = False, False
+        for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[protein_position]:
+            if parameters.FIGURE_ORIENTATION == 0:
+                x_position_line = (protein_position * utils.PIXELS_PER_PROTEIN) + utils.SEQUENCE_OFFSET
 
-        modifications_by_position = defaultdict(list)
-        for i, (label) in enumerate(labels):
-            if label == '':
-                continue
-            position = int(label[1:])
-            letter = label[0]
-            if letter in parameters.EXCLUDED_MODIFICATIONS:
-                if parameters.EXCLUDED_MODIFICATIONS[letter] is None:
-                    continue
-                if modification_types[i] in parameters.EXCLUDED_MODIFICATIONS[letter]:
-                    continue
-            if modification_types[i] not in parameters.MODIFICATIONS:
-                continue
-            modifications_by_position[position].append((label, modification_types[i], parameters.MODIFICATIONS[modification_types[i]][2]))
-        for position, mods in modifications_by_position.items():
-            modifications_by_position[position] = list(set(mods))
+                y_length = parameters.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_height()
+                y_beginning_line = y0 if group == 'B' else y1
+                y_end_line = y_beginning_line - y_length if group == 'B' else y_beginning_line + y_length
+                
+                if not line_plotted_A and group == 'A':
+                    plot_line(fig, x_position_line, x_position_line, y_beginning_line, y_end_line)
+                    line_plotted_A = True
+                if not line_plotted_B and group == 'B':
+                    plot_line(fig, x_position_line, x_position_line, y_beginning_line, y_end_line)
+                    line_plotted_B = True
 
-        label_offsets_with_orientation = get_label_offsets_with_orientation(modifications_by_position, utils.PIXELS_PER_PROTEIN)
-        for protein_position in label_offsets_with_orientation.keys():
-            line_plotted_A, line_plotted_B = False, False
-            for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[protein_position]:
-                if modification_type not in parameters.MODIFICATIONS:
-                    continue
+                position_label = 'top center'
+                if group == 'B':
+                        position_label = 'bottom '+orientation
+                if group == 'A':
+                    position_label = 'top '+orientation
+                
+                plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
+            else:
+                y_position_line = parameters.FIGURE_WIDTH - (protein_position * utils.PIXELS_PER_PROTEIN) - utils.SEQUENCE_OFFSET
 
-                if parameters.FIGURE_ORIENTATION == 0:
-                    x_position_line = (protein_position * utils.PIXELS_PER_PROTEIN) + utils.SEQUENCE_OFFSET
+                x_length = parameters.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_length(label)
+                x_beginning_line = x0 if group == 'B' else x1
+                x_end_line = x_beginning_line - x_length if group == 'B' else x_beginning_line + x_length
 
-                    y_length = parameters.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_height()
-                    y_beginning_line = y0 if group == 'B' else y1
-                    y_end_line = y_beginning_line - y_length if group == 'B' else y_beginning_line + y_length
-                    
-                    if not line_plotted_A and group == 'A':
-                        plot_line(fig, x_position_line, x_position_line, y_beginning_line, y_end_line)
-                        line_plotted_A = True
-                    if not line_plotted_B and group == 'B':
-                        plot_line(fig, x_position_line, x_position_line, y_beginning_line, y_end_line)
-                        line_plotted_B = True
+                if not line_plotted_A and group == 'A':
+                    plot_line(fig, x_beginning_line, x_end_line, y_position_line, y_position_line)
+                    line_plotted_A = True
+                if not line_plotted_B and group == 'B':
+                    plot_line(fig, x_beginning_line, x_end_line, y_position_line, y_position_line)
+                    line_plotted_B = True
 
-                    position_label = 'top center'
-                    if group == 'B':
-                            position_label = 'bottom '+orientation
-                    if group == 'A':
-                        position_label = 'top '+orientation
-                    
-                    plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
-                else:
-                    y_position_line = parameters.FIGURE_WIDTH - (protein_position * utils.PIXELS_PER_PROTEIN) - utils.SEQUENCE_OFFSET
+                position_label = 'middle'
+                if orientation == 'left':
+                    position_label = 'top'
+                if orientation == 'right':
+                    position_label = 'bottom'
+                if group == 'B':
+                    position_label = position_label + ' left'
+                if group == 'A':
+                    position_label = position_label + ' right'
 
-                    x_length = parameters.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_length(label)
-                    x_beginning_line = x0 if group == 'B' else x1
-                    x_end_line = x_beginning_line - x_length if group == 'B' else x_beginning_line + x_length
-
-                    if not line_plotted_A and group == 'A':
-                        plot_line(fig, x_beginning_line, x_end_line, y_position_line, y_position_line)
-                        line_plotted_A = True
-                    if not line_plotted_B and group == 'B':
-                        plot_line(fig, x_beginning_line, x_end_line, y_position_line, y_position_line)
-                        line_plotted_B = True
-
-                    position_label = 'middle'
-                    if orientation == 'left':
-                        position_label = 'top'
-                    if orientation == 'right':
-                        position_label = 'bottom'
-                    if group == 'B':
-                        position_label = position_label + ' left'
-                    if group == 'A':
-                        position_label = position_label + ' right'
-
-                    plot_label(fig, x_end_line, y_position_line, label, modification_type, position_label)
+                plot_label(fig, x_end_line, y_position_line, label, modification_type, position_label)
     return fig
 
 def get_distance_groups(group, pixels_per_protein):
@@ -119,7 +97,6 @@ def get_distance_groups(group, pixels_per_protein):
         result.append((1, {last_sight['position']: [last_sight['mod']]}))
     return result
 
-# TODO refactor
 def get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label, nearest_left, nearest_right):
     nearest_left_offset = 0
     nearest_right_offset = 0
@@ -293,3 +270,4 @@ def create_overview_plot(input_file: str | os.PathLike, output_path: str | os.Pa
     utils.show_plot(fig, output_path)
 
 create_overview_plot(parameters.FASTA_INPUT_FILE, parameters.OUTPUT_FOLDER)
+    

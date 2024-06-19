@@ -5,7 +5,8 @@ import plotly.graph_objects as go
 import numpy as np
 from protein_sequencing import parameters
 
-SEQUENCE_BOUNDARIES = (None, None, None, None)
+# x0, x1, y0, y1
+SEQUENCE_BOUNDARIES = {'x0': 0, 'x1': 0, 'y0': 0, 'y1': 0}
 PIXELS_PER_PROTEIN = 0
 SEQUENCE_OFFSET = 0
 
@@ -20,24 +21,24 @@ def get_height():
     return parameters.FIGURE_WIDTH
 
 def get_left_margin():
-    return parameters.LEFT_MARGIN * get_width()
+    return int(parameters.LEFT_MARGIN * get_width())
 
 def get_top_margin(): 
-    return parameters.TOP_MARGIN * get_height()
+    return int(parameters.TOP_MARGIN * get_height())
 
 def get_right_margin():
-    return parameters.RIGHT_MARGIN * get_width()
+    return int(parameters.RIGHT_MARGIN * get_width())
 
 def get_bottom_margin():
-    return parameters.BOTTOM_MARGIN * get_height()
+    return int(parameters.BOTTOM_MARGIN * get_height())
 
 def get_label_length(label):
     if parameters.FIGURE_ORIENTATION == 1:
-        return parameters.FONT_SIZE/1.5 * len(label) + 4
-    return parameters.FONT_SIZE/1.5 * len(label)
+        return int(parameters.FONT_SIZE/1.5 * len(label) + 4)
+    return int(parameters.FONT_SIZE/1.5 * len(label))
 
 def get_label_height():
-    return parameters.FONT_SIZE+parameters.FONT_SIZE/4
+    return parameters.FONT_SIZE+parameters.FONT_SIZE//4
 
 def separate_by_group(groups_by_position):
     group_a = defaultdict(list)
@@ -59,6 +60,29 @@ def different_possibilities_plot(width: int, height: int, different_possibilitie
         rectangle[:, i] = value
     fig = go.Figure(data=go.Heatmap(z=rectangle))
     fig.show()
+
+def get_modifications_per_position(input_file):
+    with open(input_file, 'r') as f:
+        rows = f.readlines()[1:3]
+        modification_types = rows[0].strip().split(',')
+        labels = rows[1].strip().split(',')
+        modifications_by_position = defaultdict(list)
+        for i, (label) in enumerate(labels):
+            if label == '':
+                continue
+            position = int(label[1:])
+            letter = label[0]
+            if letter in parameters.EXCLUDED_MODIFICATIONS:
+                if parameters.EXCLUDED_MODIFICATIONS[letter] is None:
+                    continue
+                if modification_types[i] in parameters.EXCLUDED_MODIFICATIONS[letter]:
+                    continue
+            if modification_types[i] not in parameters.MODIFICATIONS:
+                continue
+            modifications_by_position[position].append((label, modification_types[i], parameters.MODIFICATIONS[modification_types[i]][2]))
+        for position, mods in modifications_by_position.items():
+            modifications_by_position[position] = list(set(mods))
+    return modifications_by_position
 
 def clean_up():
     directory = 'data/tmp'
