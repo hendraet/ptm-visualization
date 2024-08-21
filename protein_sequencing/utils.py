@@ -33,12 +33,10 @@ def get_bottom_margin():
     return int(parameters.BOTTOM_MARGIN * get_height())
 
 def get_label_length(label):
-    if parameters.FIGURE_ORIENTATION == 1:
-        return int(parameters.FONT_SIZE/1.5 * len(label) + 4)
     return int(parameters.FONT_SIZE/1.5 * len(label))
 
 def get_label_height():
-    return parameters.FONT_SIZE+parameters.FONT_SIZE//4
+    return parameters.FONT_SIZE+parameters.FONT_SIZE//5
 
 def separate_by_group(groups_by_position):
     group_a = defaultdict(list)
@@ -84,7 +82,7 @@ def get_modifications_per_position(input_file):
                     continue
             if modification_types[i] not in parameters.MODIFICATIONS:
                 continue
-            modifications_by_position[position].append((label, modification_types[i], parameters.MODIFICATIONS[modification_types[i]][2]))
+            modifications_by_position[position].append((label, modification_types[i], parameters.MODIFICATIONS_GROUP[modification_types[i]]))
         for position, mods in modifications_by_position.items():
             modifications_by_position[position] = list(set(mods))
     return modifications_by_position

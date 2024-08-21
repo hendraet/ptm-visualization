@@ -18,11 +18,12 @@ def get_bar_positions(modification_sights_all_A: dict[int, list[tuple[int, str, 
    return positions_A, positions_B
 
 def get_bar_plot_width(group_size_A: int, group_size_B: int):
+   legend_height = utils.get_label_height() * (max(value.count('<br>') + 1 for value in parameters.BAR_NEUROPATHOLOGIES.values()))
    if parameters.FIGURE_ORIENTATION == 0:
-      bar_width = (utils.get_width() - utils.SEQUENCE_BOUNDARIES["x0"]) // max(group_size_A, group_size_B)
+      bar_width = (utils.get_width() - legend_height) // max(group_size_A, group_size_B)
       bar_plot_width = bar_width * max(group_size_A, group_size_B)
    else:
-      bar_width = (utils.get_height() - utils.SEQUENCE_BOUNDARIES["y1"]) // max(group_size_A, group_size_B)
+      bar_width = (utils.get_height() - legend_height) // max(group_size_A, group_size_B)
       bar_plot_width = bar_width * max(group_size_A, group_size_B)
    return bar_plot_width
 
@@ -34,17 +35,16 @@ def add_bar_plot(fig: go.Figure, group: str, modification_sights_all: dict[int, 
 
    height_offset = 0
    modifications_visited = 0
-   # TODO ask chris or henne if there is better way to do this
-   bar_percentages = {neuropathology: [] for neuropathology in parameters.NEUROPATHOLOGIES.keys()}
+   bar_percentages = {neuropathology: [] for neuropathology in parameters.BAR_NEUROPATHOLOGIES.keys()}
 
    for protein_position in sorted(modification_sights_all.keys(), reverse=True):
       for modification_sight in modification_sights_all[protein_position]:
          if modification_sight not in modification_sights_relevant[protein_position]:
-            for neuropathology in parameters.NEUROPATHOLOGIES.keys():
+            for neuropathology in parameters.BAR_NEUROPATHOLOGIES.keys():
                bar_percentages[neuropathology].append(0)
             modifications_visited += 1
             continue
-         label, modification_type, modification_group = modification_sight
+         label, modification_type, _ = modification_sight
          if parameters.FIGURE_ORIENTATION == 0:
             # x position for protein sequence
             x_0_line = protein_position * utils.PIXELS_PER_PROTEIN + utils.SEQUENCE_OFFSET
@@ -69,7 +69,7 @@ def add_bar_plot(fig: go.Figure, group: str, modification_sights_all: dict[int, 
             space_per_neuropathalogy = (space_above_sequence - label_plot_height)  // (len(df["Neuropathology"].unique())-1)
             max_bar_height = space_per_neuropathalogy - 2*bar_plot_margin
             # plot bars
-            for i, neuropathology in enumerate(parameters.NEUROPATHOLOGIES.keys()):
+            for i, neuropathology in enumerate(parameters.BAR_NEUROPATHOLOGIES.keys()):
                modification_column = [col for col in df.columns if col not in ['ID', 'Neuropathology'] and df[col].iloc[1] == label]
                bar_df = df[['ID', 'Neuropathology'] + modification_column]
                bar_df = bar_df[bar_df['Neuropathology'] == neuropathology]
@@ -116,7 +116,7 @@ def add_bar_plot(fig: go.Figure, group: str, modification_sights_all: dict[int, 
             space_per_neuropathalogy = (space_above_sequence - label_plot_height)  // (len(df["Neuropathology"].unique())-1)
             max_bar_height = space_per_neuropathalogy - 2*bar_plot_margin
             # plot bars
-            for i, neuropathology in enumerate(parameters.NEUROPATHOLOGIES.keys()):
+            for i, neuropathology in enumerate(parameters.BAR_NEUROPATHOLOGIES.keys()):
                modification_column = [col for col in df.columns if col not in ['ID', 'Neuropathology'] and df[col].iloc[1] == label]
                bar_df = df[['ID', 'Neuropathology'] + modification_column]
                bar_df = bar_df[bar_df['Neuropathology'] == neuropathology]
@@ -149,17 +149,15 @@ def add_bar_plot(fig: go.Figure, group: str, modification_sights_all: dict[int, 
       else:
          height_offset += 2
    
-   max_line_breaks = 0
-   for legend_text in parameters.NEUROPATHOLOGIES.values():
-      max_line_breaks = max(max_line_breaks, legend_text.count('<br>'))
+   max_line_breaks = max(value.count('<br>') for value in parameters.BAR_NEUROPATHOLOGIES.values())
    if parameters.FIGURE_ORIENTATION == 0:
-      for i, neuropathology in enumerate(parameters.NEUROPATHOLOGIES.keys()):
+      for i, neuropathology in enumerate(parameters.BAR_NEUROPATHOLOGIES.keys()):
          y_group = y_bar + (i * space_per_neuropathalogy + 5) * group_direction
          x_line_start = utils.get_width()-bar_plot_width
-         fig.add_annotation(x=x_line_start-utils.get_label_length('100%')-(max_line_breaks+1)*utils.get_label_height(),
+         fig.add_annotation(x=x_line_start-utils.get_label_length('100%')-max_line_breaks*utils.get_label_height(),
                             y = y_group + space_per_neuropathalogy//2 * group_direction,
                             width=space_per_neuropathalogy,
-                            text=parameters.NEUROPATHOLOGIES[neuropathology],
+                            text=parameters.BAR_NEUROPATHOLOGIES[neuropathology],
                             textangle=-90,
                             font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="black"),
                             showarrow=False)
@@ -186,12 +184,12 @@ def add_bar_plot(fig: go.Figure, group: str, modification_sights_all: dict[int, 
                                     font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="black"),
                                     showarrow=False)
    else:
-      for i, neuropathology in enumerate(parameters.NEUROPATHOLOGIES.keys()):
+      for i, neuropathology in enumerate(parameters.BAR_NEUROPATHOLOGIES.keys()):
          x_group = x_bar + (i * space_per_neuropathalogy + 5) * group_direction
          y_line_start = bar_plot_width
          fig.add_annotation(x=x_group + space_per_neuropathalogy//2 * group_direction,
-                            y=y_line_start+utils.get_label_length('100%')+(max_line_breaks+1)*utils.get_label_height(),
-                            text=parameters.NEUROPATHOLOGIES[neuropathology],
+                            y=y_line_start+utils.get_label_height()+max_line_breaks*utils.get_label_height(),
+                            text=parameters.BAR_NEUROPATHOLOGIES[neuropathology],
                             font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="black"),
                             showarrow=False)
          for j in range(5):
@@ -274,11 +272,11 @@ def filter_relevant_modification_sights(helper_file: str):
       if column_modification in parameters.EXCLUDED_MODIFICATIONS.get(column_label, []):
          continue
       column_position = int(df[column][1][1:])
-      all_modification_sights[column_position].append((df[column][1], column_modification, parameters.MODIFICATIONS[column_modification][2]))
+      all_modification_sights[column_position].append((df[column][1], column_modification, parameters.MODIFICATIONS_GROUP[column_modification]))
 
-   # remove rows where Neuropathology is not in parameters.Neurpathologies
+   # remove rows where Neuropathology is not in parameters.BAR_Neurpathologies
    header_rows = df.iloc[:4, :]
-   df = df[df['Neuropathology'].isin(parameters.NEUROPATHOLOGIES.keys())]
+   df = df[df['Neuropathology'].isin(parameters.BAR_NEUROPATHOLOGIES.keys())]
    df = pd.concat([header_rows, df], ignore_index=True)
 
    # filter out columns that have no modifications observed for relevant neuropathologies
@@ -299,23 +297,22 @@ def filter_relevant_modification_sights(helper_file: str):
       if column_modification in parameters.EXCLUDED_MODIFICATIONS.get(column_label, []):
          continue
       column_position = int(df[column][1][1:])
-      relevant_modification_sights[column_position].append((df[column][1], column_modification, parameters.MODIFICATIONS[column_modification][2]))
+      relevant_modification_sights[column_position].append((df[column][1], column_modification, parameters.MODIFICATIONS_GROUP[column_modification]))
    return all_modification_sights, relevant_modification_sights, df
 
 
 def create_bar_plot(input_file: str | os.PathLike, output_path: str | os.PathLike):
-   label_input_file = 'data/chris/bar_plot/PP-MASCOT-CellAll-All_cutoff_0-05FDR_TAU_reformat_reduced_sub_binaryCell.csv'
-   all_positions, relevant_positions, df = filter_relevant_modification_sights(label_input_file)
+   all_positions, relevant_positions, df = filter_relevant_modification_sights(parameters.BAR_INPUT_FILE)
    
    group_a_all, group_b_all = utils.separate_by_group(all_positions)
    group_a_relevant, group_b_relevant = utils.separate_by_group(relevant_positions)
 
    if len(group_a_relevant) == 0:
-      fig = sequence_plot.create_plot(input_file, 'A')
+      fig = sequence_plot.create_plot(input_file, 'A', 'A')
    elif len(group_b_relevant) == 0:
-      fig = sequence_plot.create_plot(input_file, 'B')
+      fig = sequence_plot.create_plot(input_file, 'B', 'B')
    else:
-      fig = sequence_plot.create_plot(input_file)
+      fig = sequence_plot.create_plot(input_file, None, 'A')
 
    positions_A, positions_B = get_bar_positions(group_a_all, group_b_all)
    group_size_A = len(positions_A)

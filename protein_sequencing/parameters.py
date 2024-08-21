@@ -1,5 +1,5 @@
 # Plot Settings
-FIGURE_ORIENTATION = 0  # 0 for horizontal, 1 for vertical, note figure height and width are then automatically swapped
+FIGURE_ORIENTATION = 1  # 0 for horizontal, 1 for vertical, note figure height and width are then automatically swapped
 FIGURE_WIDTH = 1200
 FIGURE_HEIGHT = 1000
 
@@ -22,7 +22,6 @@ REGIONS = [
 ]
 
 # Modification Settings
-# TODO implement for all plots
 MODIFICATION_LEGEND_TITLE = 'PTMs'
 MODIFICATIONS = {
     'Phospho': ('Phosphorylation', '#000000'),
@@ -33,7 +32,7 @@ MODIFICATIONS = {
 }
 
 # TODO implement for all plots
-PTMS_TO_HIGHLIGHT = ['Phospho(S)@68', 'Citrullination(R)@242', 'GG(K)@254', 'Acetyl(K)@267', 'Methyl(K)@311']
+PTMS_TO_HIGHLIGHT = ['Phospho(S)@61', 'Citrullination(R)@242', 'GG(K)@254', 'Acetyl(K)@267', 'Methyl(K)@311']
 PTM_HIGHLIGHT_LABEL_COLOR = '#cfcfcf'
 CLEAVAGES_TO_HIGHLIGHT = ['2-4', '15']
 CLEAVAGE_HIGHLIGHT_LABEL_COLOR = '#ff0000'
@@ -42,6 +41,26 @@ EXCLUDED_MODIFICATIONS = {'Q': None,
                           'X': None,
                           'S': ['GG'],}
 
+# Overview Plot Settings
+MODIFICATIONS_GROUP = {
+    'Phospho': 'A',
+    'Acetyl': 'B',
+    'Methyl': 'B',
+    'GG': 'B',
+    'Citrullination': 'B',
+}
+OVERVIEW_INPUT_FILE = 'data/chris/overview_plot/PPc_COMPLETE_cutoff_0-05FDR_reformat_XX_reduced.csv'
+
+# Bar Plot Settings
+BAR_NEUROPATHOLOGIES = {'HMWC': 'HMW <br>Wessling et al. <br>identified',
+                        'HMW': 'HMW <br>Patient <br>frequency',
+                        }
+MIN_BAR_WIDTH = max(FONT_SIZE, 8)
+INVERT_AXIS_GROUP_B = False
+BAR_INPUT_FILE = 'data/chris/bar_plot/PP-MASCOT-CellAll-All_cutoff_0-05FDR_TAU_reformat_reduced_sub_binaryCell.csv'
+
+
+# Details plot settings
 MODIFICATION_THRESHOLD = 10
 
 INPUT_FILES = {
@@ -85,7 +104,7 @@ FONT = 'Arial'
 # TODO remove margins and auto calculate based on legend
 LEFT_MARGIN = 0.065
 RIGHT_MARGIN = 0.025
-TOP_MARGIN = 0.069
+TOP_MARGIN = 0.065
 BOTTOM_MARGIN = 0.025
 
 # Sequence Plot

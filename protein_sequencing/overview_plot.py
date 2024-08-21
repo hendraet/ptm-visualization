@@ -226,30 +226,35 @@ def plot_line(fig, x_start, x_end, y_start, y_end):
     fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1), showlegend=False, hoverinfo='none'))
 
 def plot_label(fig, x, y, text, modification_type, position_label):
-    # Label bounding box for debugging purposes
-    # x0 = x
-    # y0 = y
-    # x1 = x-get_label_length(text)
-    # y1 = y+get_label_height()
-    # if 'bottom' in position_label:
-    #     y1 = y - get_label_height()
-    # if 'right' in position_label:
-    #     x1 = x + get_label_length(text)
-    # if 'center' in position_label:
-    #     x1 = x + get_label_length(text)/2
-    #     x0 = x - get_label_length(text)/2
-    # if 'middle' in position_label:
-    #     y0 = y - get_label_height()/2
-    #     y1 = y + get_label_height()/2
+    #Label bounding box for highlitghted PTMs
+    if f'{modification_type}({text[0]})@{text[1:]}' in parameters.PTMS_TO_HIGHLIGHT:
+        x0 = x+1
+        y0 = y-1
+        x1 = x-utils.get_label_length(text)+2
+        y1 = y+utils.get_label_height()-1
+        if 'bottom' in position_label:
+            y1 = y - utils.get_label_height() + 1
+            y0 = y + 1
+        if 'right' in position_label:
+            x1 = x + utils.get_label_length(text)-2
+            x0 = x - 1
+        if 'center' in position_label:
+            x1 = x + utils.get_label_length(text)//2
+            x0 = x - utils.get_label_length(text)//2 
+        if 'middle' in position_label:
+            y0 = y - utils.get_label_height()//2 
+            y1 = y + utils.get_label_height()//2
 
-    # fig.add_shape(
-    #         type="rect",
-    #         x0=x0,
-    #         y0=y0,
-    #         x1=x1,
-    #         y1=y1,
-    #         line=dict(color="red", width=1),
-    #     )
+        fig.add_shape(
+                type="rect",
+                x0=x0,
+                y0=y0,
+                x1=x1,
+                y1=y1,
+                layer='below',
+                fillcolor=parameters.PTM_HIGHLIGHT_LABEL_COLOR,
+                line=dict(width=0),
+            )
     fig.add_trace(go.Scatter(x=[x], y=[y], mode='text',
                              text=text,
                              textposition=position_label,
@@ -261,11 +266,9 @@ def plot_label(fig, x, y, text, modification_type, position_label):
                                  color=parameters.MODIFICATIONS[modification_type][1])))
 
 def create_overview_plot(input_file: str | os.PathLike, output_path: str | os.PathLike):
-    fig = sequence.create_plot(input_file)
+    fig = sequence.create_plot(input_file, None, 'A')
 
-    # TODO: create this file
-    input_file = 'data/chris/overview_plot/PPc_COMPLETE_cutoff_0-05FDR_reformat_XX_reduced.csv'
-    fig = plot_labels(fig, input_file)
+    fig = plot_labels(fig, parameters.OVERVIEW_INPUT_FILE)
 
     utils.show_plot(fig, output_path)
 
