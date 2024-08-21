@@ -61,6 +61,11 @@ def different_possibilities_plot(width: int, height: int, different_possibilitie
     fig = go.Figure(data=go.Heatmap(z=rectangle))
     fig.show()
 
+def get_label_color(neuropathology: str):
+    # based on https://stackoverflow.com/questions/3942878/
+    red, green, blue = tuple(int(parameters.NEUROPATHOLOGIES[neuropathology][1][i:i+2], 16) for i in (1, 3, 5))
+    return '#000000' if red*0.299 + green*0.587 + blue*0.114 > 130 else '#ffffff'
+
 def get_modifications_per_position(input_file):
     with open(input_file, 'r') as f:
         rows = f.readlines()[1:3]
