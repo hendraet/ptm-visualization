@@ -98,7 +98,7 @@ def clean_up():
             os.remove(file_path)
 
 def show_plot(fig, output_path):
-    output_file = f"{output_path}/figure1.png"
+    output_file = f"{output_path}/figure1.svg"
     fig.show()
     fig.write_image(output_file)
 

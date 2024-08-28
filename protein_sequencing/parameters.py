@@ -56,7 +56,7 @@ BAR_NEUROPATHOLOGIES = {'HMWC': 'HMW <br>Wessling et al. <br>identified',
                         'HMW': 'HMW <br>Patient <br>frequency',
                         }
 MIN_BAR_WIDTH = max(FONT_SIZE, 8)
-INVERT_AXIS_GROUP_B = False
+INVERT_AXIS_GROUP_B = True
 BAR_INPUT_FILE = 'data/chris/bar_plot/PP-MASCOT-CellAll-All_cutoff_0-05FDR_TAU_reformat_reduced_sub_binaryCell.csv'
 
 
