@@ -810,5 +810,3 @@ def create_details_plot(input_file: str | os.PathLike, output_path: str | os.Pat
         plot_ptms(fig, ptm_df, pixels_per_ptm, label_plot_height, ptm_group, second_row)
     
     utils.show_plot(fig, output_path)
-
-create_details_plot(parameters.FASTA_INPUT_FILE, parameters.OUTPUT_FOLDER)

@@ -87,9 +87,9 @@ def add_bar_plot(fig: go.Figure, group: str, modification_sights_all: dict[int, 
 
                fig.add_shape(
                   type="rect",
-                  x0=x0+1,
+                  x0=x0,
                   y0=y0,
-                  x1=x1-1,
+                  x1=x1,
                   y1=y1,
                   line=dict(color="black", width=1),
                   fillcolor=parameters.MODIFICATIONS[modification_type][1]
@@ -301,7 +301,7 @@ def filter_relevant_modification_sights(helper_file: str):
    return all_modification_sights, relevant_modification_sights, df
 
 
-def create_bar_plot(input_file: str | os.PathLike, output_path: str | os.PathLike):
+def create_bar_plot(input_file: str | os.PathLike, output_path: str | os.PathLike, config_path: str | os.PathLike):
    all_positions, relevant_positions, df = filter_relevant_modification_sights(parameters.BAR_INPUT_FILE)
    
    group_a_all, group_b_all = utils.separate_by_group(all_positions)
@@ -328,5 +328,3 @@ def create_bar_plot(input_file: str | os.PathLike, output_path: str | os.PathLik
    
 
    utils.show_plot(fig, output_path)
-
-create_bar_plot(parameters.FASTA_INPUT_FILE, parameters.OUTPUT_FOLDER)

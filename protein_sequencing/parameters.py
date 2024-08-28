@@ -1,5 +1,5 @@
 # Plot Settings
-FIGURE_ORIENTATION = 1  # 0 for horizontal, 1 for vertical, note figure height and width are then automatically swapped
+FIGURE_ORIENTATION = 0  # 0 for horizontal, 1 for vertical, note figure height and width are then automatically swapped
 FIGURE_WIDTH = 1200
 FIGURE_HEIGHT = 1000
 
