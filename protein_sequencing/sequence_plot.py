@@ -1,6 +1,9 @@
 import plotly.graph_objects as go
 import os
-from protein_sequencing import utils, uniprot_align, parameters
+from protein_sequencing import utils, uniprot_align
+import importlib
+
+CONFIG = importlib.import_module('configs.default_config', 'configs')
 
 def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_positioning = None) -> go.Figure:
 
@@ -40,7 +43,7 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
     # different_possibilities_plot(max_sequence_length, 50, different_possibilities)
 
     # basis for all pixel calculations
-    if parameters.FIGURE_ORIENTATION == 0:
+    if CONFIG.FIGURE_ORIENTATION == 0:
         max_sequence_length_pixels = utils.get_width() - utils.get_left_margin() - utils.get_right_margin()
         utils.PIXELS_PER_PROTEIN = int(max_sequence_length_pixels // max_sequence_length)
         utils.SEQUENCE_OFFSET = utils.get_left_margin()
@@ -53,10 +56,10 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
     region_boundaries = []
     region_end_pixel = utils.SEQUENCE_OFFSET
     region_start = 1
-    for region_name, region_end, region_color, _ in parameters.REGIONS:
+    for region_name, region_end, region_color, _ in CONFIG.REGIONS:
         region_start_pixel = region_end_pixel
         region_end_pixel = region_end * utils.PIXELS_PER_PROTEIN + 1 + utils.SEQUENCE_OFFSET
-        region_boundaries.append((region_name, region_start_pixel, region_end_pixel, parameters.SEQUENCE_REGION_COLORS[region_color], region_start, region_end))
+        region_boundaries.append((region_name, region_start_pixel, region_end_pixel, CONFIG.SEQUENCE_REGION_COLORS[region_color], region_start, region_end))
         region_start = region_end + 1
 
     fig = create_sequence_plot(region_boundaries, groups_missing, legend_positioning)
@@ -83,7 +86,7 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
         xaxis=dict(range=[0, width], autorange=False),
         yaxis=dict(range=[0, height], autorange=False),
         plot_bgcolor="white",
-        font_family=parameters.FONT,
+        font_family=CONFIG.FONT,
         margin=dict(l=0, r=0, t=0, b=0),
     )
     fig.update_xaxes(visible=False)
@@ -91,44 +94,44 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
 
     # Legend
     if legend_positioning:
-        longest_text = parameters.MODIFICATION_LEGEND_TITLE
-        for mod in parameters.MODIFICATIONS:
-            if len(parameters.MODIFICATIONS[mod][0]) > len(longest_text):
-                longest_text = parameters.MODIFICATIONS[mod][0]
+        longest_text = CONFIG.MODIFICATION_LEGEND_TITLE
+        for mod in CONFIG.MODIFICATIONS:
+            if len(CONFIG.MODIFICATIONS[mod][0]) > len(longest_text):
+                longest_text = CONFIG.MODIFICATIONS[mod][0]
         if not groups_missing:
             if legend_positioning == 'A':
-                x_legend = 0 if parameters.FIGURE_ORIENTATION == 0 else width//2 + parameters.SEQUENCE_PLOT_HEIGHT//2
-                y_legend = height//2 + parameters.SEQUENCE_PLOT_HEIGHT//2 + (len(parameters.MODIFICATIONS.keys())+1) * utils.get_label_height() if parameters.FIGURE_ORIENTATION == 0 else height
+                x_legend = 0 if CONFIG.FIGURE_ORIENTATION == 0 else width//2 + CONFIG.SEQUENCE_PLOT_HEIGHT//2
+                y_legend = height//2 + CONFIG.SEQUENCE_PLOT_HEIGHT//2 + (len(CONFIG.MODIFICATIONS.keys())+1) * utils.get_label_height() if CONFIG.FIGURE_ORIENTATION == 0 else height
             else:
-                x_legend = 0 if parameters.FIGURE_ORIENTATION == 0 else width//2 - parameters.SEQUENCE_PLOT_HEIGHT//2 - utils.get_label_length(longest_text)
-                y_legend = height//2 - parameters.SEQUENCE_PLOT_HEIGHT//2 if parameters.FIGURE_ORIENTATION == 0 else height
+                x_legend = 0 if CONFIG.FIGURE_ORIENTATION == 0 else width//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2 - utils.get_label_length(longest_text)
+                y_legend = height//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2 if CONFIG.FIGURE_ORIENTATION == 0 else height
         else:
             x_legend = 0
             y_legend = 0
             if groups_missing == 'A':
-                if parameters.FIGURE_ORIENTATION == 1:
-                    x_legend = width - parameters.SEQUENCE_PLOT_HEIGHT - utils.get_label_length(longest_text)
+                if CONFIG.FIGURE_ORIENTATION == 1:
+                    x_legend = width - CONFIG.SEQUENCE_PLOT_HEIGHT - utils.get_label_length(longest_text)
                     y_legend = height
                 else:
-                    y_legend = height - parameters.SEQUENCE_PLOT_HEIGHT
+                    y_legend = height - CONFIG.SEQUENCE_PLOT_HEIGHT
             if groups_missing == 'B':
-                if parameters.FIGURE_ORIENTATION == 1:
-                    x_legend = parameters.SEQUENCE_PLOT_HEIGHT
+                if CONFIG.FIGURE_ORIENTATION == 1:
+                    x_legend = CONFIG.SEQUENCE_PLOT_HEIGHT
                 else:
-                    y_legend = parameters.SEQUENCE_PLOT_HEIGHT + (len(parameters.MODIFICATIONS.keys())+1) * utils.get_label_height()
+                    y_legend = CONFIG.SEQUENCE_PLOT_HEIGHT + (len(CONFIG.MODIFICATIONS.keys())+1) * utils.get_label_height()
 
         fig.add_trace(go.Scatter(x=[x_legend], y=[y_legend],
                                  mode='text',
-                                 text=f"<b>{parameters.MODIFICATION_LEGEND_TITLE}</b>",
+                                 text=f"<b>{CONFIG.MODIFICATION_LEGEND_TITLE}</b>",
                                  textposition="bottom right",
                                  showlegend=False, hoverinfo='none',
-                                 textfont=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE,
+                                 textfont=dict(size=CONFIG.SEQUENCE_PLOT_FONT_SIZE,
                                                color="black")))
         y_legend -= utils.get_label_height()
 
-        labels = [mod for mod in parameters.MODIFICATIONS.values()]
+        labels = [mod for mod in CONFIG.MODIFICATIONS.values()]
         sorted_labels = sorted(labels, key=sort_key)
-        if legend_positioning == 'B' or parameters.FIGURE_ORIENTATION == 1:
+        if legend_positioning == 'B' or CONFIG.FIGURE_ORIENTATION == 1:
             sorted_labels = sorted_labels[::-1]
         for i, mod in enumerate(sorted_labels):
             fig.add_trace(
@@ -139,7 +142,7 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
                            textposition="bottom right",
                            showlegend=False,
                            hoverinfo='none',
-                           textfont=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color=mod[1])))
+                           textfont=dict(size=CONFIG.SEQUENCE_PLOT_FONT_SIZE, color=mod[1])))
 
     # Sequence
     fig = plot_sequence(fig, region_boundaries, groups_missing)
@@ -149,25 +152,25 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
 def plot_sequence(fig, region_boundaries, groups_missing):
     sequence_x0, sequence_y0 = 0,0
     x0, x1, y0, y1 = 0,0,0,0
-    if parameters.FIGURE_ORIENTATION == 0:
-        y0 = utils.get_height()//2 - parameters.SEQUENCE_PLOT_HEIGHT//2
+    if CONFIG.FIGURE_ORIENTATION == 0:
+        y0 = utils.get_height()//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2
         if groups_missing:
             if groups_missing == 'A':
-                y0 = utils.get_height() - parameters.SEQUENCE_PLOT_HEIGHT
+                y0 = utils.get_height() - CONFIG.SEQUENCE_PLOT_HEIGHT
             if groups_missing == 'B':
                 y0 = 0
-        y1 = y0+parameters.SEQUENCE_PLOT_HEIGHT
+        y1 = y0+CONFIG.SEQUENCE_PLOT_HEIGHT
     else:
-        x0 = utils.get_width()//2 - parameters.SEQUENCE_PLOT_HEIGHT//2
+        x0 = utils.get_width()//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2
         if groups_missing:
             if groups_missing == 'B':
                 x0 = 0
             if groups_missing == 'A':
-                x0 = utils.get_width() - parameters.SEQUENCE_PLOT_HEIGHT
-        x1 = x0+parameters.SEQUENCE_PLOT_HEIGHT
+                x0 = utils.get_width() - CONFIG.SEQUENCE_PLOT_HEIGHT
+        x1 = x0+CONFIG.SEQUENCE_PLOT_HEIGHT
 
     for i, (region_name, region_start_pixel, region_end_pixel, region_color, region_start, region_end) in enumerate(region_boundaries):
-        if parameters.FIGURE_ORIENTATION == 0:
+        if CONFIG.FIGURE_ORIENTATION == 0:
             x0 = region_start_pixel
             x1 = region_end_pixel
         else:
@@ -193,12 +196,12 @@ def plot_sequence(fig, region_boundaries, groups_missing):
             y=y_label,
             text=region_name,
             showarrow=False,
-            font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="black"),
-            textangle= 90 if parameters.FIGURE_ORIENTATION == 1 else 0
+            font=dict(size=CONFIG.SEQUENCE_PLOT_FONT_SIZE, color="black"),
+            textangle= 90 if CONFIG.FIGURE_ORIENTATION == 1 else 0
         )
 
         if i == 0:
-            if parameters.FIGURE_ORIENTATION == 0:
+            if CONFIG.FIGURE_ORIENTATION == 0:
                 x = x0 - utils.get_label_length(str(region_start))
                 y = y_label
             else:
@@ -209,11 +212,11 @@ def plot_sequence(fig, region_boundaries, groups_missing):
                 y=y,
                 text='1',
                 showarrow=False,
-                font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="gray"),
+                font=dict(size=CONFIG.SEQUENCE_PLOT_FONT_SIZE, color="gray"),
                 textangle= 0
             )
             sequence_x0, sequence_y0 = x0, y0
-    if parameters.FIGURE_ORIENTATION == 0:
+    if CONFIG.FIGURE_ORIENTATION == 0:
         x = x1 + utils.get_label_length(str(region_end))
         y = y
     else:
@@ -224,7 +227,7 @@ def plot_sequence(fig, region_boundaries, groups_missing):
         y=y,
         text=region_end,
         showarrow=False,
-        font=dict(size=parameters.SEQUENCE_PLOT_FONT_SIZE, color="gray"),
+        font=dict(size=CONFIG.SEQUENCE_PLOT_FONT_SIZE, color="gray"),
         textangle= 0
     )
 

@@ -1,26 +1,51 @@
 from collections import defaultdict
 import os
+import importlib
 
 import plotly.graph_objects as go
-from protein_sequencing import parameters, utils, sequence_plot as sequence
+from protein_sequencing import utils, sequence_plot as sequence
 
+CONFIG = importlib.import_module('configs.default_config', 'configs')
+PLOT_CONFIG = importlib.import_module('configs.default_overview', 'configs')
 
+def get_modifications_per_position(input_file):
+    with open(input_file, 'r') as f:
+        rows = f.readlines()[1:3]
+        modification_types = rows[0].strip().split(',')
+        labels = rows[1].strip().split(',')
+        modifications_by_position = defaultdict(list)
+        for i, (label) in enumerate(labels):
+            if label == '':
+                continue
+            position = int(label[1:])
+            letter = label[0]
+            if letter in CONFIG.EXCLUDED_MODIFICATIONS:
+                if CONFIG.EXCLUDED_MODIFICATIONS[letter] is None:
+                    continue
+                if modification_types[i] in CONFIG.EXCLUDED_MODIFICATIONS[letter]:
+                    continue
+            if modification_types[i] not in CONFIG.MODIFICATIONS:
+                continue
+            modifications_by_position[position].append((label, modification_types[i], PLOT_CONFIG.MODIFICATIONS_GROUP[modification_types[i]]))
+        for position, mods in modifications_by_position.items():
+            modifications_by_position[position] = list(set(mods))
+    return modifications_by_position
 
 def plot_labels(fig, file_path):
     x0 = utils.SEQUENCE_BOUNDARIES['x0']
     x1 = utils.SEQUENCE_BOUNDARIES['x1']
     y0 = utils.SEQUENCE_BOUNDARIES['y0']
     y1 = utils.SEQUENCE_BOUNDARIES['y1']
-    modifications_by_position = utils.get_modifications_per_position(file_path)
+    modifications_by_position = get_modifications_per_position(file_path)
 
     label_offsets_with_orientation = get_label_offsets_with_orientation(modifications_by_position, utils.PIXELS_PER_PROTEIN)
     for protein_position in label_offsets_with_orientation.keys():
         line_plotted_A, line_plotted_B = False, False
         for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[protein_position]:
-            if parameters.FIGURE_ORIENTATION == 0:
+            if CONFIG.FIGURE_ORIENTATION == 0:
                 x_position_line = (protein_position * utils.PIXELS_PER_PROTEIN) + utils.SEQUENCE_OFFSET
 
-                y_length = parameters.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_height()
+                y_length = PLOT_CONFIG.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_height()
                 y_beginning_line = y0 if group == 'B' else y1
                 y_end_line = y_beginning_line - y_length if group == 'B' else y_beginning_line + y_length
                 
@@ -39,9 +64,9 @@ def plot_labels(fig, file_path):
                 
                 plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
             else:
-                y_position_line = parameters.FIGURE_WIDTH - (protein_position * utils.PIXELS_PER_PROTEIN) - utils.SEQUENCE_OFFSET
+                y_position_line = CONFIG.FIGURE_WIDTH - (protein_position * utils.PIXELS_PER_PROTEIN) - utils.SEQUENCE_OFFSET
 
-                x_length = parameters.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_length(label)
+                x_length = PLOT_CONFIG.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_length(label)
                 x_beginning_line = x0 if group == 'B' else x1
                 x_end_line = x_beginning_line - x_length if group == 'B' else x_beginning_line + x_length
 
@@ -211,13 +236,13 @@ def get_label_offsets_with_orientation(groups_by_position, pixels_per_protein):
 
 # distance between positions, -1 if label must be positioned left or right, 0 if label must be positioned in the center, 1 if label can be positioned anywhere, 2 if there is enogh space for both labels to be positioned left and right
 def check_distance(first_modification, second_modification, pixels_per_protein):
-    label_length = utils.get_label_length(first_modification['mod'][0]) if parameters.FIGURE_ORIENTATION == 0 else utils.get_label_height()
+    label_length = utils.get_label_length(first_modification['mod'][0]) if CONFIG.FIGURE_ORIENTATION == 0 else utils.get_label_height()
     distance_between_modifications = abs(first_modification['position'] - second_modification['position']) * pixels_per_protein
     if distance_between_modifications < label_length/2:
         return -1
     if distance_between_modifications < label_length:
         return 0
-    second_label_length = utils.get_label_length(second_modification['mod'][0]) if parameters.FIGURE_ORIENTATION == 0 else utils.get_label_height()
+    second_label_length = utils.get_label_length(second_modification['mod'][0]) if CONFIG.FIGURE_ORIENTATION == 0 else utils.get_label_height()
     if distance_between_modifications > label_length + second_label_length:
         return 2
     return 1
@@ -227,7 +252,7 @@ def plot_line(fig, x_start, x_end, y_start, y_end):
 
 def plot_label(fig, x, y, text, modification_type, position_label):
     #Label bounding box for highlitghted PTMs
-    if f'{modification_type}({text[0]})@{text[1:]}' in parameters.PTMS_TO_HIGHLIGHT:
+    if f'{modification_type}({text[0]})@{text[1:]}' in CONFIG.PTMS_TO_HIGHLIGHT:
         x0 = x+1
         y0 = y-1
         x1 = x-utils.get_label_length(text)+2
@@ -252,7 +277,7 @@ def plot_label(fig, x, y, text, modification_type, position_label):
                 x1=x1,
                 y1=y1,
                 layer='below',
-                fillcolor=parameters.PTM_HIGHLIGHT_LABEL_COLOR,
+                fillcolor=CONFIG.PTM_HIGHLIGHT_LABEL_COLOR,
                 line=dict(width=0),
             )
     fig.add_trace(go.Scatter(x=[x], y=[y], mode='text',
@@ -261,14 +286,14 @@ def plot_label(fig, x, y, text, modification_type, position_label):
                              showlegend=False,
                              hoverinfo='none',
                              textfont=dict(
-                                 family=parameters.FONT,
-                                 size=parameters.SEQUENCE_PLOT_FONT_SIZE,
-                                 color=parameters.MODIFICATIONS[modification_type][1])))
+                                 family=CONFIG.FONT,
+                                 size=CONFIG.SEQUENCE_PLOT_FONT_SIZE,
+                                 color=CONFIG.MODIFICATIONS[modification_type][1])))
 
 def create_overview_plot(input_file: str | os.PathLike, output_path: str | os.PathLike):
     fig = sequence.create_plot(input_file, None, 'A')
 
-    fig = plot_labels(fig, parameters.OVERVIEW_INPUT_FILE)
+    fig = plot_labels(fig, PLOT_CONFIG.OVERVIEW_INPUT_FILE)
 
     utils.show_plot(fig, output_path)
     
