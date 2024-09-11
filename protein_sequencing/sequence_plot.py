@@ -39,9 +39,6 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
                 i += 1
         i += 1
 
-    # For debugging purposes
-    # different_possibilities_plot(max_sequence_length, 50, different_possibilities)
-
     # basis for all pixel calculations
     if CONFIG.FIGURE_ORIENTATION == 0:
         max_sequence_length_pixels = utils.get_width() - utils.get_left_margin() - utils.get_right_margin()

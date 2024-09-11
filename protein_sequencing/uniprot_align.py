@@ -1,4 +1,4 @@
-from Bio import AlignIO, SeqIO, Seq, Align
+from Bio import AlignIO, SeqIO
 import os
 import subprocess
 
@@ -19,3 +19,7 @@ def get_alignment(input_file: str | os.PathLike):
     align = AlignIO.read(f"{padded_sequences_path}.aln", "clustal")
     
     return align
+
+# result = get_alignment('data/uniprot_data/tau_isoforms2N4R.fasta')
+# with open('data/uniprot_data/tau_aligned.fasta', 'w') as f:
+#    SeqIO.write(result, f, 'fasta')

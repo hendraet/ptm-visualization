@@ -1,13 +1,26 @@
 import importlib
 import os
 import csv
+import re
+import pandas as pd
 
-fasta_file = 'data/test_data/uniprot/test.fasta'
-aligned_fasta_file = 'data/test_data/uniprot/test_aligned.fasta'
-input_dir = 'data/test_data/mascot/'
 
 # TODO make changable from main input script
+fasta_file = 'data/uniprot_data/tau_isoforms2N4R.fasta'
+aligned_fasta_file = 'data/uniprot_data/tau_aligned.fasta'
+input_dir = 'data/mascot/'
+
 CONFIG = importlib.import_module('configs.default_config', 'configs')
+
+current_dir = os.path.dirname(__file__)
+groups_df = pd.read_csv(f"{current_dir}/groups.csv")
+
+isoform_helper_dict = { "0N3R": "P10636-2",
+                        "1N3R": "P10636-4",
+                        "2N3R": "P10636-5",
+                        "0N4R": "P10636-6",
+                        "1N4R": "P10636-7",
+                        "2N4R": "P10636-8",}
 
 def process_tau_file(fasta_file, aligned_fasta_file):
     headers = []
@@ -44,30 +57,8 @@ def process_tau_file(fasta_file, aligned_fasta_file):
     sorted_headers = sorted(headers, key=lambda x: -len(x[1]))
     return sorted_headers
 
-def reformmods(mods, sites, short_sequence, pep_start, variable_mods, isoform, aligned_sequence):
-    # get new start index for aligned isoform
-    aligned_pep_start = 0
-    break_counter = int(pep_start)
-    for i in range(len(aligned_sequence)):
-        aligned_pep_start += 1
-        if aligned_sequence[i] != '-':
-            break_counter -= 1
-            if break_counter == 0:
-                break
-
+def reformmods(mods, sites, short_sequence, variable_mods, isoform, sequence, aligned_sequence):
     modstrings = []
-
-    # TODO do we acutally need this?
-    mods = mods[1:-1].split(';')
-    single_mods = []
-    for mod in mods:
-        if mod[0].isdigit():
-            single_mod = mod[2:]
-            for i in range(int(mod[0])):
-                single_mods.append(single_mod)
-        else:
-            single_mods.append(mod)
-    mods = [mod.strip() for mod in single_mods]
 
     # "2 Acetyl (K); GG (K); Oxidation (M); 2 Phospho (ST)"
     # 0.0400030011042.0
@@ -85,30 +76,27 @@ def reformmods(mods, sites, short_sequence, pep_start, variable_mods, isoform, a
         if site != 0:
             mod = variable_mods[site]
             aa = short_sequence[i]
-            # -1 because the sequence is 1 indexed
-            while aligned_sequence[(aligned_pep_start-1) + sequence_split_offset] == '-':
-                sequence_split_offset += 1
-            siteidx = aligned_pep_start + sequence_split_offset
-                
-            modstring = f"{mod}({aa})@{siteidx}_{isoform}"
+            pos = sequence.index(short_sequence) + sequence_split_offset
+            modstring = f"{mod}({aa})@{pos}_{isoform}"
             modstrings.append(modstring)
         sequence_split_offset += 1
     return modstrings
 
 def process_mascot_file(file, fasta_headers):
-    # TODO do we need all these variables?
-    prot_acc_idx = -1
+
+    def replace_comma_in_quotes(line):
+        pattern = r'\"(.*?)\"'
+        def replace_comma(match):
+            return match.group(0).replace(',', '-')
+        modified_line = re.sub(pattern, replace_comma, line)
+        return modified_line
+
     pep_seq_idx = -1
     pep_var_mod_idx = -1
     pep_var_mod_pos_idx = -1
-    pep_score_idx = -1
-    pep_delta_idx = -1
-    pep_exp_mr_idx = -1
-    pep_exp_mz_idx = -1
-    pep_calc_mr_idx = -1
-    pep_exp_z_idx = -1
-    pep_start_idx = -1
-    pep_end_idx = -1
+    pep_accession_idx = -1
+
+    header_length = -1
 
     varmods = False
     table = False
@@ -138,34 +126,50 @@ def process_mascot_file(file, fasta_headers):
             elif table == True and emptyrowpars == True:
                 if line.startswith('prot_hit_num'):
                     headers = line.split(',')
+                    header_length = len(headers)
                     for i, header in enumerate(headers):
-                        if header == 'prot_acc':
-                            prot_acc_idx = i
-                        elif header == 'pep_seq':
+                        if header == 'pep_seq':
                             pep_seq_idx = i
                         elif header == 'pep_var_mod':
                             pep_var_mod_idx = i
                         elif header == 'pep_var_mod_pos':
                             pep_var_mod_pos_idx = i
-                        elif header == 'pep_score':
-                            pep_score_idx = i
-                        elif header == 'pep_delta':
-                            pep_delta_idx = i
-                        elif header == 'pep_exp_mr':
-                            pep_exp_mr_idx = i
-                        elif header == 'pep_exp_mz':
-                            pep_exp_mz_idx = i
-                        elif header == 'pep_calc_mr':
-                            pep_calc_mr_idx = i
-                        elif header == 'pep_exp_z':
-                            pep_exp_z_idx = i
-                        elif header == 'pep_start':
-                            pep_start_idx = i
-                        elif header == 'pep_end':
-                            pep_end_idx = i
+                        elif header == 'prot_acc':
+                            pep_accession_idx = i
                 else:
                     line = line.replace(', ', '-')
+                    line = replace_comma_in_quotes(line)
                     row = line.split(',')
+                    def replace_comma_in_quotes(line):
+                        pattern = r'\"(.*?)\"'
+                        def replace_comma(match):
+                            return match.group(0).replace(',', '-')
+                        modified_line = re.sub(pattern, replace_comma, line)
+                        return modified_line
+                    header_found = False
+                    search_header = row[pep_accession_idx][1:-1]
+                    if search_header in isoform_helper_dict:
+                        search_header = isoform_helper_dict[search_header]
+                    for fasta_header in fasta_headers:
+                        if search_header in fasta_header[0]:
+                            header_found = True
+                            break
+                    if not header_found:
+                        continue
+                    if len(row) != header_length:
+                        pattern = r"Protein: \w{6,} has \d+ cached-but \d+ from the re-load*"
+                        if re.search(pattern, line):
+                            next_line = f.readline()
+                            line = re.sub(pattern, '', line).strip()
+                            line = line + next_line
+                            if len(line.split(',')) != header_length:
+                                print(f"Failed automatically fixing line: {line}")
+                                continue
+                            else:
+                                row = line.split(',')
+                        else:
+                            print(f"Error with line: {line}")
+                            continue
                     if row[pep_var_mod_idx] == '""':
                         continue
                     isoform = None
@@ -173,22 +177,14 @@ def process_mascot_file(file, fasta_headers):
                     aligned_sequence = None
                     for fasta_header in fasta_headers:
                         if row[pep_seq_idx] in fasta_header[1]:
-                            start = int(row[pep_start_idx])
-                            end = int(row[pep_end_idx])
-                            wrong_sequence = False
-                            for i in range(end - start + 1):
-                                if fasta_header[1][start + i -1] != row[pep_seq_idx][i]:
-                                    wrong_sequence = True
-                                    break
-                            if not wrong_sequence:
                                 isoform = fasta_header[0]
                                 sequence = fasta_header[1]
                                 aligned_sequence = fasta_header[2]
                                 break
                     if isoform is None:
-                        print(f"Could not find isoform for sequence {row[pep_seq_idx]}")
+                        #print(f"Could not find isoform for sequence {row[pep_seq_idx]}")
                         continue
-                    reform_mod_strings = reformmods(row[pep_var_mod_idx], row[pep_var_mod_pos_idx], row[pep_seq_idx], row[pep_start_idx], variable_mods, isoform, aligned_sequence)
+                    reform_mod_strings = reformmods(row[pep_var_mod_idx], row[pep_var_mod_pos_idx], row[pep_seq_idx], variable_mods, isoform, sequence, aligned_sequence)
                     all_mod_strings.extend(reform_mod_strings)
     return all_mod_strings
 
@@ -205,10 +201,10 @@ def process_results(all_mod_strings, mod_strings_for_files):
         writer.writerow(['ID', 'Neuropathology'] + all_mod_strings)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mod_strings])
         writer.writerow(['', ''] + [extract_location(mod) for mod in all_mod_strings])
-        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mod_strings])
         for file, mods in mod_strings_for_files.items():
             row = [1 if mod in mods else 0 for mod in all_mod_strings]
-            writer.writerow([file, ''] + row)
+            group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]
+            writer.writerow([file, group] + row)
 
 def process_mascot_dir(input_dir, tau_headers):
     files = os.listdir(input_dir)

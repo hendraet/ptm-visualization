@@ -1,9 +1,4 @@
-# Plot Settings
-FIGURE_ORIENTATION = 0  # 0 for horizontal, 1 for vertical, note figure height and width are then automatically swapped
-FIGURE_WIDTH = 1200
-FIGURE_HEIGHT = 1000
-
-FONT_SIZE = 12
+# General Settings
 
 # Sequence Settings
 # First sequence is from (1, 44), second from (45, 73) and so on
@@ -31,9 +26,6 @@ MODIFICATIONS = {
     'Citrullination': ('Citrullination', '#FF17E3'),
 }
 
-PTMS_TO_HIGHLIGHT = ['Phospho(S)@61', 'Citrullination(R)@242', 'GG(K)@254', 'Acetyl(K)@267', 'Methyl(K)@311']
-PTM_HIGHLIGHT_LABEL_COLOR = '#cfcfcf'
-
 EXCLUDED_MODIFICATIONS = {'Q': None,
                           'X': None,
                           'S': ['GG'],}
@@ -41,6 +33,16 @@ EXCLUDED_MODIFICATIONS = {'Q': None,
 # Input Output Settings
 FASTA_INPUT_FILE = 'data/uniprot_data/tau_isoforms2N4R.fasta'
 OUTPUT_FOLDER = 'output'
+
+# Plot Settings
+FIGURE_ORIENTATION = 0  # 0 for horizontal, 1 for vertical, note figure height and width are then automatically swapped
+FIGURE_WIDTH = 1200
+FIGURE_HEIGHT = 1000
+
+FONT_SIZE = 12
+
+PTMS_TO_HIGHLIGHT = ['Phospho(S)@61', 'Citrullination(R)@242', 'GG(K)@254', 'Acetyl(K)@267', 'Methyl(K)@311']
+PTM_HIGHLIGHT_LABEL_COLOR = '#cfcfcf'
 
 
 # Default Parameters
