@@ -3,72 +3,23 @@ import os
 import csv
 import re
 import pandas as pd
+from protein_sequencing.data_preprocessing import reader_helper
 
-
-# TODO make changable from main input script
-fasta_file = 'data/uniprot_data/tau_isoforms2N4R.fasta'
-aligned_fasta_file = 'data/uniprot_data/tau_aligned.fasta'
-input_dir = 'data/mascot/'
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
+READER_CONFIG = importlib.import_module('configs.reader_config', 'configs')
+
+fasta_file = READER_CONFIG.FASTA_FILE
+aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
+input_dir = READER_CONFIG.INPUT_DIR
 
 current_dir = os.path.dirname(__file__)
 groups_df = pd.read_csv(f"{current_dir}/groups.csv")
 
-isoform_helper_dict = { "0N3R": "P10636-2",
-                        "1N3R": "P10636-4",
-                        "2N3R": "P10636-5",
-                        "0N4R": "P10636-6",
-                        "1N4R": "P10636-7",
-                        "2N4R": "P10636-8",}
-
-def process_tau_file(fasta_file, aligned_fasta_file):
-    headers = []
-    aligned_sequences = {}
-    with open(aligned_fasta_file, 'r') as file:
-        lines = file.readlines()
-        header = ''
-        aligned_seq = ''
-        for line in lines:
-            if line.startswith('>'):
-                if header != '':
-                    aligned_sequences[header] = aligned_seq
-                header = line.split('|')[1]
-                aligned_seq = ''
-            else:
-                aligned_seq += line.strip()
-        if header:
-            aligned_sequences[header] = aligned_seq
-
-    with open(fasta_file, 'r') as file:
-        lines = file.readlines()
-        seq = ''
-        header = ''
-        for line in lines:
-            if line[0] == '>':
-                if header != '':
-                    headers.append((header, seq, aligned_sequences[header]))
-                    seq = ''
-                    header = ''
-                header = line.split('|')[1]
-            else:
-                seq += line.strip()
-        headers.append((header, seq, aligned_sequences[header]))
-    sorted_headers = sorted(headers, key=lambda x: -len(x[1]))
-    return sorted_headers
+isoform_helper_dict = READER_CONFIG.isoform_helper_dict
 
 def reformmods(mods, sites, short_sequence, variable_mods, isoform, sequence, aligned_sequence):
     modstrings = []
-
-    # "2 Acetyl (K); GG (K); Oxidation (M); 2 Phospho (ST)"
-    # 0.0400030011042.0
-    #   SSQLQMGQKKNSK
-    # abcdefabc
-    # ABC----------DEFABC------
-    # pep_start = 6
-    # sequence = "abc"
-    # mods = "Oxidation (B)"
-    # sites = "0.030.0"
     sites = sites.split('.')[1]
     sequence_split_offset = 0
     for i, site in enumerate(sites):
@@ -182,20 +133,16 @@ def process_mascot_file(file, fasta_headers):
                                 aligned_sequence = fasta_header[2]
                                 break
                     if isoform is None:
-                        #print(f"Could not find isoform for sequence {row[pep_seq_idx]}")
                         continue
                     reform_mod_strings = reformmods(row[pep_var_mod_idx], row[pep_var_mod_pos_idx], row[pep_seq_idx], variable_mods, isoform, sequence, aligned_sequence)
                     all_mod_strings.extend(reform_mod_strings)
     return all_mod_strings
 
-def process_results(all_mod_strings, mod_strings_for_files):
-    def extract_index(mod_string):
-        return int(mod_string.split('@')[1].split('_')[0])
-    
+def process_results(all_mod_strings, mod_strings_for_files):    
     def extract_location(mod_string):
         return mod_string.split('(')[1].split(')')[0]+mod_string.split('@')[1].split('_')[0]
     
-    all_mod_strings = sorted(set(all_mod_strings), key=extract_index)
+    all_mod_strings = sorted(set(all_mod_strings), key=reader_helper.extract_index)
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_mascot.csv", 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Neuropathology'] + all_mod_strings)
@@ -217,5 +164,5 @@ def process_mascot_dir(input_dir, tau_headers):
 
     process_results(all_mod_strings, mod_strings_for_files)
 
-fasta_headers = process_tau_file(fasta_file, aligned_fasta_file)
+fasta_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
 process_mascot_dir(input_dir, fasta_headers)
