@@ -139,15 +139,12 @@ def process_mascot_file(file, fasta_headers):
     return all_mod_strings
 
 def process_results(all_mod_strings, mod_strings_for_files):    
-    def extract_location(mod_string):
-        return mod_string.split('(')[1].split(')')[0]+mod_string.split('@')[1].split('_')[0]
-    
     all_mod_strings = sorted(set(all_mod_strings), key=reader_helper.extract_index)
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_mascot.csv", 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Neuropathology'] + all_mod_strings)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mod_strings])
-        writer.writerow(['', ''] + [extract_location(mod) for mod in all_mod_strings])
+        writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mod_strings])
         for file, mods in mod_strings_for_files.items():
             row = [1 if mod in mods else 0 for mod in all_mod_strings]
             group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]

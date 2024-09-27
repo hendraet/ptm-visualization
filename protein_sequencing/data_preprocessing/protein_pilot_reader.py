@@ -32,7 +32,7 @@ def extract_confidence_score(calamine_sheet):
     threshold_column = 'Fit Confidence Threshold'
 
     rows = iter(calamine_sheet.to_python())
-    for index, row in enumerate(rows):
+    for row in rows:
         if threshold_column in row:
             threshold_index = row.index(threshold_column)
             fdr_index = row.index(fdr_column)
@@ -59,7 +59,10 @@ def split_mod(mod, seq):
     return mod_name.strip(), amino_acid.strip(), int(mod_pos)
 
 def get_accession(row, accession_index, seq_index) -> Tuple[str, int] | Tuple[None, None]:
-    if row[accession_index].split('|')[1] not in [header[0] for header in sorted_isoform_headers]:
+    search_header = row[accession_index].split('|')[1]
+    if search_header in READER_CONFIG.ISOFORM_HELPER_DICT:
+        search_header = READER_CONFIG.ISOFORM_HELPER_DICT[search_header]
+    if search_header not in [header[0] for header in sorted_isoform_headers]:
         return None, None
     index_offset = None
     for header in sorted_isoform_headers:
@@ -72,7 +75,7 @@ def get_accession(row, accession_index, seq_index) -> Tuple[str, int] | Tuple[No
     else:
         return None, None
 
-def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, accession_index):
+def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, accession_index) -> list:
     mods = []
     for row in rows:
         isoform, index_offset = get_accession(row, accession_index, seq_index)
@@ -106,7 +109,7 @@ def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, access
 
     return mods
 
-def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index):
+def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index) -> list:
     cleavages = []
     for row in rows:
         isoform, index_offset = get_accession(row, accession_index, seq_index)
@@ -154,18 +157,16 @@ def extract_data_with_threshold(calamine_sheet, threshold):
         
 
 
-def process_protein_pilot_xlsx_file(file):
+def process_protein_pilot_xlsx_file(file) -> Tuple[list, list]:
     workbook = CalamineWorkbook.from_path(file)
-    if 'Distinct Peptide Level Data' in workbook.sheet_names:
-        distinct_peptide_level_data = workbook.get_sheet_by_name('Distinct Peptide Level Data')
-        fdr_threshold = extract_confidence_score(distinct_peptide_level_data)
-    else:
-        print("No 'Distinct Peptide Level Data' worksheet found in the Excel file.")
-    if 'Peptide Summary' in workbook.sheet_names:
-        peptide_summary = workbook.get_sheet_by_name('Peptide Summary')
-        mods, cleavages = extract_data_with_threshold(peptide_summary, fdr_threshold)
 
-        return mods, cleavages
+    distinct_peptide_level_data = workbook.get_sheet_by_name('Distinct Peptide Level Data')
+    fdr_threshold = extract_confidence_score(distinct_peptide_level_data)
+
+    peptide_summary = workbook.get_sheet_by_name('Peptide Summary')
+    mods, cleavages = extract_data_with_threshold(peptide_summary, fdr_threshold)
+
+    return mods, cleavages
 
 def process_protein_pilot_dir():
     all_mods = []
@@ -175,18 +176,53 @@ def process_protein_pilot_dir():
     for file in os.listdir(input_dir):
         if file.endswith('.xlsx'):
             mods_for_file, cleavages_for_file = process_protein_pilot_xlsx_file(input_dir+file)
+            mods_for_file = set(mods_for_file)
+            cleavages_for_file = set(cleavages_for_file)
             all_mods.extend(mods_for_file)
             all_cleavages.extend(cleavages_for_file)
             mods_per_file[file] = mods_for_file
             cleavages_per_file[file] = cleavages_for_file
-
     all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
     all_cleavages = sorted(set(all_cleavages), key=reader_helper.extract_index)
+
+    for file, mods in mods_per_file.items():
+        if 'Acetyl' not in file:
+            file_name = '_'.join(file.split('_')[0:3] + ['Acetyl'] + file.split('_')[3:])
+            mods_per_file[file] = mods.union(mods_per_file[file_name])
+
+    for file in list(mods_per_file.keys()):
+        if 'Acetyl' in file:
+            del mods_per_file[file]
+
+    for file, cleavages in cleavages_per_file.items():
+        if 'Acetyl' not in file:
+            file_name = '_'.join(file.split('_')[0:3] + ['Acetyl'] + file.split('_')[3:])
+            cleavages_per_file[file] = cleavages.union(cleavages_per_file[file_name])
+
+    for file in list(cleavages_per_file.keys()):
+        if 'Acetyl' in file:
+            del cleavages_per_file[file]
 
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_mods.csv", 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Neuropathology'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
+        writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
+        for file, mods in mods_per_file.items():
+            row = [1 if mod in mods else 0 for mod in all_mods]
+            group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]
+            writer.writerow([file, group] + row)
+
+    with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_cleavages.csv", 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['ID', 'Neuropathology'] + all_cleavages)
+        writer.writerow(['', ''] + [cleavage.split('@')[0] for cleavage in all_cleavages])
+        writer.writerow(['', ''] + [reader_helper.extract_cleavage_location(cleavage) for cleavage in all_cleavages])
+        for file, cleavages in cleavages_per_file.items():
+            row = [1 if cleavage in cleavages else 0 for cleavage in all_cleavages]
+            group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]
+            writer.writerow([file, group] + row)
+
     return all_mods, all_cleavages
 
 
