@@ -13,8 +13,7 @@ fasta_file = READER_CONFIG.FASTA_FILE
 aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_dir = READER_CONFIG.INPUT_DIR
 
-current_dir = os.path.dirname(__file__)
-groups_df = pd.read_csv(f"{current_dir}/groups.csv")
+groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
 
 isoform_helper_dict = READER_CONFIG.isoform_helper_dict
 

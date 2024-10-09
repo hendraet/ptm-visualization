@@ -16,8 +16,7 @@ fasta_file = READER_CONFIG.FASTA_FILE
 aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_dir = READER_CONFIG.INPUT_DIR
 
-current_dir = os.path.dirname(__file__)
-groups_df = pd.read_csv(f"{current_dir}/groups.csv")
+groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
 
 sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
 
@@ -154,9 +153,6 @@ def extract_data_with_threshold(calamine_sheet, threshold):
 
     return mods, cleavages
 
-        
-
-
 def process_protein_pilot_xlsx_file(file) -> Tuple[list, list]:
     workbook = CalamineWorkbook.from_path(file)
 
@@ -167,6 +163,30 @@ def process_protein_pilot_xlsx_file(file) -> Tuple[list, list]:
     mods, cleavages = extract_data_with_threshold(peptide_summary, fdr_threshold)
 
     return mods, cleavages
+
+def parse_ranges(ranges_list):
+    ranges = []
+    for part in ranges_list:
+        if '-' in part:
+            start, end = map(int, part.split('-'))
+            ranges.append(list(range(start, end + 1)))
+        else:
+            ranges.append([int(part)])
+    return ranges
+
+def cleavage_score(ranges, cleavages):
+    results = []
+    for r in ranges:
+        range_length = len(r)
+        cleavage_hits = len([x for x in r if x in cleavages])
+        
+        if cleavage_hits == 0:
+            results.append(0)
+        elif cleavage_hits == range_length:
+            results.append(1)
+        else:
+            results.append(cleavage_hits / range_length)
+    return results
 
 def process_protein_pilot_dir():
     all_mods = []
@@ -211,17 +231,34 @@ def process_protein_pilot_dir():
         for file, mods in mods_per_file.items():
             row = [1 if mod in mods else 0 for mod in all_mods]
             group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]
-            writer.writerow([file, group] + row)
+            writer.writerow([file[:-10], group] + row)
 
+    cleavages_with_ranges = []
+    i = 0
+    while i < len(all_cleavages):
+        first_cleavage = all_cleavages[i]
+        cleavage = all_cleavages[i]
+        while i < len(all_cleavages)-1 and int(reader_helper.extract_cleavage_location(cleavage))+1 == int(reader_helper.extract_cleavage_location(all_cleavages[i+1])):
+            i += 1
+            cleavage = all_cleavages[i]
+        if int(reader_helper.extract_cleavage_location(first_cleavage)) != int(reader_helper.extract_cleavage_location(cleavage)):
+            cleavage_range = reader_helper.extract_cleavage_location(first_cleavage) + '-' + reader_helper.extract_cleavage_location(cleavage)
+            cleavages_with_ranges.append(cleavage_range)
+        else:
+            cleavages_with_ranges.append(reader_helper.extract_cleavage_location(first_cleavage))
+        i += 1
+        
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_cleavages.csv", 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', 'Neuropathology'] + all_cleavages)
-        writer.writerow(['', ''] + [cleavage.split('@')[0] for cleavage in all_cleavages])
-        writer.writerow(['', ''] + [reader_helper.extract_cleavage_location(cleavage) for cleavage in all_cleavages])
+        writer.writerow(['ID', 'Neuropathology'] + cleavages_with_ranges)
+        writer.writerow(['', ''] + ['-' for _ in cleavages_with_ranges])
+        writer.writerow(['', ''] + ['-' for _ in cleavages_with_ranges])
+        ranges = parse_ranges(cleavages_with_ranges)
         for file, cleavages in cleavages_per_file.items():
-            row = [1 if cleavage in cleavages else 0 for cleavage in all_cleavages]
+            indexes = [reader_helper.extract_index(cleavage) for cleavage in cleavages]
+            row = cleavage_score(ranges, indexes)
             group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]
-            writer.writerow([file, group] + row)
+            writer.writerow([file[:-10], group] + row)
 
     return all_mods, all_cleavages
 
