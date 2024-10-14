@@ -37,7 +37,6 @@ def process_tau_file(fasta_file, aligned_fasta_file):
 def extract_index(string):
     return int(string.split('@')[1].split('_')[0])
 
-
 def extract_mod_location(mod_string):
     return mod_string.split('(')[1].split(')')[0]+mod_string.split('@')[1].split('_')[0]
 

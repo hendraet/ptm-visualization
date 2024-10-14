@@ -103,7 +103,7 @@ def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, access
                     continue
                 if amino_acid != seq[int(mod_pos)-1]:
                     print(f"Error: amino acid mismatch at position {mod_pos} for sequence {seq} and mod {matched_mod}")
-                modstring = f"{mod_name}({amino_acid})@{mod_pos+index_offset}_{isoform}"
+                modstring = f"{mod_name}({amino_acid})@{mod_pos+index_offset}"
                 mods.append(modstring)
 
     return mods
@@ -125,7 +125,7 @@ def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index
             elif 'C-term' in site:
                 site_index = len(row[seq_index])+1
             
-            cleavages.append(f"{amino_acid}@{index_offset+site_index}_{isoform}")
+            cleavages.append(f"{amino_acid}@{index_offset+site_index}")
 
     return cleavages
 
@@ -251,8 +251,8 @@ def process_protein_pilot_dir():
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_cleavages.csv", 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Neuropathology'] + cleavages_with_ranges)
-        writer.writerow(['', ''] + ['-' for _ in cleavages_with_ranges])
-        writer.writerow(['', ''] + ['-' for _ in cleavages_with_ranges])
+        writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
+        writer.writerow(['', ''] + [cleavage for cleavage in cleavages_with_ranges])
         ranges = parse_ranges(cleavages_with_ranges)
         for file, cleavages in cleavages_per_file.items():
             indexes = [reader_helper.extract_index(cleavage) for cleavage in cleavages]

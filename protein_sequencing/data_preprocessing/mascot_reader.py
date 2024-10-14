@@ -27,7 +27,7 @@ def reformmods(mods, sites, short_sequence, variable_mods, isoform, sequence, al
             mod = variable_mods[site]
             aa = short_sequence[i]
             pos = sequence.index(short_sequence) + sequence_split_offset
-            modstring = f"{mod}({aa})@{pos}_{isoform}"
+            modstring = f"{mod}({aa})@{pos}"
             modstrings.append(modstring)
         sequence_split_offset += 1
     return modstrings
@@ -148,6 +148,7 @@ def process_results(all_mod_strings, mod_strings_for_files):
             row = [1 if mod in mods else 0 for mod in all_mod_strings]
             group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]
             writer.writerow([file, group] + row)
+
 
 def process_mascot_dir(input_dir, tau_headers):
     files = os.listdir(input_dir)
