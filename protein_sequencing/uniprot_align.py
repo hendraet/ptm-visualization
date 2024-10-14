@@ -13,7 +13,7 @@ def get_alignment(input_file: str | os.PathLike):
     # penalties für gap öffnung
 
     # tau 2,4-8     0N3R Isoform 1N4R, 2N4R, ...
-    cmd = f"./clustalw-2.1-linux/clustalw2 -infile={padded_sequences_path}.fasta -GAPOPEN=0.1 -GAPEXT=0.1"
+    cmd = f"./clustalw-2.1-linux/clustalw2 -infile={padded_sequences_path}.fasta -GAPOPEN=10 -GAPEXT=0.2"
     subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, text=True)
     
     align = AlignIO.read(f"{padded_sequences_path}.aln", "clustal")
