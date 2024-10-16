@@ -10,9 +10,13 @@ pandas = "^2.2.2"
 biopython = "^1.83"
 plotly = "^5.22.0"
 kaleido = "0.2.1"
+nbformat = "^5.10.4"
+openpyxl = "^3.1.5"
+python-calamine = "^0.2.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
+ipykernel = "^6.29.5"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

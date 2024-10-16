@@ -1,9 +1,10 @@
 # Details plot settings
-MODIFICATION_THRESHOLD = 10
+MODIFICATION_THRESHOLD = 2
 
 INPUT_FILES = {
     'B': ('Cleavage', 'data/chris/cleavage_plot/PPc_COMPLETE_cutoff_0-05FDR_reformat_XX_C_collmean_tarik.csv'),
     'A': ('PTM', 'data/chris/cleavage_plot/PPc_COMPLETE_cutoff_0-05FDR_reformat_XX_tarik.csv'),
+    #'A': ('PTM', 'output/result_mascot.csv'),
 }
 
 CLEAVAGES_TO_HIGHLIGHT = ['2-4', '15']
