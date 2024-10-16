@@ -1,8 +1,10 @@
+import csv
 import importlib
 import os
 import pandas as pd
 from protein_sequencing.data_preprocessing import reader_helper
 from typing import Tuple
+import re
 
 # TODO make changable from main input script
 
@@ -11,17 +13,20 @@ READER_CONFIG = importlib.import_module('configs.reader_config', 'configs')
 
 fasta_file = READER_CONFIG.FASTA_FILE
 aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
-input_dir = READER_CONFIG.INPUT_DIR
+input_file = READER_CONFIG.MS_FRAGGER_FILE
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
 
 sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
 
+ms_fragger_mods = READER_CONFIG.MS_FRAGGER_MODS
+
 def get_accession(accession: str, peptide: str) -> Tuple[str, str, int]:
     offset = 0
+    sequence = None
     for header in sorted_isoform_headers:
         if peptide in header[1]:
-            isoform = header[0].strip()
+            isoform = header[0]
             sequence = header[1]
             offset = sequence.index(peptide)
             break
@@ -30,24 +35,85 @@ def get_accession(accession: str, peptide: str) -> Tuple[str, str, int]:
     else:
         raise ValueError(f"Peptide {peptide} with accession {accession} not found in fasta file")
 
-def check_N_term_cleavage(sequence: str, peptide: str, accession: str) -> str:
-    index = sequence.index(peptide)
+def check_N_term_cleavage(peptide: str, accession: str) -> str:
+    _, sequence, offset = get_accession(accession, peptide)
     amino_acid_first = peptide[0]
     amino_acid_before = ""
-    if index > 0:
-        amino_acid_before = sequence[index - 1]
+    if offset > 0:
+        amino_acid_before = sequence[offset - 1]
     if amino_acid_before != "K" and amino_acid_before != "R":
-        return f"N-term({amino_acid_first}){index+1}"
+        return f"{amino_acid_first}@{offset+1}"
 
     return ""
 
-def check_C_term_cleavage(sequence: str, peptide: str, accession: str) -> str:
-    index = sequence.index(peptide) + len(peptide)
+def check_C_term_cleavage(peptide: str, accession: str) -> str:
+    _, _, offset = get_accession(accession, peptide)
     amino_acid_last = peptide[-1]
-    if amino_acid_last != "K" and amino_acid_last != "R":
-        return f"C-term({amino_acid_last}){index}"
+    if amino_acid_last not in ["K", "R"]:
+        return f"{amino_acid_last}@{offset+len(peptide)}"
 
     return ""
+
+def check_modification_present(mod_sequence: str) -> bool:
+    relevant_mod_present = False
+    for mod_idx in ms_fragger_mods:
+        if mod_idx in mod_sequence:
+            relevant_mod_present = True
+            break
+    return relevant_mod_present
+
+def get_exact_indexes(mod_sequence: str) -> list:
+    indexes = []
+    current_index = 1
+    inside_brackets = False
+    for i, char in enumerate(mod_sequence):
+        if char == '[':
+            inside_brackets = True
+        elif char == ']':
+            inside_brackets = False
+        elif not inside_brackets and char.isalpha():
+            if i + 1 < len(mod_sequence) and mod_sequence[i + 1] == '[':
+                indexes.append(current_index)
+        if not inside_brackets:
+            current_index += 1
+
+    return indexes
+
+def process_modifications(mod_sequence: str, sequence: str, offset: int):
+    all_mods = []
+    matches = re.findall(r'\[(\d+\.\d+?)\]', mod_sequence)
+    mod_indexes = get_exact_indexes(mod_sequence)
+    for i, match in enumerate(matches):
+        if match in ms_fragger_mods and ms_fragger_mods[match] in CONFIG.MODIFICATIONS:
+            modified_aa = mod_sequence[mod_sequence.index(match)-2]
+            if modified_aa in CONFIG.EXCLUDED_MODIFICATIONS:
+                if CONFIG.EXCLUDED_MODIFICATIONS[modified_aa] is not None and ms_fragger_mods[match] in CONFIG.EXCLUDED_MODIFICATIONS[modified_aa]:
+                    continue
+            offset = mod_indexes[i] + offset
+            mod_string = f"{ms_fragger_mods[match]}({modified_aa})@{offset}"
+            all_mods.append(mod_string)
+    return all_mods
+
+def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp):
+    with open(f"{CONFIG.OUTPUT_FOLDER}/result_ms_fragger_mods.csv", 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['ID', 'Neuropathology'] + all_mods)
+        for key, value in mods_for_exp.items():
+            row = [1 if mod in value else 0 for mod in all_mods]
+            group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
+            writer.writerow([key, group] + row)
+
+    with open(f"{CONFIG.OUTPUT_FOLDER}/result_ms_fragger_cleavages.csv", 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['ID', 'Neuropathology'] + cleavages_with_ranges)
+        writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
+        writer.writerow(['', ''] + [cleavage for cleavage in cleavages_with_ranges])
+        ranges = reader_helper.parse_ranges(cleavages_with_ranges)
+        for key, value in cleavages_for_exp.items():
+            indexes = [reader_helper.extract_index(cleavage) for cleavage in value]
+            row = reader_helper.cleavage_score(ranges, indexes)
+            group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
+            writer.writerow([key, group] + row)
 
 def process_ms_fragger_file(file: str):
     pep_seq_idx = -1
@@ -57,7 +123,13 @@ def process_ms_fragger_file(file: str):
 
     exp_idx = []
     exp_names = []
-    with open(input_dir + file, 'r') as f:
+
+    all_mods = []
+    mods_for_exp = {}
+    all_cleavages = []
+    cleavages_for_exp = {}
+
+    with open(file, 'r') as f:
         while line := f.readline():
             if line.startswith('Peptide Sequence'):
                 row = line.split('\t')
@@ -73,39 +145,55 @@ def process_ms_fragger_file(file: str):
                     elif "Intensity" in field:
                         if not "MaxLFQ Intensity" in field:
                             exp_idx.append(i)
-                            exp_names.append(field.replace(" Intensity", ""))
+                            exp_names.append(field.replace(" Intensity", "").strip())
             else:
                 row = line.split('\t')
+                row = [field.strip() for field in row]
                 nterm_cleav = ""
                 cterm_cleav = ""
-                all_mods = []
-                mods_for_exp = {}
 
                 if len(row) > 0:
                     if row[prot_accession_idx] in READER_CONFIG.ISOFORM_HELPER_DICT:
                         row[prot_accession_idx] = READER_CONFIG.ISOFORM_HELPER_DICT[row[prot_accession_idx]]
-                    if row[prot_accession_idx] not in sorted_isoform_headers:
-                        continue
-                    else:
+                    try:
                         isoform, sequence, offset = get_accession(row[prot_accession_idx], row[pep_seq_idx])
+                    except ValueError:
+                        continue                       
                         
-                        nterm_cleav = check_N_term_cleavage(sequence, row[pep_seq_idx], row[prot_accession_idx])
-                        cterm_cleav = check_C_term_cleavage(sequence, row[pep_seq_idx], row[prot_accession_idx])
-                        cleavage = ""
-                        if nterm_cleav != "" and cterm_cleav != "":
-                            cleavage = nterm_cleav + "; " + cterm_cleav
-                        elif nterm_cleav != "":
-                            cleavage = nterm_cleav
-                        elif cterm_cleav != "":
-                            cleavage = cterm_cleav
+                    nterm_cleav = check_N_term_cleavage(row[pep_seq_idx], row[prot_accession_idx])
+                    cterm_cleav = check_C_term_cleavage(row[pep_seq_idx], row[prot_accession_idx])
+                    cleavage = ""
+                    if nterm_cleav != "" and cterm_cleav != "":
+                        all_cleavages.append(nterm_cleav)
+                        all_cleavages.append(cterm_cleav)
+                        cleavage = nterm_cleav + "; " + cterm_cleav
+                    elif nterm_cleav != "":
+                        all_cleavages.append(nterm_cleav)
+                        cleavage = nterm_cleav
+                    elif cterm_cleav != "":
+                        all_cleavages.append(cterm_cleav)
+                        cleavage = cterm_cleav
 
+                    if check_modification_present(row[pep_mod_seq_idx]):
+                        mods_for_peptide = process_modifications(row[pep_mod_seq_idx], sequence, offset)
+                        all_mods.extend(mods_for_peptide)
+                        for i, idx in enumerate(exp_idx):
+                            if row[idx] != "0.0":
+                                if exp_names[i] not in mods_for_exp:
+                                    mods_for_exp[exp_names[i]] = []
+                                mods_for_exp[exp_names[i]].extend(mods_for_peptide)
 
+                                if cleavage != "": 
+                                    if exp_names[i] not in cleavages_for_exp:
+                                        cleavages_for_exp[exp_names[i]] = []
+                                    cleavages_for_exp[exp_names[i]].append(cleavage)
 
-def process_ms_fragger_dir():
-    for file in os.listdir(input_dir):
-        if file.endswith(".tsv"):
-            process_ms_fragger_file(file)
-            #TODO: check if we should process multiple files for ms fragger
-            break
+    all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
+    for key in mods_for_exp:
+        mods_for_exp[key] = sorted(set(mods_for_exp[key]), key=reader_helper.extract_index)
 
-process_ms_fragger_dir()
+    all_cleavages = sorted(set(all_cleavages), key=reader_helper.extract_cleavage_location)
+    cleavages_with_ranges = reader_helper.extract_cleavages_ranges(all_cleavages)
+    write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp)
+
+process_ms_fragger_file(input_file)
