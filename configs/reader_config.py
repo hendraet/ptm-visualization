@@ -23,3 +23,7 @@ MS_FRAGGER_MODS = {"42.0106": "Acetyl",
                    "114.0429": "GG",
                    "14.0157": "Methyl",
                    "0.9840": "Citrullination",}
+
+# MaxQuant
+MAX_QUANT_FILE = 'data/max_quant/evidence.txt'
+THRESHOLD = 0.01

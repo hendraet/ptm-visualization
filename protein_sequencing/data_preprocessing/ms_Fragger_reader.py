@@ -79,7 +79,7 @@ def get_exact_indexes(mod_sequence: str) -> list:
 
     return indexes
 
-def process_modifications(mod_sequence: str, sequence: str, offset: int):
+def process_modifications(mod_sequence: str, offset: int):
     all_mods = []
     matches = re.findall(r'\[(\d+\.\d+?)\]', mod_sequence)
     mod_indexes = get_exact_indexes(mod_sequence)
@@ -98,6 +98,8 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_ms_fragger_mods.csv", 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Neuropathology'] + all_mods)
+        writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
+        writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
         for key, value in mods_for_exp.items():
             row = [1 if mod in value else 0 for mod in all_mods]
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
@@ -119,7 +121,6 @@ def process_ms_fragger_file(file: str):
     pep_seq_idx = -1
     pep_mod_seq_idx = -1
     prot_accession_idx = -1
-    pep_exp_z_idx = -1
 
     exp_idx = []
     exp_names = []
@@ -128,6 +129,9 @@ def process_ms_fragger_file(file: str):
     mods_for_exp = {}
     all_cleavages = []
     cleavages_for_exp = {}
+    for key in groups_df['file_name']:
+        mods_for_exp[key] = []
+        cleavages_for_exp[key] = []
 
     with open(file, 'r') as f:
         while line := f.readline():
@@ -140,8 +144,6 @@ def process_ms_fragger_file(file: str):
                         pep_seq_idx = i
                     elif field == "Modified Sequence":
                         pep_mod_seq_idx = i
-                    elif field == "Charges":
-                        pep_exp_z_idx = i
                     elif "Intensity" in field:
                         if not "MaxLFQ Intensity" in field:
                             exp_idx.append(i)
@@ -156,7 +158,7 @@ def process_ms_fragger_file(file: str):
                     if row[prot_accession_idx] in READER_CONFIG.ISOFORM_HELPER_DICT:
                         row[prot_accession_idx] = READER_CONFIG.ISOFORM_HELPER_DICT[row[prot_accession_idx]]
                     try:
-                        isoform, sequence, offset = get_accession(row[prot_accession_idx], row[pep_seq_idx])
+                        _, _, offset = get_accession(row[prot_accession_idx], row[pep_seq_idx])
                     except ValueError:
                         continue                       
                         
@@ -175,17 +177,13 @@ def process_ms_fragger_file(file: str):
                         cleavage = cterm_cleav
 
                     if check_modification_present(row[pep_mod_seq_idx]):
-                        mods_for_peptide = process_modifications(row[pep_mod_seq_idx], sequence, offset)
+                        mods_for_peptide = process_modifications(row[pep_mod_seq_idx], offset)
                         all_mods.extend(mods_for_peptide)
                         for i, idx in enumerate(exp_idx):
                             if row[idx] != "0.0":
-                                if exp_names[i] not in mods_for_exp:
-                                    mods_for_exp[exp_names[i]] = []
                                 mods_for_exp[exp_names[i]].extend(mods_for_peptide)
 
-                                if cleavage != "": 
-                                    if exp_names[i] not in cleavages_for_exp:
-                                        cleavages_for_exp[exp_names[i]] = []
+                                if cleavage != "":
                                     cleavages_for_exp[exp_names[i]].append(cleavage)
 
     all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
