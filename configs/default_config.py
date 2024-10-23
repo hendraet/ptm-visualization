@@ -3,17 +3,22 @@
 # Sequence Settings
 # First sequence is from (1, 44), second from (45, 73) and so on
 # Region Name, Region End, Group, Region Abbreviation
+# REGIONS = [
+#     ('N-term', 44, 'A', 'N-term'),
+#     ('N1', 73, 'B', 'N1'),
+#     ('N2', 102, 'B', 'N2'),
+#     ('2N4R-Tau', 150, 'A', 'Mid'),
+#     ('Proline-rich region', 241, 'B', 'PRR'),
+#     ('R1', 272, 'B', 'R1'),
+#     ('R2', 303, 'B', 'R2'),
+#     ('R3', 334, 'B', 'R3'),
+#     ('R4', 371, 'B', 'R4'),
+#     ('C-term', 441, 'A', 'C-term'),
+# ]
 REGIONS = [
-    ('N-term', 44, 'A', 'N-term'),
-    ('N1', 73, 'B', 'N1'),
-    ('N2', 102, 'B', 'N2'),
-    ('2N4R-Tau', 150, 'A', 'Mid'),
-    ('Proline-rich region', 241, 'B', 'PRR'),
-    ('R1', 272, 'B', 'R1'),
-    ('R2', 303, 'B', 'R2'),
-    ('R3', 334, 'B', 'R3'),
-    ('R4', 371, 'B', 'R4'),
-    ('C-term', 441, 'A', 'C-term'),
+    ("start", 390, "A", "start"),
+    ("alpha", 432, "B", "a"),
+    ("epsilon", 431, "A", "e"),
 ]
 
 # Modification Settings
@@ -31,7 +36,7 @@ EXCLUDED_MODIFICATIONS = {'Q': None,
                           'S': ['GG'],}
 
 # Input Output Settings
-FASTA_INPUT_FILE = 'data/uniprot_data/tau_isoforms2N4R.fasta'
+FASTA_INPUT_FILE = 'protein_sequencing/data_preprocessing/data/uniprot_analysis/output_aligned_2/P14136_aligned.fasta'
 OUTPUT_FOLDER = 'output'
 
 # Plot Settings
@@ -60,6 +65,9 @@ BOTTOM_MARGIN = 0.025
 # Sequence Plot
 SEQUENCE_PLOT_FONT_SIZE = FONT_SIZE
 SEQUENCE_PLOT_HEIGHT = 50
+# works best with an even number
+EXONS_GAP = 10
+
 # Sequence Region Colors
 SEQUENCE_REGION_COLORS = {
     'A': 'white',
