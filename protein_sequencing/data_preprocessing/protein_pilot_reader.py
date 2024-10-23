@@ -4,6 +4,7 @@ import csv
 import re
 import pandas as pd
 from python_calamine import CalamineWorkbook
+from protein_sequencing import uniprot_align
 from protein_sequencing.data_preprocessing import reader_helper
 from typing import Tuple
 
@@ -225,5 +226,5 @@ def process_protein_pilot_dir():
 
     return all_mods, all_cleavages
 
-
+uniprot_align.get_alignment(fasta_file)
 process_protein_pilot_dir()

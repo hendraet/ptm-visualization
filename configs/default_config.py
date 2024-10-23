@@ -16,9 +16,9 @@
 #     ('C-term', 441, 'A', 'C-term'),
 # ]
 REGIONS = [
-    ("start", 390, "A", "start"),
-    ("alpha", 432, "B", "a"),
-    ("epsilon", 431, "A", "e"),
+    ("start", 390, "A", "start", "P14136"),
+    ("alpha", 432, "B", "a", "P14136"),
+    ("epsilon", 431, "A", "e", "P14136-3"),
 ]
 
 # Modification Settings

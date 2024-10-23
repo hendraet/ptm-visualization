@@ -2,6 +2,7 @@ import csv
 import importlib
 import os
 import pandas as pd
+from protein_sequencing import uniprot_align
 from protein_sequencing.data_preprocessing import reader_helper
 from typing import Tuple
 import re
@@ -197,4 +198,6 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
             writer.writerow([key, group] + row)           
         
+uniprot_align.get_alignment(fasta_file)
+
 process_max_quant_file(input_file)

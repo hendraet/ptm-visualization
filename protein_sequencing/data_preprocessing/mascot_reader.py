@@ -3,6 +3,7 @@ import os
 import csv
 import re
 import pandas as pd
+from protein_sequencing import uniprot_align
 from protein_sequencing.data_preprocessing import reader_helper
 
 
@@ -15,19 +16,21 @@ input_dir = READER_CONFIG.INPUT_DIR
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
 
-isoform_helper_dict = READER_CONFIG.isoform_helper_dict
+isoform_helper_dict = READER_CONFIG.ISOFORM_HELPER_DICT
 
 def reformmods(mods, sites, short_sequence, variable_mods, isoform, sequence, aligned_sequence):
     modstrings = []
     sites = sites.split('.')[1]
     sequence_split_offset = 0
+    if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
+        isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
     for i, site in enumerate(sites):
         site = int(site)
         if site != 0:
             mod = variable_mods[site]
             aa = short_sequence[i]
             pos = sequence.index(short_sequence) + sequence_split_offset
-            modstring = f"{mod}({aa})@{pos}"
+            modstring = f"{mod}({aa})@{pos}_{isoform}"
             modstrings.append(modstring)
         sequence_split_offset += 1
     return modstrings
@@ -142,7 +145,7 @@ def process_results(all_mod_strings, mod_strings_for_files):
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_mascot.csv", 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Neuropathology'] + all_mod_strings)
-        writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mod_strings])
+        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mod_strings])
         writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mod_strings])
         for file, mods in mod_strings_for_files.items():
             row = [1 if mod in mods else 0 for mod in all_mod_strings]
@@ -160,6 +163,8 @@ def process_mascot_dir(input_dir, tau_headers):
         mod_strings_for_files[file] = result
 
     process_results(all_mod_strings, mod_strings_for_files)
+
+uniprot_align.get_alignment(fasta_file)
 
 fasta_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
 process_mascot_dir(input_dir, fasta_headers)

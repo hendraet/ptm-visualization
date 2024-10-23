@@ -2,6 +2,7 @@ import csv
 import importlib
 import os
 import pandas as pd
+from protein_sequencing import uniprot_align
 from protein_sequencing.data_preprocessing import reader_helper
 from typing import Tuple
 import re
@@ -36,21 +37,25 @@ def get_accession(accession: str, peptide: str) -> Tuple[str, str, int]:
         raise ValueError(f"Peptide {peptide} with accession {accession} not found in fasta file")
 
 def check_N_term_cleavage(peptide: str, accession: str) -> str:
-    _, sequence, offset = get_accession(accession, peptide)
+    isoform, sequence, offset = get_accession(accession, peptide)
+    if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
+        isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
     amino_acid_first = peptide[0]
     amino_acid_before = ""
     if offset > 0:
         amino_acid_before = sequence[offset - 1]
     if amino_acid_before != "K" and amino_acid_before != "R":
-        return f"{amino_acid_first}@{offset+1}"
+        return f"{amino_acid_first}@{offset+1}_{isoform}"
 
     return ""
 
 def check_C_term_cleavage(peptide: str, accession: str) -> str:
-    _, _, offset = get_accession(accession, peptide)
+    isoform, _, offset = get_accession(accession, peptide)
+    if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
+        isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
     amino_acid_last = peptide[-1]
     if amino_acid_last not in ["K", "R"]:
-        return f"{amino_acid_last}@{offset+len(peptide)}"
+        return f"{amino_acid_last}@{offset+len(peptide)}_{isoform}"
 
     return ""
 
@@ -79,7 +84,7 @@ def get_exact_indexes(mod_sequence: str) -> list:
 
     return indexes
 
-def process_modifications(mod_sequence: str, offset: int):
+def process_modifications(mod_sequence: str, offset: int, isoform: str) -> list:
     all_mods = []
     matches = re.findall(r'\[(\d+\.\d+?)\]', mod_sequence)
     mod_indexes = get_exact_indexes(mod_sequence)
@@ -90,7 +95,7 @@ def process_modifications(mod_sequence: str, offset: int):
                 if CONFIG.EXCLUDED_MODIFICATIONS[modified_aa] is not None and ms_fragger_mods[match] in CONFIG.EXCLUDED_MODIFICATIONS[modified_aa]:
                     continue
             offset = mod_indexes[i] + offset
-            mod_string = f"{ms_fragger_mods[match]}({modified_aa})@{offset}"
+            mod_string = f"{ms_fragger_mods[match]}({modified_aa})@{offset}_{isoform}"
             all_mods.append(mod_string)
     return all_mods
 
@@ -158,7 +163,9 @@ def process_ms_fragger_file(file: str):
                     if row[prot_accession_idx] in READER_CONFIG.ISOFORM_HELPER_DICT:
                         row[prot_accession_idx] = READER_CONFIG.ISOFORM_HELPER_DICT[row[prot_accession_idx]]
                     try:
-                        _, _, offset = get_accession(row[prot_accession_idx], row[pep_seq_idx])
+                        isoform, _, offset = get_accession(row[prot_accession_idx], row[pep_seq_idx])
+                        if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
+                            isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
                     except ValueError:
                         continue                       
                         
@@ -177,7 +184,7 @@ def process_ms_fragger_file(file: str):
                         cleavage = cterm_cleav
 
                     if check_modification_present(row[pep_mod_seq_idx]):
-                        mods_for_peptide = process_modifications(row[pep_mod_seq_idx], offset)
+                        mods_for_peptide = process_modifications(row[pep_mod_seq_idx], offset, isoform)
                         all_mods.extend(mods_for_peptide)
                         for i, idx in enumerate(exp_idx):
                             if row[idx] != "0.0":
@@ -194,4 +201,5 @@ def process_ms_fragger_file(file: str):
     cleavages_with_ranges = reader_helper.extract_cleavages_ranges(all_cleavages)
     write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp)
 
+uniprot_align.get_alignment(fasta_file)
 process_ms_fragger_file(input_file)

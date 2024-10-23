@@ -23,7 +23,7 @@ def get_present_regions(positions):
 
     region_ranges = []
     region_start = 1
-    for _, region_end, _, _ in CONFIG.REGIONS:
+    for _, region_end, _, _, _ in CONFIG.REGIONS:
         region_ranges.append((region_start, region_end))
         region_start = region_end + 1
 
@@ -323,7 +323,7 @@ def preprocess_neuropathologies(df: pd.DataFrame, ptm: bool):
 
 def offset_region_label_from_angle():
     longest_label = ''
-    for i, (_, _, _, region_label_short) in enumerate(CONFIG.REGIONS):
+    for i, (_, _, _, region_label_short, _) in enumerate(CONFIG.REGIONS):
         if utils.get_label_length(region_label_short) > utils.get_label_length(longest_label):
             longest_label = region_label_short
         
