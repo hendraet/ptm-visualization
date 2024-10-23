@@ -66,7 +66,7 @@ BOTTOM_MARGIN = 0.025
 SEQUENCE_PLOT_FONT_SIZE = FONT_SIZE
 SEQUENCE_PLOT_HEIGHT = 50
 # works best with an even number
-EXONS_GAP = 10
+EXONS_GAP = 20
 
 # Sequence Region Colors
 SEQUENCE_REGION_COLORS = {

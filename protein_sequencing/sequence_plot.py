@@ -109,6 +109,8 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
     region_start = 1
     exon_offset = 0
     region_index = 0
+    # 0 = normal region, 1 = region before exon, 2 = region after exon, 3 = end exon, 4 = start exon, 5 = middle exon
+    region_plot_type = 0
     while region_index < len(CONFIG.REGIONS):
         region_name, region_end, region_group, region_short_name = CONFIG.REGIONS[region_index]
         region_start_pixel = region_end_pixel
@@ -116,12 +118,21 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
         if different_exon_count == 1:
             if region_end == exon_1_region[1]:
                 # alter last boundary to include exon
-                last_boundary = region_boundaries[-1]
-                region_boundaries[-1] = (last_boundary[0], last_boundary[1], last_boundary[2], last_boundary[3], last_boundary[4], last_boundary[5], 2)
-                
+                if region_index > 0:
+                    last_boundary = region_boundaries[-1]
+                    region_boundaries[-1] = (last_boundary[0], last_boundary[1], last_boundary[2], last_boundary[3], last_boundary[4], last_boundary[5], 1)
+                else:
+                    region_plot_type = 4
+
                 # add current exon
+                # if next region is also last region
+                if region_index+1 == len(CONFIG.REGIONS)-1:
+                    region_plot_type = 3
+                # if next region is not last region and also not start exon
+                elif region_index > 0:
+                    region_plot_type = 5
                 first_exon_offset = CONFIG.EXONS_GAP//2
-                region_boundaries.append((region_name, region_start_pixel+first_exon_offset, region_end_pixel+first_exon_offset, CONFIG.SEQUENCE_REGION_COLORS[region_group], region_start, region_end, 1))
+                region_boundaries.append((region_name, region_start_pixel+first_exon_offset, region_end_pixel+first_exon_offset, CONFIG.SEQUENCE_REGION_COLORS[region_group], region_start, region_end, region_plot_type))
                 exon_offset = exon_1_length*utils.PIXELS_PER_PROTEIN + CONFIG.EXONS_GAP
                 exon_1_region_end = region_end
                 # process next exon
@@ -129,14 +140,16 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
                 region_name, region_end, region_group, region_short_name = CONFIG.REGIONS[region_index]
                 region_start_pixel = region_end_pixel + CONFIG.EXONS_GAP
                 region_end_pixel = region_end * utils.PIXELS_PER_PROTEIN + 1 + utils.SEQUENCE_OFFSET + exon_offset
-                region_boundaries.append((region_name, region_start_pixel, region_end_pixel, CONFIG.SEQUENCE_REGION_COLORS[region_group], region_start, region_end, 1))
+                region_boundaries.append((region_name, region_start_pixel, region_end_pixel, CONFIG.SEQUENCE_REGION_COLORS[region_group], region_start, region_end, region_plot_type))
                 region_start = max(exon_1_region_end, region_end) + 1
                 region_index+=1
-                continue    
+                region_plot_type = 2
+                continue
 
         region_boundaries.append((region_name, region_start_pixel+exon_offset, region_end_pixel+exon_offset, CONFIG.SEQUENCE_REGION_COLORS[region_group], region_start, region_end, 0))
         region_start = region_end + 1
         region_index += 1
+        region_plot_type = 0
 
     fig = create_sequence_plot(region_boundaries, groups_missing, legend_positioning)
     
@@ -253,16 +266,54 @@ def plot_sequence(fig, region_boundaries, groups_missing):
             y0 = utils.get_height() - region_start_pixel
             y1 = utils.get_height() - region_end_pixel
 
-        # Region rects
-        fig.add_shape(
-            type="rect",
-            x0=x0,
-            y0=y0,
-            x1=x1,
-            y1=y1,
-            line=dict(color="darkgrey", width=2),
-            fillcolor=region_color
-        )
+        # 0 = normal region, 1 = region before exon, 2 = region after exon, 3 = end exon, 4 = start exon, 5 = middle exon
+        if exon_type == 0:
+            # Region rects
+            fig.add_shape(
+                type="rect",
+                x0=x0,
+                y0=y0,
+                x1=x1,
+                y1=y1,
+                line=dict(color="darkgrey", width=2),
+                fillcolor=region_color
+            )
+        elif exon_type == 1:
+            fig.add_trace(go.Scatter(x=[x0, x1, x1+CONFIG.EXONS_GAP//4, x0, x0],
+                            y=[y0, y0, y1, y1, y0],
+                            mode='lines',
+                            fillcolor=region_color,
+                            fill='toself',
+                            line=dict(color="darkgrey", width=2), showlegend=False, hoverinfo='none'))
+        elif exon_type == 2:
+            fig.add_trace(go.Scatter(x=[x0, x1, x1, x0-CONFIG.EXONS_GAP//4, x0],
+                            y=[y0, y0, y1, y1, y0],
+                            mode='lines',
+                            fillcolor=region_color,
+                            fill='toself',
+                            line=dict(color="darkgrey", width=2), showlegend=False, hoverinfo='none'))
+        elif exon_type == 3:
+            fig.add_trace(go.Scatter(x=[x0-CONFIG.EXONS_GAP//4, x1, x1, x0, x0-CONFIG.EXONS_GAP//4],
+                            y=[y0, y0, y1, y1, y0],
+                            mode='lines',
+                            fillcolor=region_color,
+                            fill='toself',
+                            line=dict(color="darkgrey", width=2), showlegend=False, hoverinfo='none'))
+        elif exon_type == 4:
+            fig.add_trace(go.Scatter(x=[x0, x1+CONFIG.EXONS_GAP//4, x1, x0, x0],
+                            y=[y0, y0, y1, y1, y0],
+                            mode='lines',
+                            fillcolor=region_color,
+                            fill='toself',
+                            line=dict(color="darkgrey", width=2), showlegend=False, hoverinfo='none'))
+        elif exon_type == 5:
+            fig.add_trace(go.Scatter(x=[x0-CONFIG.EXONS_GAP//4, x1, x1+CONFIG.EXONS_GAP//4, x0, x0-CONFIG.EXONS_GAP//4],
+                            y=[y0, y0, y1, y1, y0],
+                            mode='lines',
+                            fillcolor=region_color,
+                            fill='toself',
+                            line=dict(color="darkgrey", width=2), showlegend=False, hoverinfo='none'))
+        
 
         # Labels
         x_label = (x0 + x1) / 2
@@ -301,7 +352,7 @@ def plot_sequence(fig, region_boundaries, groups_missing):
     fig.add_annotation(
         x=x,
         y=y,
-        text=region_end,
+        text=max(region_end, region_boundaries[i-1][5]),
         showarrow=False,
         font=dict(size=CONFIG.SEQUENCE_PLOT_FONT_SIZE, color="gray"),
         textangle= 0

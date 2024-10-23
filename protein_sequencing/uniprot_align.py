@@ -17,6 +17,8 @@ def get_alignment(input_file: str | os.PathLike):
     subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, text=True)
     
     align = AlignIO.read(f"{padded_sequences_path}_aligned.fasta", "fasta")
+    with open('data/uniprot_data/aligned.fasta', 'w') as f:
+        SeqIO.write(align, f, 'fasta')
     
     return align
 
