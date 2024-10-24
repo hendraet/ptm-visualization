@@ -18,7 +18,7 @@ input_file = READER_CONFIG.MAX_QUANT_FILE
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups_max_quant.csv")
 
-def get_accession(accession: str, peptide: str) -> Tuple[str, str, int]:
+def get_accession(accession: str, peptide: str) -> Tuple[str, str, int, str]:
     offset = 0
     sequence = None
     for header in sorted_isoform_headers:
@@ -26,16 +26,28 @@ def get_accession(accession: str, peptide: str) -> Tuple[str, str, int]:
             isoform = header[0]
             sequence = header[1]
             offset = sequence.index(peptide)
+            # in case we didn't match the longest sequence we have to adapt the offset
+            offset += sequence[:offset].count('-')
             break
     if sequence is not None:
-        return isoform, sequence, offset
+        return isoform, sequence, offset, header[2]
     else:
         raise ValueError(f"Peptide {peptide} with accession {accession} not found in fasta file")
 
+def count_missing_amino_acids(peptide: str, aligned_sequence: str, offset: int) -> int:
+    missing = 0
+    j = 0
+    for i in range(offset, len(aligned_sequence)):
+        if aligned_sequence[i] == '-':
+            missing += 1
+        elif peptide[j] == aligned_sequence[i]:
+            j+=1
+        if j == len(peptide):
+            break
+    return missing
+
 def check_N_term_cleavage(peptide: str, accession: str) -> str:
-    isoform, sequence, offset = get_accession(accession, peptide)
-    if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
-        isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
+    isoform, sequence, offset, _ = get_accession(accession, peptide)
     amino_acid_first = peptide[0]
     amino_acid_before = ""
     if offset > 0:
@@ -46,12 +58,13 @@ def check_N_term_cleavage(peptide: str, accession: str) -> str:
     return ""
 
 def check_C_term_cleavage(peptide: str, accession: str) -> str:
-    isoform, _, offset = get_accession(accession, peptide)
-    if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
-        isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
+    isoform, sequence, offset, aligned_sequence = get_accession(accession, peptide)
+    missing_aa = 0
+    if len(sequence) != len(aligned_sequence):
+        missing_aa = count_missing_amino_acids(peptide, aligned_sequence, offset)
     amino_acid_last = peptide[-1]
     if amino_acid_last not in ["K", "R"]:
-        return f"{amino_acid_last}@{offset+len(peptide)}_{isoform}"
+        return f"{amino_acid_last}@{offset+len(peptide)+missing_aa}_{isoform}"
 
     return ""
 
@@ -81,7 +94,7 @@ def get_exact_indexes(mod_sequence: str) -> list:
 
     return indexes
 
-def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, sequence: str, isoform: str) -> list[str]:
+def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, sequence: str, isoform: str, aligned_sequence: str) -> list[str]:
     mod_strings = []
     
     pattern = r"\((\w+)\s*\(([^)]+)\)\)"
@@ -105,7 +118,11 @@ def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, seque
 
         if sequence[aa_offset+peptide_offset-1] != mod_location:
             raise ValueError(f"AA don't match for {mod_location} for peptide {peptide} in sequence {sequence} with offset {peptide_offset+aa_offset}")
-        mod_strings.append(f"{mod_type}({mod_location})@{aa_offset+peptide_offset}_{isoform}")
+        
+        missing_aa = 0
+        if len(sequence) != len(aligned_sequence):
+            missing_aa = count_missing_amino_acids(peptide[:aa_offset], aligned_sequence, peptide_offset)
+        mod_strings.append(f"{mod_type}({mod_location})@{aa_offset+peptide_offset+missing_aa}_{isoform}")
         counter += 1
     return mod_strings
 
@@ -148,9 +165,7 @@ def process_max_quant_file(input_file: str):
                 if fields[prot_accession_idx] in READER_CONFIG.ISOFORM_HELPER_DICT:
                     fields[prot_accession_idx] = READER_CONFIG.ISOFORM_HELPER_DICT[fields[prot_accession_idx]]
                 try:
-                    isoform, sequence, offset = get_accession(fields[prot_accession_idx], fields[pep_seq_idx])
-                    if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
-                        isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
+                    isoform, sequence, offset, aligned_sequence = get_accession(fields[prot_accession_idx], fields[pep_seq_idx])
                 except ValueError:
                     continue
 
@@ -167,7 +182,7 @@ def process_max_quant_file(input_file: str):
                 
                 if float(fields[pep_score_idx]) < READER_CONFIG.THRESHOLD:
                     if fields[mods_idx] != "Unmodified":
-                        mods = reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], offset, sequence, isoform)
+                        mods = reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], offset, sequence, isoform, aligned_sequence)
                         all_mods.extend(mods)
                         mods_for_exp[fields[exp_idx]].extend(mods)
 
