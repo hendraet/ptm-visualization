@@ -105,6 +105,7 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         writer.writerow(['ID', 'Neuropathology'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
         writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
+        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
         for key, value in mods_for_exp.items():
             row = [1 if mod in value else 0 for mod in all_mods]
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
@@ -114,7 +115,8 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         writer = csv.writer(f)
         writer.writerow(['ID', 'Neuropathology'] + cleavages_with_ranges)
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
-        writer.writerow(['', ''] + [cleavage for cleavage in cleavages_with_ranges])
+        writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
+        writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])
         ranges = reader_helper.parse_ranges(cleavages_with_ranges)
         for key, value in cleavages_for_exp.items():
             indexes = [reader_helper.extract_index(cleavage) for cleavage in value]

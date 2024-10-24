@@ -145,8 +145,9 @@ def process_results(all_mod_strings, mod_strings_for_files):
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_mascot.csv", 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Neuropathology'] + all_mod_strings)
-        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mod_strings])
+        writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mod_strings])
         writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mod_strings])
+        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mod_strings])
         for file, mods in mod_strings_for_files.items():
             row = [1 if mod in mods else 0 for mod in all_mod_strings]
             group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]

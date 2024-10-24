@@ -35,21 +35,25 @@ def get_accession(accession: str, peptide: str) -> Tuple[str, str, int]:
         raise ValueError(f"Peptide {peptide} with accession {accession} not found in fasta file")
 
 def check_N_term_cleavage(peptide: str, accession: str) -> str:
-    _, sequence, offset = get_accession(accession, peptide)
+    isoform, sequence, offset = get_accession(accession, peptide)
+    if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
+        isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
     amino_acid_first = peptide[0]
     amino_acid_before = ""
     if offset > 0:
         amino_acid_before = sequence[offset - 1]
     if amino_acid_before != "K" and amino_acid_before != "R":
-        return f"{amino_acid_first}@{offset+1}"
+        return f"{amino_acid_first}@{offset+1}_{isoform}"
 
     return ""
 
 def check_C_term_cleavage(peptide: str, accession: str) -> str:
-    _, _, offset = get_accession(accession, peptide)
+    isoform, _, offset = get_accession(accession, peptide)
+    if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
+        isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
     amino_acid_last = peptide[-1]
     if amino_acid_last not in ["K", "R"]:
-        return f"{amino_acid_last}@{offset+len(peptide)}"
+        return f"{amino_acid_last}@{offset+len(peptide)}_{isoform}"
 
     return ""
 
@@ -79,7 +83,7 @@ def get_exact_indexes(mod_sequence: str) -> list:
 
     return indexes
 
-def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, sequence: str) -> list[str]:
+def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, sequence: str, isoform: str) -> list[str]:
     mod_strings = []
     
     pattern = r"\((\w+)\s*\(([^)]+)\)\)"
@@ -103,7 +107,7 @@ def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, seque
 
         if sequence[aa_offset+peptide_offset-1] != mod_location:
             raise ValueError(f"AA don't match for {mod_location} for peptide {peptide} in sequence {sequence} with offset {peptide_offset+aa_offset}")
-        mod_strings.append(f"{mod_type}({mod_location})@{aa_offset+peptide_offset}")
+        mod_strings.append(f"{mod_type}({mod_location})@{aa_offset+peptide_offset}_{isoform}")
         counter += 1
     return mod_strings
 
@@ -146,7 +150,7 @@ def process_max_quant_file(input_file: str):
                 if fields[prot_accession_idx] in READER_CONFIG.ISOFORM_HELPER_DICT:
                     fields[prot_accession_idx] = READER_CONFIG.ISOFORM_HELPER_DICT[fields[prot_accession_idx]]
                 try:
-                    _, sequence, offset = get_accession(fields[prot_accession_idx], fields[pep_seq_idx])
+                    isoform, sequence, offset = get_accession(fields[prot_accession_idx], fields[pep_seq_idx])
                 except ValueError:
                     continue
 
@@ -163,7 +167,7 @@ def process_max_quant_file(input_file: str):
                 
                 if float(fields[pep_score_idx]) < READER_CONFIG.THRESHOLD:
                     if fields[mods_idx] != "Unmodified":
-                        mods = reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], offset, sequence)
+                        mods = reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], offset, sequence, isoform)
                         all_mods.extend(mods)
                         mods_for_exp[fields[exp_idx]].extend(mods)
 
@@ -181,6 +185,7 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         writer.writerow(['ID', 'Neuropathology'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
         writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
+        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
         for key, value in mods_for_exp.items():
             row = [1 if mod in value else 0 for mod in all_mods]
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
@@ -190,7 +195,8 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         writer = csv.writer(f)
         writer.writerow(['ID', 'Neuropathology'] + cleavages_with_ranges)
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
-        writer.writerow(['', ''] + [cleavage for cleavage in cleavages_with_ranges])
+        writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
+        writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])
         ranges = reader_helper.parse_ranges(cleavages_with_ranges)
         for key, value in cleavages_for_exp.items():
             indexes = [reader_helper.extract_index(cleavage) for cleavage in value]
@@ -199,5 +205,4 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
             writer.writerow([key, group] + row)           
         
 uniprot_align.get_alignment(fasta_file)
-
 process_max_quant_file(input_file)

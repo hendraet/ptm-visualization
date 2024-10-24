@@ -48,21 +48,24 @@ def extract_cleavages_ranges(all_cleavages):
     i = 0
     while i < len(all_cleavages):
         first_cleavage = all_cleavages[i]
+        isoform = first_cleavage.split('_')[1]
         cleavage = all_cleavages[i]
-        while i < len(all_cleavages)-1 and int(extract_cleavage_location(cleavage))+1 == int(extract_cleavage_location(all_cleavages[i+1])):
+        while i < len(all_cleavages)-1 and int(extract_cleavage_location(cleavage))+1 == int(extract_cleavage_location(all_cleavages[i+1])) and isoform == all_cleavages[i+1].split('_')[1]:
             i += 1
             cleavage = all_cleavages[i]
         if int(extract_cleavage_location(first_cleavage)) != int(extract_cleavage_location(cleavage)):
             cleavage_range = extract_cleavage_location(first_cleavage) + '-' + extract_cleavage_location(cleavage)
-            cleavages_with_ranges.append(cleavage_range)
+            cleavages_with_ranges.append(f'{cleavage_range}_{isoform}')
         else:
-            cleavages_with_ranges.append(extract_cleavage_location(first_cleavage))
+            location = extract_cleavage_location(first_cleavage)
+            cleavages_with_ranges.append(f'{location}_{isoform}')
         i += 1
     return cleavages_with_ranges
 
 def parse_ranges(ranges_list):
     ranges = []
     for part in ranges_list:
+        part = part.split('_')[0]
         if '-' in part:
             start, end = map(int, part.split('-'))
             ranges.append(list(range(start, end + 1)))

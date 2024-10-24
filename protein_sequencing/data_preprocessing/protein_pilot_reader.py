@@ -81,7 +81,9 @@ def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, access
         isoform, index_offset = get_accession(row, accession_index, seq_index)
         if isoform is None:
             continue
-
+        else:
+            if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
+                isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
         if index_offset is None:
             print(f"Error: sequence {row[seq_index]} with assumed accession: {row[accession_index]} not found in fasta file.")
             continue
@@ -104,7 +106,7 @@ def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, access
                     continue
                 if amino_acid != seq[int(mod_pos)-1]:
                     print(f"Error: amino acid mismatch at position {mod_pos} for sequence {seq} and mod {matched_mod}")
-                modstring = f"{mod_name}({amino_acid})@{mod_pos+index_offset}"
+                modstring = f"{mod_name}({amino_acid})@{mod_pos+index_offset}_{isoform}"
                 mods.append(modstring)
 
     return mods
@@ -115,6 +117,8 @@ def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index
         isoform, index_offset = get_accession(row, accession_index, seq_index)
         if index_offset is None:
             continue
+        if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
+            isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
         cleaved_sites = row[cleavage_index].split(';')
         for site in cleaved_sites:
             if not 'cleaved' in site:
@@ -126,7 +130,7 @@ def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index
             elif 'C-term' in site:
                 site_index = len(row[seq_index])+1
             
-            cleavages.append(f"{amino_acid}@{index_offset+site_index}")
+            cleavages.append(f"{amino_acid}@{index_offset+site_index}_{isoform}")
 
     return cleavages
 
@@ -205,6 +209,7 @@ def process_protein_pilot_dir():
         writer.writerow(['ID', 'Neuropathology'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
         writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
+        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
         for file, mods in mods_per_file.items():
             row = [1 if mod in mods else 0 for mod in all_mods]
             group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]
@@ -216,7 +221,8 @@ def process_protein_pilot_dir():
         writer = csv.writer(f)
         writer.writerow(['ID', 'Neuropathology'] + cleavages_with_ranges)
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
-        writer.writerow(['', ''] + [cleavage for cleavage in cleavages_with_ranges])
+        writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
+        writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])
         ranges = reader_helper.parse_ranges(cleavages_with_ranges)
         for file, cleavages in cleavages_per_file.items():
             indexes = [reader_helper.extract_index(cleavage) for cleavage in cleavages]
