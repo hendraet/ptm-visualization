@@ -18,8 +18,6 @@ input_file = READER_CONFIG.MAX_QUANT_FILE
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups_max_quant.csv")
 
-sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
-
 def get_accession(accession: str, peptide: str) -> Tuple[str, str, int]:
     offset = 0
     sequence = None
@@ -151,6 +149,8 @@ def process_max_quant_file(input_file: str):
                     fields[prot_accession_idx] = READER_CONFIG.ISOFORM_HELPER_DICT[fields[prot_accession_idx]]
                 try:
                     isoform, sequence, offset = get_accession(fields[prot_accession_idx], fields[pep_seq_idx])
+                    if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
+                        isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
                 except ValueError:
                     continue
 
@@ -205,4 +205,6 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
             writer.writerow([key, group] + row)           
         
 uniprot_align.get_alignment(fasta_file)
+sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
+
 process_max_quant_file(input_file)

@@ -18,8 +18,6 @@ input_file = READER_CONFIG.MS_FRAGGER_FILE
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
 
-sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
-
 ms_fragger_mods = READER_CONFIG.MS_FRAGGER_MODS
 
 def get_accession(accession: str, peptide: str) -> Tuple[str, str, int]:
@@ -204,4 +202,6 @@ def process_ms_fragger_file(file: str):
     write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp)
 
 uniprot_align.get_alignment(fasta_file)
+sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
+
 process_ms_fragger_file(input_file)

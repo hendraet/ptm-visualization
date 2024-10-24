@@ -19,8 +19,6 @@ input_dir = READER_CONFIG.INPUT_DIR
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
 
-sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
-
 def extract_confidence_score(calamine_sheet):
     global_column = READER_CONFIG.FDR_GLOBAL == 'global'
     threshold = READER_CONFIG.CONFIDENCE_THRESHOLD
@@ -233,4 +231,6 @@ def process_protein_pilot_dir():
     return all_mods, all_cleavages
 
 uniprot_align.get_alignment(fasta_file)
+sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
+
 process_protein_pilot_dir()

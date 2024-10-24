@@ -166,6 +166,6 @@ def process_mascot_dir(input_dir, tau_headers):
     process_results(all_mod_strings, mod_strings_for_files)
 
 uniprot_align.get_alignment(fasta_file)
-
 fasta_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
+
 process_mascot_dir(input_dir, fasta_headers)
