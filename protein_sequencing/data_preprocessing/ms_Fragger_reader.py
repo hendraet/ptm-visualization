@@ -134,7 +134,7 @@ def process_ms_fragger_file(file: str):
                     except ValueError:
                         continue                       
                         
-                    nterm_cleav = reader_helper.check_N_term_cleavage(row[pep_seq_idx], row[prot_accession_idx], sorted_isoform_headers, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+                    nterm_cleav = reader_helper.check_N_term_cleavage(row[pep_seq_idx], row[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
                     cterm_cleav = reader_helper.check_C_term_cleavage(row[pep_seq_idx], row[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
                     cleavage = ""
                     if nterm_cleav != "" and cterm_cleav != "":

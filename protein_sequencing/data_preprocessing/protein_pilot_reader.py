@@ -4,7 +4,7 @@ import csv
 import re
 import pandas as pd
 from python_calamine import CalamineWorkbook
-from protein_sequencing import uniprot_align
+from protein_sequencing import exon_helper, uniprot_align
 from protein_sequencing.data_preprocessing import reader_helper
 from typing import Tuple
 
@@ -16,6 +16,7 @@ aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_dir = READER_CONFIG.INPUT_DIR
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
+exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def extract_confidence_score(calamine_sheet):
     global_column = READER_CONFIG.FDR_GLOBAL == 'global'
@@ -50,59 +51,61 @@ def split_mod(mod, seq):
         mod_pos = 0
         amino_acid = seq[0]
     if mod_pos == 'C-term':
-        mod_pos = len(seq)+1
+        mod_pos = len(seq)
         amino_acid = seq[len(seq)-1]
     return mod_name.strip(), amino_acid.strip(), int(mod_pos)
 
-def get_accession(row, accession_index, seq_index) -> Tuple[str, int] | Tuple[None, None]:
+def get_accession(row, accession_index, seq_index) -> Tuple[str, str, int, str] | Tuple[None, None, None, None]:
     search_header = row[accession_index].split('|')[1]
     if search_header in READER_CONFIG.ISOFORM_HELPER_DICT:
         search_header = READER_CONFIG.ISOFORM_HELPER_DICT[search_header]
     if search_header not in [header[0] for header in sorted_isoform_headers]:
-        return None, None
+        return None, None, None, None
     index_offset = None
     for header in sorted_isoform_headers:
         if row[seq_index] in header[1]:
             isoform = header[0].strip()
+            sequence = header[1]
             index_offset = header[1].index(row[seq_index])
             break
     if index_offset is not None:
-        return isoform, index_offset
+        return isoform, sequence, index_offset, header[2]
     else:
-        return None, None
+        return None, None, None, None
 
 def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, accession_index) -> list:
     mods = []
     for row in rows:
-        isoform, index_offset = get_accession(row, accession_index, seq_index)
-        if isoform is None:
+        isoform, sequence, peptide_offset, aligned_sequence = get_accession(row, accession_index, seq_index)
+        if isoform is None or sequence is None or aligned_sequence is None or peptide_offset is None:
             continue
-        else:
-            if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
-                isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
-        if index_offset is None:
+        if peptide_offset is None:
             print(f"Error: sequence {row[seq_index]} with assumed accession: {row[accession_index]} not found in fasta file.")
             continue
         relevant_mods = row[protein_mod_index].split(';')
         all_mods = row[mod_index].split(';')
-        seq = row[seq_index]
+        peptide = row[seq_index]
         for rel_mod in relevant_mods:
             matched_mod = None
-            rel_mod_name, rel_amino_acid, rel_mod_pos = split_mod(rel_mod, seq)
+            rel_mod_name, rel_amino_acid, rel_mod_pos = split_mod(rel_mod, peptide)
             if rel_mod_name not in CONFIG.MODIFICATIONS:
                 continue
             for mod in all_mods:
-                mod_name, amino_acid, mod_pos = split_mod(mod, seq)
+                mod_name, amino_acid, mod_pos = split_mod(mod, peptide)
                 if rel_mod_name == mod_name and rel_amino_acid == amino_acid:
                     matched_mod = mod
                     break
             if matched_mod is not None:
-                mod_name, amino_acid, mod_pos = split_mod(matched_mod, seq)
+                mod_name, amino_acid, mod_pos = split_mod(matched_mod, peptide)
                 if CONFIG.EXCLUDED_MODIFICATIONS.get(amino_acid) is not None and mod_name in CONFIG.EXCLUDED_MODIFICATIONS[amino_acid]:
                     continue
-                if amino_acid != seq[int(mod_pos)-1]:
-                    print(f"Error: amino acid mismatch at position {mod_pos} for sequence {seq} and mod {matched_mod}")
-                modstring = f"{mod_name}({amino_acid})@{mod_pos+index_offset}_{isoform}"
+                missing_aa = 0
+                if len(sequence) != len(aligned_sequence):
+                    missing_aa = reader_helper.count_missing_amino_acids(peptide[:mod_pos], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
+                offset = reader_helper.calculate_exon_offset(mod_pos+peptide_offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+                if aligned_sequence[offset-1] != amino_acid:
+                    raise ValueError(f"AA don't match for {amino_acid} for peptide {peptide} in sequence {sequence} with offset {offset}")
+                modstring = f"{mod_name}({amino_acid})@{offset}_{isoform}"
                 mods.append(modstring)
 
     return mods
@@ -110,11 +113,9 @@ def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, access
 def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index) -> list:
     cleavages = []
     for row in rows:
-        isoform, index_offset = get_accession(row, accession_index, seq_index)
-        if index_offset is None:
+        isoform, sequence, peptide_offset, aligned_sequence = get_accession(row, accession_index, seq_index)
+        if isoform is None or sequence is None or aligned_sequence is None or peptide_offset is None:
             continue
-        if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
-            isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
         cleaved_sites = row[cleavage_index].split(';')
         for site in cleaved_sites:
             if not 'cleaved' in site:
@@ -124,9 +125,13 @@ def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index
             if 'N-term' in site:
                 site_index = 0
             elif 'C-term' in site:
-                site_index = len(row[seq_index])+1
-            
-            cleavages.append(f"{amino_acid}@{index_offset+site_index}_{isoform}")
+                site_index = len(row[seq_index])
+            missing_aa = 0
+            if len(sequence) != len(aligned_sequence):
+                missing_aa = reader_helper.count_missing_amino_acids(row[seq_index], aligned_sequence, offset, exon_start_index, exon_end_index)
+    
+            offset = reader_helper.calculate_exon_offset(peptide_offset+site_index+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+            cleavages.append(f"{amino_acid}@{peptide_offset+site_index}_{isoform}")
 
     return cleavages
 

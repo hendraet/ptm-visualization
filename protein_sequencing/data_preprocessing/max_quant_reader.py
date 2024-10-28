@@ -118,7 +118,7 @@ def process_max_quant_file(input_file: str):
                 except ValueError:
                     continue
 
-                cleavage = reader_helper.check_N_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx], sorted_isoform_headers, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+                cleavage = reader_helper.check_N_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
                 if cleavage != "":
                     all_cleavages.append(cleavage)
                     if fields[exp_idx] not in cleavages_for_exp:
