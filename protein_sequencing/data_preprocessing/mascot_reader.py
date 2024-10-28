@@ -3,7 +3,7 @@ import os
 import csv
 import re
 import pandas as pd
-from protein_sequencing import uniprot_align
+from protein_sequencing import exon_helper, uniprot_align
 from protein_sequencing.data_preprocessing import reader_helper
 
 
@@ -15,24 +15,29 @@ aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_dir = READER_CONFIG.INPUT_DIR
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
+exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
-isoform_helper_dict = READER_CONFIG.ISOFORM_HELPER_DICT
-
-def reformmods(mods, sites, short_sequence, variable_mods, isoform, sequence, aligned_sequence):
+def reformmods(mods, sites, peptide, variable_mods, isoform, sequence, aligned_sequence):
     modstrings = []
     sites = sites.split('.')[1]
-    sequence_split_offset = 0
-    if isoform in READER_CONFIG.ISOFORM_TRANSPOSE_DICT:
-        isoform = READER_CONFIG.ISOFORM_TRANSPOSE_DICT[isoform]
     for i, site in enumerate(sites):
         site = int(site)
         if site != 0:
             mod = variable_mods[site]
-            aa = short_sequence[i]
-            pos = sequence.index(short_sequence) + sequence_split_offset
-            modstring = f"{mod}({aa})@{pos}_{isoform}"
+            aa = peptide[i]
+            if aa in CONFIG.EXCLUDED_MODIFICATIONS:
+                if CONFIG.EXCLUDED_MODIFICATIONS[aa] is not None and mod in CONFIG.EXCLUDED_MODIFICATIONS[aa]:
+                    continue 
+            peptide_offset = sequence.index(peptide)+1
+            missing_aa = 0
+            if len(sequence) != len(aligned_sequence):
+                missing_aa = reader_helper.count_missing_amino_acids(peptide[:i], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
+            offset = reader_helper.calculate_exon_offset(peptide_offset + i + missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+            if aligned_sequence[offset-1] != aa:
+                raise ValueError(f"AA don't match for {aa} for peptide {peptide} in sequence {sequence} with offset {offset}")
+
+            modstring = f"{mod}({aa})@{offset}_{isoform}"
             modstrings.append(modstring)
-        sequence_split_offset += 1
     return modstrings
 
 def process_mascot_file(file, fasta_headers):
@@ -101,8 +106,8 @@ def process_mascot_file(file, fasta_headers):
                         return modified_line
                     header_found = False
                     search_header = row[pep_accession_idx][1:-1]
-                    if search_header in isoform_helper_dict:
-                        search_header = isoform_helper_dict[search_header]
+                    if search_header in READER_CONFIG.ISOFORM_HELPER_DICT:
+                        search_header = READER_CONFIG.ISOFORM_HELPER_DICT[search_header]
                     for fasta_header in fasta_headers:
                         if search_header in fasta_header[0]:
                             header_found = True

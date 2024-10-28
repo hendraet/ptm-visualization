@@ -1,6 +1,6 @@
 # General
 FASTA_FILE = 'data/uniprot_data/tau_isoforms2N4R.fasta'
-INPUT_DIR = 'data/max_quant/'
+INPUT_DIR = 'data/mascot/'
 ISOFORM_HELPER_DICT = { "0N3R": "P10636-2",
                         "1N3R": "P10636-4",
                         "2N3R": "P10636-5",
@@ -8,13 +8,6 @@ ISOFORM_HELPER_DICT = { "0N3R": "P10636-2",
                         "1N4R": "P10636-7",
                         "2N4R": "P10636-8",}
 ALIGNED_FASTA_FILE = "data/uniprot_data/aligned.fasta"
-ISOFORM_TRANSPOSE_DICT = {
-    "P10636-2": "P10636-8",
-    "P10636-4": "P10636-8",
-    "P10636-5": "P10636-8",
-    "P10636-6": "P10636-8",
-    "P10636-7": "P10636-8",
-}
 
 # Mascot
 

@@ -1,3 +1,4 @@
+from typing import Tuple
 from protein_sequencing import uniprot_align
 
 def process_tau_file(fasta_file, aligned_fasta_file):
@@ -88,3 +89,55 @@ def cleavage_score(ranges, cleavages):
         else:
             results.append(cleavage_hits / range_length)
     return results
+
+def get_accession(accession: str, peptide: str, sorted_isoform_headers) -> Tuple[str, str, int, str]:
+    offset = 0
+    sequence = None
+    for header in sorted_isoform_headers:
+        if peptide in header[1]:
+            isoform = header[0]
+            sequence = header[1]
+            offset = sequence.index(peptide)
+            break
+    if sequence is not None:
+        return isoform, sequence, offset, header[2]
+    else:
+        raise ValueError(f"Peptide {peptide} with accession {accession} not found in fasta file")
+    
+
+def count_missing_amino_acids(peptide: str, aligned_sequence: str, peptide_offset: int, exon_start_index: int, exon_end_index: int) -> int:
+    missing = 0
+    stop_count = False
+    for i in range(peptide_offset):
+        # -1 beacuse of 1 based index for exon_start_index and exon_end_index
+        if i >= exon_start_index-1 and i < exon_end_index:
+            continue
+        if aligned_sequence[i] == '-':
+            missing += 1
+
+    j = 0
+    for i in range(peptide_offset, len(aligned_sequence)):
+        if i >= exon_start_index-1 and i < exon_end_index:
+            stop_count = True
+        else:
+            stop_count = False
+        if aligned_sequence[i] == '-':
+            if not stop_count:
+                missing += 1
+        elif peptide[j] == aligned_sequence[i]:
+            j+=1
+        if j == len(peptide):
+            break
+    return missing
+
+# calculates with 1 based index
+def calculate_exon_offset(offset: int, isoform: str, exon_found: bool, exon_end_index: int, exon_1_isoforms: list, exon_2_isoforms: list, exon_1_length: int, exon_2_length: int, exon_length: int) -> int:
+    if exon_found and offset > exon_end_index:
+        if isoform in exon_1_isoforms:
+            return offset - exon_1_length + exon_length
+        elif isoform in exon_2_isoforms:
+            return offset - exon_2_length + exon_length
+        else:
+            return offset + exon_length
+    else:
+        return offset
