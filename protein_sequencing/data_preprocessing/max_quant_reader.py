@@ -17,30 +17,6 @@ input_file = READER_CONFIG.MAX_QUANT_FILE
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups_max_quant.csv")
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
-def check_N_term_cleavage(peptide: str, accession: str) -> str:
-    isoform, sequence, offset, _ = reader_helper.get_accession(accession, peptide, sorted_isoform_headers)
-    amino_acid_first = peptide[0]
-    amino_acid_before = ""
-    if offset > 0:
-        amino_acid_before = sequence[offset - 1]
-    if amino_acid_before != "K" and amino_acid_before != "R":
-        offset = reader_helper.calculate_exon_offset(offset+1, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
-        return f"{amino_acid_first}@{offset}_{isoform}"
-
-    return ""
-
-def check_C_term_cleavage(peptide: str, accession: str) -> str:
-    isoform, sequence, offset, aligned_sequence = reader_helper.get_accession(accession, peptide, sorted_isoform_headers)
-    missing_aa = 0
-    if len(sequence) != len(aligned_sequence):
-        missing_aa = reader_helper.count_missing_amino_acids(peptide, aligned_sequence, offset, exon_start_index, exon_end_index)
-    amino_acid_last = peptide[-1]
-    if amino_acid_last not in ["K", "R"]:
-        offset = reader_helper.calculate_exon_offset(offset+len(peptide)+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
-        return f"{amino_acid_last}@{offset}_{isoform}"
-
-    return ""
-
 def get_exact_indexes(mod_sequence: str) -> list:
     indexes = []
     current_index = 1
@@ -142,13 +118,13 @@ def process_max_quant_file(input_file: str):
                 except ValueError:
                     continue
 
-                cleavage = check_N_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx])
+                cleavage = reader_helper.check_N_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx], sorted_isoform_headers, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
                 if cleavage != "":
                     all_cleavages.append(cleavage)
                     if fields[exp_idx] not in cleavages_for_exp:
                         cleavages_for_exp[fields[exp_idx]] = []
                     cleavages_for_exp[fields[exp_idx]].append(cleavage)
-                cleavage = check_C_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx])
+                cleavage = reader_helper.check_C_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
                 if cleavage != "":
                     all_cleavages.append(cleavage)
                     cleavages_for_exp[fields[exp_idx]].append(cleavage)

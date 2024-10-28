@@ -141,3 +141,27 @@ def calculate_exon_offset(offset: int, isoform: str, exon_found: bool, exon_end_
             return offset + exon_length
     else:
         return offset
+    
+def check_N_term_cleavage(peptide: str, accession: str, sorted_isoform_headers, exon_found: bool, exon_end_index: int, exon_1_isoforms: list, exon_2_isoforms: list, exon_1_length: int, exon_2_length: int, exon_length: int) -> str:
+    isoform, sequence, offset, _ = get_accession(accession, peptide, sorted_isoform_headers)
+    amino_acid_first = peptide[0]
+    amino_acid_before = ""
+    if offset > 0:
+        amino_acid_before = sequence[offset - 1]
+    if amino_acid_before != "K" and amino_acid_before != "R":
+        offset = calculate_exon_offset(offset+1, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+        return f"{amino_acid_first}@{offset+1}_{isoform}"
+
+    return ""
+
+def check_C_term_cleavage(peptide: str, accession: str, sorted_isoform_headers,exon_found: bool, exon_start_index: int, exon_end_index: int, exon_1_isoforms: list, exon_2_isoforms: list, exon_1_length: int, exon_2_length: int, exon_length: int) -> str:
+    isoform, sequence, offset, aligned_sequence = get_accession(accession, peptide, sorted_isoform_headers)
+    missing_aa = 0
+    if len(sequence) != len(aligned_sequence):
+        missing_aa = count_missing_amino_acids(peptide, aligned_sequence, offset, exon_start_index, exon_end_index)
+    amino_acid_last = peptide[-1]
+    if amino_acid_last not in ["K", "R"]:
+        offset = calculate_exon_offset(offset+len(peptide)+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+        return f"{amino_acid_last}@{offset}_{isoform}"
+
+    return ""

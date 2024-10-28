@@ -1,6 +1,6 @@
 # General
 FASTA_FILE = 'data/uniprot_data/tau_isoforms2N4R.fasta'
-INPUT_DIR = 'data/mascot/'
+INPUT_DIR = 'data/ms_fragger/'
 ISOFORM_HELPER_DICT = { "0N3R": "P10636-2",
                         "1N3R": "P10636-4",
                         "2N3R": "P10636-5",
