@@ -8,11 +8,12 @@ from protein_sequencing import utils, sequence_plot as sequence
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 PLOT_CONFIG = importlib.import_module('configs.default_overview', 'configs')
 
-def get_modifications_per_position(input_file):
-    with open(input_file, 'r') as f:
-        rows = f.readlines()[1:3]
+def get_modifications_per_position(mod_file):
+    with open(mod_file, 'r') as f:
+        rows = f.readlines()[1:4]
         modification_types = rows[0].strip().split(',')
         labels = rows[1].strip().split(',')
+        isoforms = rows[2].strip().split(',')
         modifications_by_position = defaultdict(list)
         for i, (label) in enumerate(labels):
             if label == '':
@@ -26,17 +27,21 @@ def get_modifications_per_position(input_file):
                     continue
             if modification_types[i] not in CONFIG.MODIFICATIONS:
                 continue
-            modifications_by_position[position].append((label, modification_types[i], PLOT_CONFIG.MODIFICATIONS_GROUP[modification_types[i]]))
+            isoform = isoforms[i]
+            if isoform not in utils.ISOFORM_IDS:
+                # TODO remove comment only for debugging purposes not included
+                raise ValueError(f"Isoform {isoform} from PTM file ({mod_file}) not found in fasta input file")
+            modifications_by_position[position].append((label, modification_types[i], PLOT_CONFIG.MODIFICATIONS_GROUP[modification_types[i]], isoform))
         for position, mods in modifications_by_position.items():
             modifications_by_position[position] = list(set(mods))
     return modifications_by_position
 
-def plot_labels(fig, file_path):
+def plot_labels(fig, mod_file):
     x0 = utils.SEQUENCE_BOUNDARIES['x0']
     x1 = utils.SEQUENCE_BOUNDARIES['x1']
     y0 = utils.SEQUENCE_BOUNDARIES['y0']
     y1 = utils.SEQUENCE_BOUNDARIES['y1']
-    modifications_by_position = get_modifications_per_position(file_path)
+    modifications_by_position = get_modifications_per_position(mod_file)
 
     label_offsets_with_orientation = get_label_offsets_with_orientation(modifications_by_position, utils.PIXELS_PER_PROTEIN)
     for protein_position in label_offsets_with_orientation.keys():
@@ -96,16 +101,16 @@ def get_distance_groups(group, pixels_per_protein):
     distance_group = defaultdict(list)
     size = 0
     new_group = True
-    for protein_position in group.keys():
-        for modification in group[protein_position]:
-            current_sight = {'position': protein_position, 'mod': modification}
+    for aa_pos in group.keys():
+        for modification in group[aa_pos]:
+            current_sight = {'position': aa_pos, 'mod': modification}
             if last_sight['position'] is not None:
                 if check_distance(last_sight, current_sight, pixels_per_protein) <= 0:
                     if new_group:
                         distance_group[last_sight['position']].append(last_sight['mod'])
                         size += 1
                         new_group = False
-                    distance_group[protein_position].append(modification)
+                    distance_group[aa_pos].append(modification)
                     size += 1
                 else:
                     if new_group:
@@ -220,8 +225,8 @@ def find_nearest_positions(label_offsets_with_orientation, distance_group, pixel
 
     return (nearest_smaller, smaller_offset), (nearest_larger, larger_offset)
 
-def get_label_offsets_with_orientation(groups_by_position, pixels_per_protein):
-    group_a, group_b = utils.separate_by_group(groups_by_position)
+def get_label_offsets_with_orientation(groups_by_position_and_isoform, pixels_per_protein):
+    group_a, group_b = utils.separate_by_group(groups_by_position_and_isoform)
     label_offsets_with_orientation_a = defaultdict(list)
     label_offsets_with_orientation_b = defaultdict(list)
 
@@ -236,8 +241,10 @@ def get_label_offsets_with_orientation(groups_by_position, pixels_per_protein):
 
 # distance between positions, -1 if label must be positioned left or right, 0 if label must be positioned in the center, 1 if label can be positioned anywhere, 2 if there is enogh space for both labels to be positioned left and right
 def check_distance(first_modification, second_modification, pixels_per_protein):
+    first_position = int(first_modification['position'])
+    second_position = int(second_modification['position'])
     label_length = utils.get_label_length(first_modification['mod'][0]) if CONFIG.FIGURE_ORIENTATION == 0 else utils.get_label_height()
-    distance_between_modifications = abs(first_modification['position'] - second_modification['position']) * pixels_per_protein
+    distance_between_modifications = abs(first_position - second_position) * pixels_per_protein
     if distance_between_modifications < label_length/2:
         return -1
     if distance_between_modifications < label_length:

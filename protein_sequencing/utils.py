@@ -11,6 +11,18 @@ CONFIG = importlib.import_module('configs.default_config', 'configs')
 SEQUENCE_BOUNDARIES = {'x0': 0, 'x1': 0, 'y0': 0, 'y1': 0}
 PIXELS_PER_PROTEIN = 0
 SEQUENCE_OFFSET = 0
+EXON_1_OFFSET = {'index_start': -1,
+                'index_end': -1,
+                'pixel_start': -1,
+                'pixel_end': -1,
+                'isoforms': []}
+EXON_2_OFFSET = {'index_start': -1,
+                'index_end': -1,
+                'pixel_start': -1,
+                'pixel_end': -1,
+                'isoforms': []}
+
+ISOFORM_IDS = []
 
 def get_width():
     if CONFIG.FIGURE_ORIENTATION == 0:
@@ -40,17 +52,16 @@ def get_label_length(label):
 def get_label_height():
     return CONFIG.FONT_SIZE+CONFIG.FONT_SIZE//5
 
-def separate_by_group(groups_by_position):
+def separate_by_group(groups_by_position_and_isoform):
     group_a = defaultdict(list)
     group_b = defaultdict(list)
 
-    for protein_position in groups_by_position.keys():
-        modification_sights = groups_by_position[protein_position]
-        for modification_sight in modification_sights:
+    for key, value in groups_by_position_and_isoform.items():
+        for modification_sight in value:
             if modification_sight[2] == 'A':  # group A
-                group_a[protein_position].append(modification_sight)
+                group_a[key].append(modification_sight)
             else:  # group B
-                group_b[protein_position].append(modification_sight)
+                group_b[key].append(modification_sight)
     
     return group_a, group_b
 

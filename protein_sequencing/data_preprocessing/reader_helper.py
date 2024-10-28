@@ -1,3 +1,5 @@
+from protein_sequencing import uniprot_align
+
 def process_tau_file(fasta_file, aligned_fasta_file):
     headers = []
     aligned_sequences = {}

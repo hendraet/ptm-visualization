@@ -1,72 +1,20 @@
 import plotly.graph_objects as go
 import os
-from protein_sequencing import utils, uniprot_align
+from protein_sequencing import utils, exon_helper
 import importlib
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 
 def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_positioning = None) -> go.Figure:
-
-    alignments = list(uniprot_align.get_alignment(input_file))
-    max_sequence_length = 0
-    for alignment in alignments:
-        if len(alignment.seq) > max_sequence_length:
-            max_sequence_length = len(alignment.seq)
-
-    assert all(len(alignment.seq) == max_sequence_length for alignment in alignments)
-
-    different_possibilities = [-1]*max_sequence_length
-    for i in range(len(alignments[0].seq)):
-        proteins = set()
-        for alignment in alignments:
-            protein = alignment.seq[i]
-            proteins.add(protein)
-        
-        if '-' in proteins:
-            if len(proteins) == 2:
-                different_possibilities[i] = -1
-            if len(proteins) > 2:
-                different_possibilities[i] = len(proteins)-1
-        else:
-            different_possibilities[i] = len(proteins)
-
-    different_exon_count, i = 0, 0
-    gap_position_index = -1
-    exon_length = 0
-    while i < len(different_possibilities):
-        if different_possibilities[i] == 2:
-            different_exon_count += 1
-            current_position = i
-            gap_position_index = i
-            while i > 0:
-                if different_possibilities[i] == -1:
-                    gap_position_index = i
-                    i -= 1
-                else:
-                    break
-            i = current_position
-            while i < len(different_possibilities):
-                if different_possibilities[i] == -1 or different_possibilities[i] == 2:
-                    i += 1
-                else:
-                    break
-            exon_length = i - gap_position_index
-        i += 1
-
-    if different_exon_count > 1:
-        raise ValueError(f"There are {different_exon_count} regions with different exons, currently the tool just supports 1 different exon.")
-
+    exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(input_file, CONFIG.MIN_EXON_LENGTH)
 
     # exon checks
-    if different_exon_count == 1:
-        if len(alignments) != 2:
-            raise ValueError(f"Currently the tool just supports 2 different proteins with different exons, but {len(alignments)} were supplied.")
-        
+    if exon_found:
         # get exon lengths
-        seq_1_exon_missing_count = alignments[0].seq[gap_position_index:gap_position_index+exon_length].count('-')
-        seq_2_exon_missing_count = alignments[1].seq[gap_position_index:gap_position_index+exon_length].count('-')
-        exon_1_length = exon_length - seq_1_exon_missing_count
-        exon_2_length = exon_length - seq_2_exon_missing_count
+        utils.EXON_1_OFFSET['index_start'] = exon_start_index
+        utils.EXON_1_OFFSET['index_end'] = exon_start_index + exon_1_length
+        utils.EXON_2_OFFSET['index_start'] = exon_start_index
+        utils.EXON_2_OFFSET['index_end'] = exon_start_index + exon_2_length
 
         # calculate new max sequence length with exons
         max_sequence_length = max_sequence_length - exon_length + exon_1_length + exon_2_length
@@ -74,10 +22,10 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
         # check if exon lengths match with regions
         region_end_matches_exon = False
         for i, region in enumerate(CONFIG.REGIONS):
-            if region[1] == gap_position_index:
+            if region[1] == exon_start_index:
                 region_end_matches_exon = True
                 if len(CONFIG.REGIONS) < i+2:
-                    raise ValueError(f"Exon start {gap_position_index} matches a region end for region {region}, but there are not enough regions after it, please check your supplied region list.")
+                    raise ValueError(f"Exon start {exon_start_index} matches a region end for region {region}, but there are not enough regions after it, please check your supplied region list.")
                 else:
                     exon_1_region = CONFIG.REGIONS[i+1]
                     exon_2_region = CONFIG.REGIONS[i+2]
@@ -91,16 +39,16 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
                     if exon_2_region[1] - region[1] != exon_2_length:
                         raise ValueError(f"Exon 2 length {exon_2_length} does not match with end for region {exon_2_region}.")
         if not region_end_matches_exon:
-            raise ValueError(f"Exon start {gap_position_index} does not match any region end, please check your supplied region list.")
+            raise ValueError(f"Exon start {exon_start_index} does not match any region end, please check your supplied region list.")
 
     # basis for all pixel calculations
     if CONFIG.FIGURE_ORIENTATION == 0:
         max_sequence_length_pixels = utils.get_width() - utils.get_left_margin() - utils.get_right_margin()
-        utils.PIXELS_PER_PROTEIN = int((max_sequence_length_pixels - CONFIG.EXONS_GAP * different_exon_count) // max_sequence_length)
+        utils.PIXELS_PER_PROTEIN = int((max_sequence_length_pixels - CONFIG.EXONS_GAP * exon_found) // max_sequence_length)
         utils.SEQUENCE_OFFSET = utils.get_left_margin()
     else:
         max_sequence_length_pixels = utils.get_height() - utils.get_top_margin() - utils.get_bottom_margin()
-        utils.PIXELS_PER_PROTEIN = int((max_sequence_length_pixels - CONFIG.EXONS_GAP * different_exon_count) // max_sequence_length)
+        utils.PIXELS_PER_PROTEIN = int((max_sequence_length_pixels - CONFIG.EXONS_GAP * exon_found) // max_sequence_length)
         utils.SEQUENCE_OFFSET = utils.get_top_margin()
 
     # calculate region boundaries in pixels
@@ -115,7 +63,7 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
         region_name, region_end, region_group, region_short_name, isoform = CONFIG.REGIONS[region_index]
         region_start_pixel = region_end_pixel
         region_end_pixel = region_end * utils.PIXELS_PER_PROTEIN + 1 + utils.SEQUENCE_OFFSET
-        if different_exon_count == 1:
+        if exon_found:
             if region_end == exon_1_region[1]:
                 # alter last boundary to include exon
                 if region_index > 0:
@@ -132,6 +80,8 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
                 elif region_index > 0:
                     region_plot_type = 5
                 first_exon_offset = CONFIG.EXONS_GAP//2
+                utils.EXON_1_OFFSET['pixel_start'] = region_start_pixel+first_exon_offset
+                utils.EXON_1_OFFSET['pixel_end'] = region_end_pixel+first_exon_offset
                 region_boundaries.append((region_name, region_start_pixel+first_exon_offset, region_end_pixel+first_exon_offset, CONFIG.SEQUENCE_REGION_COLORS[region_group], region_start, region_end, region_plot_type))
                 exon_offset = exon_1_length*utils.PIXELS_PER_PROTEIN + CONFIG.EXONS_GAP
                 exon_1_region_end = region_end
@@ -140,6 +90,8 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
                 region_name, region_end, region_group, region_short_name, isoform = CONFIG.REGIONS[region_index]
                 region_start_pixel = region_end_pixel + CONFIG.EXONS_GAP
                 region_end_pixel = region_end * utils.PIXELS_PER_PROTEIN + 1 + utils.SEQUENCE_OFFSET + exon_offset
+                utils.EXON_2_OFFSET['pixel_start'] = region_start_pixel
+                utils.EXON_2_OFFSET['pixel_end'] = region_end_pixel
                 region_boundaries.append((region_name, region_start_pixel, region_end_pixel, CONFIG.SEQUENCE_REGION_COLORS[region_group], region_start, region_end, region_plot_type))
                 region_start = max(exon_1_region_end, region_end) + 1
                 region_index+=1

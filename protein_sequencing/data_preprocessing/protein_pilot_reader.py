@@ -8,8 +8,6 @@ from protein_sequencing import uniprot_align
 from protein_sequencing.data_preprocessing import reader_helper
 from typing import Tuple
 
-# TODO make changable from main input script
-
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 READER_CONFIG = importlib.import_module('configs.reader_config', 'configs')
 

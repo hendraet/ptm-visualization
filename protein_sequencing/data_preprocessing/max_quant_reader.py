@@ -2,7 +2,7 @@ import csv
 import importlib
 import os
 import pandas as pd
-from protein_sequencing import uniprot_align
+from protein_sequencing import exon_helper, uniprot_align
 from protein_sequencing.data_preprocessing import reader_helper
 from typing import Tuple
 import re
@@ -17,6 +17,7 @@ aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_file = READER_CONFIG.MAX_QUANT_FILE
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups_max_quant.csv")
+exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, _, exon_2_isoforms, _, exon_none_isoforms, _ = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def get_accession(accession: str, peptide: str) -> Tuple[str, str, int, str]:
     offset = 0
