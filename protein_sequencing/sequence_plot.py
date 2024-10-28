@@ -6,7 +6,7 @@ import importlib
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 
 def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_positioning = None) -> go.Figure:
-    exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(input_file, CONFIG.MIN_EXON_LENGTH)
+    exon_found, exon_start_index, exon_end_index, max_exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(input_file, CONFIG.MIN_EXON_LENGTH)
 
     # exon checks
     if exon_found:
@@ -17,12 +17,12 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
         utils.EXON_2_OFFSET['index_end'] = exon_start_index + exon_2_length
 
         # calculate new max sequence length with exons
-        max_sequence_length = max_sequence_length - exon_length + exon_1_length + exon_2_length
+        max_sequence_length = max_sequence_length - max_exon_length + exon_1_length + exon_2_length
 
         # check if exon lengths match with regions
         region_end_matches_exon = False
         for i, region in enumerate(CONFIG.REGIONS):
-            if region[1] == exon_start_index:
+            if region[1]+1 == exon_start_index:
                 region_end_matches_exon = True
                 if len(CONFIG.REGIONS) < i+2:
                     raise ValueError(f"Exon start {exon_start_index} matches a region end for region {region}, but there are not enough regions after it, please check your supplied region list.")

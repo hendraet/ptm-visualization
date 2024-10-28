@@ -30,7 +30,8 @@ def get_modifications_per_position(mod_file):
             isoform = isoforms[i]
             if isoform not in utils.ISOFORM_IDS:
                 # TODO remove comment only for debugging purposes not included
-                raise ValueError(f"Isoform {isoform} from PTM file ({mod_file}) not found in fasta input file")
+                pass
+                # raise ValueError(f"Isoform {isoform} from PTM file ({mod_file}) not found in fasta input file")
             modifications_by_position[position].append((label, modification_types[i], PLOT_CONFIG.MODIFICATIONS_GROUP[modification_types[i]], isoform))
         for position, mods in modifications_by_position.items():
             modifications_by_position[position] = list(set(mods))

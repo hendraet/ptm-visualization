@@ -7,8 +7,6 @@ from protein_sequencing.data_preprocessing import reader_helper
 from typing import Tuple
 import re
 
-# TODO make changable from main input script
-
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 READER_CONFIG = importlib.import_module('configs.reader_config', 'configs')
 
@@ -17,7 +15,7 @@ aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_file = READER_CONFIG.MAX_QUANT_FILE
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups_max_quant.csv")
-exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, _, exon_2_isoforms, _, exon_none_isoforms, _ = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
+exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def get_accession(accession: str, peptide: str) -> Tuple[str, str, int, str]:
     offset = 0
@@ -27,25 +25,48 @@ def get_accession(accession: str, peptide: str) -> Tuple[str, str, int, str]:
             isoform = header[0]
             sequence = header[1]
             offset = sequence.index(peptide)
-            # in case we didn't match the longest sequence we have to adapt the offset
-            offset += sequence[:offset].count('-')
             break
     if sequence is not None:
         return isoform, sequence, offset, header[2]
     else:
         raise ValueError(f"Peptide {peptide} with accession {accession} not found in fasta file")
 
-def count_missing_amino_acids(peptide: str, aligned_sequence: str, offset: int) -> int:
+def count_missing_amino_acids(peptide: str, aligned_sequence: str, peptide_offset: int) -> int:
     missing = 0
-    j = 0
-    for i in range(offset, len(aligned_sequence)):
+    stop_count = False
+    for i in range(peptide_offset):
+        # -1 beacuse of 1 based index for exon_start_index and exon_end_index
+        if i >= exon_start_index-1 and i < exon_end_index:
+            continue
         if aligned_sequence[i] == '-':
             missing += 1
+
+    j = 0
+    for i in range(peptide_offset, len(aligned_sequence)):
+        if i >= exon_start_index-1 and i < exon_end_index:
+            stop_count = True
+        else:
+            stop_count = False
+        if aligned_sequence[i] == '-':
+            if not stop_count:
+                missing += 1
         elif peptide[j] == aligned_sequence[i]:
             j+=1
         if j == len(peptide):
             break
     return missing
+
+# calculates with 1 based index
+def calculate_exon_offset(offset: int, isoform: str) -> int:
+    if exon_found and offset > exon_end_index:
+        if isoform in exon_1_isoforms:
+            return offset - exon_1_length + exon_length
+        elif isoform in exon_2_isoforms:
+            return offset - exon_2_length + exon_length
+        else:
+            return offset + exon_length
+    else:
+        return offset
 
 def check_N_term_cleavage(peptide: str, accession: str) -> str:
     isoform, sequence, offset, _ = get_accession(accession, peptide)
@@ -54,7 +75,8 @@ def check_N_term_cleavage(peptide: str, accession: str) -> str:
     if offset > 0:
         amino_acid_before = sequence[offset - 1]
     if amino_acid_before != "K" and amino_acid_before != "R":
-        return f"{amino_acid_first}@{offset+1}_{isoform}"
+        offset = calculate_exon_offset(offset+1, isoform)
+        return f"{amino_acid_first}@{offset}_{isoform}"
 
     return ""
 
@@ -65,7 +87,8 @@ def check_C_term_cleavage(peptide: str, accession: str) -> str:
         missing_aa = count_missing_amino_acids(peptide, aligned_sequence, offset)
     amino_acid_last = peptide[-1]
     if amino_acid_last not in ["K", "R"]:
-        return f"{amino_acid_last}@{offset+len(peptide)+missing_aa}_{isoform}"
+        offset = calculate_exon_offset(offset+len(peptide)+missing_aa, isoform)
+        return f"{amino_acid_last}@{offset}_{isoform}"
 
     return ""
 
@@ -115,15 +138,15 @@ def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, seque
 
         if mod_location in CONFIG.EXCLUDED_MODIFICATIONS:
             if CONFIG.EXCLUDED_MODIFICATIONS[mod_location] is not None and mod_type in CONFIG.EXCLUDED_MODIFICATIONS[mod_location]:
-                continue
-
-        if sequence[aa_offset+peptide_offset-1] != mod_location:
-            raise ValueError(f"AA don't match for {mod_location} for peptide {peptide} in sequence {sequence} with offset {peptide_offset+aa_offset}")
-        
+                continue       
         missing_aa = 0
         if len(sequence) != len(aligned_sequence):
             missing_aa = count_missing_amino_acids(peptide[:aa_offset], aligned_sequence, peptide_offset)
-        mod_strings.append(f"{mod_type}({mod_location})@{aa_offset+peptide_offset+missing_aa}_{isoform}")
+        offset = calculate_exon_offset(aa_offset+peptide_offset+missing_aa, isoform)
+        if aligned_sequence[offset-1] != mod_location:
+            raise ValueError(f"AA don't match for {mod_location} for peptide {peptide} in sequence {sequence} with offset {offset}")
+
+        mod_strings.append(f"{mod_type}({mod_location})@{offset}_{isoform}")
         counter += 1
     return mod_strings
 
@@ -166,7 +189,7 @@ def process_max_quant_file(input_file: str):
                 if fields[prot_accession_idx] in READER_CONFIG.ISOFORM_HELPER_DICT:
                     fields[prot_accession_idx] = READER_CONFIG.ISOFORM_HELPER_DICT[fields[prot_accession_idx]]
                 try:
-                    isoform, sequence, offset, aligned_sequence = get_accession(fields[prot_accession_idx], fields[pep_seq_idx])
+                    isoform, sequence, peptide_offset, aligned_sequence = get_accession(fields[prot_accession_idx], fields[pep_seq_idx])
                 except ValueError:
                     continue
 
@@ -183,7 +206,7 @@ def process_max_quant_file(input_file: str):
                 
                 if float(fields[pep_score_idx]) < READER_CONFIG.THRESHOLD:
                     if fields[mods_idx] != "Unmodified":
-                        mods = reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], offset, sequence, isoform, aligned_sequence)
+                        mods = reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], peptide_offset, sequence, isoform, aligned_sequence)
                         all_mods.extend(mods)
                         mods_for_exp[fields[exp_idx]].extend(mods)
 

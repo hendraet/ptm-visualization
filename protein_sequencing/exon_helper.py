@@ -97,6 +97,7 @@ def retrieve_exon(input_file: str | os.PathLike, MIN_EXON_LENGTH: int):
                 exon_none_isoforms = []
                 exon_1_length = -1
                 exon_2_length = -1
+                max_sequence_length = max_sequence_length - (exon_end_index - exon_start_index) + max_exon_length
                 for alignment in alignments:
                     exon = alignment.seq[exon_start_index:exon_end_index].replace('-', '')
                     isoform = alignment.id.split('|')[1]
@@ -121,7 +122,7 @@ def retrieve_exon(input_file: str | os.PathLike, MIN_EXON_LENGTH: int):
 
     if exon_found:
         # exon_start_index starts with 0 (so the first amino acid in the exon is +1)
-        return True, exon_start_index, exon_end_index, max_exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length
+        return True, exon_start_index+1, exon_end_index+1, max_exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length
     
     else:
         return False, -1, -1, -1, [], -1, [], -1, [alignment.id.split('|')[1] for alignment in alignments], max_sequence_length
