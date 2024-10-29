@@ -70,8 +70,8 @@ def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, seque
         offset = reader_helper.calculate_exon_offset(aa_offset+peptide_offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
         if aligned_sequence[offset-1] != mod_location:
             raise ValueError(f"AA don't match for {mod_location} for peptide {peptide} in sequence {sequence} with offset {offset}")
-
-        mod_strings.append(f"{mod_type}({mod_location})@{offset}_{isoform}")
+        iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+        mod_strings.append(f"{mod_type}({mod_location})@{offset}_{iso}")
         counter += 1
     return mod_strings
 

@@ -13,7 +13,7 @@ READER_CONFIG = importlib.import_module('configs.reader_config', 'configs')
 
 fasta_file = READER_CONFIG.FASTA_FILE
 aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
-input_dir = READER_CONFIG.INPUT_DIR
+input_dir = READER_CONFIG.PROTEIN_PILOT_INPUT_DIR
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
@@ -105,7 +105,8 @@ def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, access
                 offset = reader_helper.calculate_exon_offset(mod_pos+peptide_offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
                 if aligned_sequence[offset-1] != amino_acid:
                     raise ValueError(f"AA don't match for {amino_acid} for peptide {peptide} in sequence {sequence} with offset {offset}")
-                modstring = f"{mod_name}({amino_acid})@{offset}_{isoform}"
+                iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+                modstring = f"{mod_name}({amino_acid})@{offset}_{iso}"
                 mods.append(modstring)
 
     return mods
@@ -131,7 +132,8 @@ def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index
                 missing_aa = reader_helper.count_missing_amino_acids(row[seq_index], aligned_sequence, offset, exon_start_index, exon_end_index)
     
             offset = reader_helper.calculate_exon_offset(peptide_offset+site_index+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
-            cleavages.append(f"{amino_acid}@{peptide_offset+site_index}_{isoform}")
+            iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+            cleavages.append(f"{amino_acid}@{peptide_offset+site_index}_{iso}")
 
     return cleavages
 

@@ -154,7 +154,8 @@ def check_N_term_cleavage(peptide: str, accession: str, sorted_isoform_headers, 
         amino_acid_before = sequence[offset - 1]
     if amino_acid_before != "K" and amino_acid_before != "R":
         offset = calculate_exon_offset(offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
-        return f"{amino_acid_first}@{offset+1}_{isoform}"
+        iso = get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+        return f"{amino_acid_first}@{offset+1}_{iso}"
 
     return ""
 
@@ -166,6 +167,17 @@ def check_C_term_cleavage(peptide: str, accession: str, sorted_isoform_headers,e
     amino_acid_last = peptide[-1]
     if amino_acid_last not in ["K", "R"]:
         offset = calculate_exon_offset(offset+len(peptide)+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
-        return f"{amino_acid_last}@{offset}_{isoform}"
+        iso = get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+        return f"{amino_acid_last}@{offset}_{iso}"
 
     return ""
+
+def get_isoform_for_offset(isoform: str, offset: int, exon_start_index: int, exon_1_isoforms: list, exon_1_length: int, exon_2_isoforms: list, exon_2_length: int) -> str:
+    iso = 'general'
+    if isoform in exon_1_isoforms:
+        if offset >= exon_start_index and offset <= exon_start_index + exon_1_length:
+            iso = 'exon1'
+    elif isoform in exon_2_isoforms:
+        if offset >= exon_start_index and offset <= exon_start_index + exon_2_length:
+            iso = 'exon2'
+    return iso

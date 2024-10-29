@@ -60,7 +60,8 @@ def process_modifications(mod_sequence: str, peptide_offset: int, isoform: str, 
             offset = reader_helper.calculate_exon_offset(aa_offsets[i] + peptide_offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
             if aligned_sequence[offset-1] != modified_aa:
                 raise ValueError(f"AA don't match for {modified_aa} for peptide {peptide} in sequence {sequence} with offset {offset}")
-            mod_string = f"{READER_CONFIG.MS_FRAGGER_MODS[match]}({modified_aa})@{offset}_{isoform}"
+            iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+            mod_string = f"{READER_CONFIG.MS_FRAGGER_MODS[match]}({modified_aa})@{offset}_{iso}"
             all_mods.append(mod_string)
     return all_mods
 

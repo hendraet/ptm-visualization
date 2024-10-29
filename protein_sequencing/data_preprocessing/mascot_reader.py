@@ -12,7 +12,7 @@ READER_CONFIG = importlib.import_module('configs.reader_config', 'configs')
 
 fasta_file = READER_CONFIG.FASTA_FILE
 aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
-input_dir = READER_CONFIG.INPUT_DIR
+input_dir = READER_CONFIG.MASCOT_INPUT_DIR
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
@@ -35,8 +35,8 @@ def reformmods(mods, sites, peptide, variable_mods, isoform, sequence, aligned_s
             offset = reader_helper.calculate_exon_offset(peptide_offset + i + missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
             if aligned_sequence[offset-1] != aa:
                 raise ValueError(f"AA don't match for {aa} for peptide {peptide} in sequence {sequence} with offset {offset}")
-
-            modstring = f"{mod}({aa})@{offset}_{isoform}"
+            iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+            modstring = f"{mod}({aa})@{offset}_{iso}"
             modstrings.append(modstring)
     return modstrings
 
