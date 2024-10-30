@@ -160,6 +160,7 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
                     y_legend = height - CONFIG.SEQUENCE_PLOT_HEIGHT
             if groups_missing == 'B':
                 if CONFIG.FIGURE_ORIENTATION == 1:
+                    y_legend = utils.get_height()
                     x_legend = CONFIG.SEQUENCE_PLOT_HEIGHT
                 else:
                     y_legend = CONFIG.SEQUENCE_PLOT_HEIGHT + (len(CONFIG.MODIFICATIONS.keys())+1) * utils.get_label_height()
@@ -286,7 +287,6 @@ def plot_sequence(fig, region_boundaries, groups_missing):
             font=dict(size=CONFIG.SEQUENCE_PLOT_FONT_SIZE, color="black"),
             textangle= 90 if CONFIG.FIGURE_ORIENTATION == 1 else 0
         )
-
         if i == 0:
             if CONFIG.FIGURE_ORIENTATION == 0:
                 x = x0 - utils.get_label_length(str(region_start))
@@ -307,7 +307,7 @@ def plot_sequence(fig, region_boundaries, groups_missing):
         x = x1 + utils.get_label_length(str(region_end))
         y = y
     else:
-        x = x
+        x = x0 + (x1-x0)//2
         y = y1 - utils.get_label_height()
     fig.add_annotation(
         x=x,

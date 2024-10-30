@@ -425,7 +425,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
         if CONFIG.FIGURE_ORIENTATION == 0:
             if start == end:
                 label = str(start)
-                x_0_line = start * utils.PIXELS_PER_PROTEIN + utils.SEQUENCE_OFFSET
+                x_0_line = start * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
                 x_1_line = cleavages_visited * pixels_per_cleavage + utils.SEQUENCE_OFFSET
                 y_3_line = y_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 y_label = y_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
@@ -437,8 +437,8 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                                  label, False, None, None)
             else:
                 label = f'{start}-{end}'
-                x_0_start_line = start * utils.PIXELS_PER_PROTEIN + utils.SEQUENCE_OFFSET
-                x_0_end_line = end * utils.PIXELS_PER_PROTEIN + utils.SEQUENCE_OFFSET
+                x_0_start_line = start * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
+                x_0_end_line = end * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
                 x_1_line = cleavages_visited * pixels_per_cleavage + utils.SEQUENCE_OFFSET
                 y_3_line = y_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 y_label = y_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
@@ -451,7 +451,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
         else:
             if start == end:
                 label = str(start)
-                y_0_line = utils.get_height() - start * utils.PIXELS_PER_PROTEIN - utils.SEQUENCE_OFFSET
+                y_0_line = utils.get_height() - start * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
                 y_1_line = utils.get_height() - cleavages_visited * pixels_per_cleavage - utils.SEQUENCE_OFFSET
                 x_3_line = x_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 x_label = x_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
@@ -463,8 +463,8 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                                  label, False, None, None)
             else:
                 label = f'{start}-{end}'
-                y_0_start_line = utils.get_height() - start * utils.PIXELS_PER_PROTEIN - utils.SEQUENCE_OFFSET
-                y_0_end_line = utils.get_height() - end * utils.PIXELS_PER_PROTEIN - utils.SEQUENCE_OFFSET
+                y_0_start_line = utils.get_height() - start * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
+                y_0_end_line = utils.get_height() - end * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
                 y_1_line = utils.get_height() - cleavages_visited * pixels_per_cleavage - utils.SEQUENCE_OFFSET
                 x_3_line = x_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 x_label = x_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
@@ -584,7 +584,7 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
             ptms_in_region = 0
         ptms_in_region += 1
         if CONFIG.FIGURE_ORIENTATION == 0:
-            x_0_line = ptm_position * utils.PIXELS_PER_PROTEIN + utils.SEQUENCE_OFFSET
+            x_0_line = ptm_position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
             x_1_line = ptms_visited * pixels_per_ptm + utils.SEQUENCE_OFFSET
             y_3_line = y_2_line + 10 * group_direction
             if second_row and i % 2 == 1:
@@ -603,7 +603,7 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
                       line=dict(width=1, color='grey'),
                       showlegend=False,)
         else:
-            y_0_line = utils.get_height() - ptm_position * utils.PIXELS_PER_PROTEIN - utils.SEQUENCE_OFFSET
+            y_0_line = utils.get_height() - ptm_position * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
             y_1_line = utils.get_height() - ptms_visited * pixels_per_ptm - utils.SEQUENCE_OFFSET
             x_3_line = x_2_line + 10 * group_direction
             if second_row and i % 2 == 1:
