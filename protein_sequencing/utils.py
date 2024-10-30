@@ -81,10 +81,38 @@ def clean_up():
             os.remove(file_path)
 
 def show_plot(fig, output_path):
-    output_file = f"{output_path}/figure1.svg"
+    output_svg = f"{output_path}/figure1.svg"
+    output_png = f"{output_path}/figure1.svg"
     fig.show()
-    fig.write_image(output_file)
+    fig.write_image(output_png)
+    fig.write_image(output_svg)
 
     clean_up()
 
-    return output_file
+    return output_png
+
+def get_position_with_offset(position, isoform):
+    if isoform == 'exon2':
+        position += EXON_1_OFFSET['index_end'] - EXON_1_OFFSET['index_start'] + 1
+    elif position > max(EXON_1_OFFSET['index_end'], EXON_2_OFFSET['index_end']):
+        if isoform != 'general':
+            raise ValueError(f"Position {position} is out of range for isoform {isoform}")
+        exon_1_length = EXON_1_OFFSET['index_end'] - EXON_1_OFFSET['index_start'] + 1
+        exon_2_length = EXON_2_OFFSET['index_end'] - EXON_2_OFFSET['index_start'] + 1
+        position += min(exon_1_length, exon_2_length)
+
+    return position
+
+def offset_line_for_exon(line_position, aa_position, oritentation):
+    if aa_position > EXON_1_OFFSET['index_start']:
+        if oritentation == 0:
+            line_position += CONFIG.EXONS_GAP
+        else:
+            line_position -= CONFIG.EXONS_GAP
+    if aa_position > EXON_1_OFFSET['index_end']:
+        if oritentation == 0:
+            line_position += CONFIG.EXONS_GAP
+        else:
+            line_position -= CONFIG.EXONS_GAP
+
+    return line_position

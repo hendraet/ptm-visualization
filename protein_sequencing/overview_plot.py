@@ -46,15 +46,7 @@ def get_modifications_per_position(mod_file):
             if modification_types[i] not in CONFIG.MODIFICATIONS:
                 continue
             isoform = isoforms[i]
-            position = int(label[1:])
-            if isoforms[i] == 'exon2':
-                position += utils.EXON_1_OFFSET['index_end'] - utils.EXON_1_OFFSET['index_start'] + 1
-            if position > max(utils.EXON_1_OFFSET['index_end'], utils.EXON_2_OFFSET['index_end']):
-                if isoforms[i] != 'general':
-                    raise ValueError(f"Position {position} from PTM file ({mod_file}) is out of range for isoform {isoforms[i]}")
-                exon_1_length = utils.EXON_1_OFFSET['index_end'] - utils.EXON_1_OFFSET['index_start'] + 1
-                exon_2_length = utils.EXON_2_OFFSET['index_end'] - utils.EXON_2_OFFSET['index_start'] + 1
-                position += min(exon_1_length, exon_2_length)
+            position = utils.get_position_with_offset(int(label[1:]), isoform)
             modifications_by_position[position].append((label, modification_types[i], PLOT_CONFIG.MODIFICATIONS_GROUP[modification_types[i]], isoform))
         for position, mods in modifications_by_position.items():
             modifications_by_position[position] = list(set(mods))
@@ -72,10 +64,7 @@ def plot_labels(fig, modifications_by_position):
         for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[aa_position]:
             if CONFIG.FIGURE_ORIENTATION == 0:
                 x_position_line = (aa_position * utils.PIXELS_PER_AA) + utils.SEQUENCE_OFFSET
-                if aa_position > utils.EXON_1_OFFSET['index_start']:
-                    x_position_line += CONFIG.EXONS_GAP
-                if x_position_line >= max(utils.EXON_1_OFFSET['pixel_end'], utils.EXON_2_OFFSET['pixel_end']):
-                    x_position_line += CONFIG.EXONS_GAP
+                x_position_line = utils.offset_line_for_exon(x_position_line, aa_position, CONFIG.FIGURE_ORIENTATION)
                 y_length = PLOT_CONFIG.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_height()
                 y_beginning_line = y0 if group == 'B' else y1
                 y_end_line = y_beginning_line - y_length if group == 'B' else y_beginning_line + y_length
@@ -96,6 +85,7 @@ def plot_labels(fig, modifications_by_position):
                 plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
             else:
                 y_position_line = CONFIG.FIGURE_WIDTH - (aa_position * utils.PIXELS_PER_AA) - utils.SEQUENCE_OFFSET
+                y_position_line = utils.offset_line_for_exon(y_position_line, aa_position, CONFIG.FIGURE_ORIENTATION)
 
                 x_length = PLOT_CONFIG.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_length(label)
                 x_beginning_line = x0 if group == 'B' else x1
