@@ -8,6 +8,25 @@ from protein_sequencing import utils, sequence_plot as sequence
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 PLOT_CONFIG = importlib.import_module('configs.default_overview', 'configs')
 
+def get_present_groups(mod_file):
+    with open(mod_file, 'r') as f:
+        rows = f.readlines()[1:4]
+        modification_types = rows[0].strip().split(',')
+        present_modifications = set()
+        for i, (label) in enumerate(rows[1].strip().split(',')):
+            if label == '':
+                continue
+            letter = label[0]
+            if letter in CONFIG.EXCLUDED_MODIFICATIONS:
+                if CONFIG.EXCLUDED_MODIFICATIONS[letter] is None:
+                    continue
+                if modification_types[i] in CONFIG.EXCLUDED_MODIFICATIONS[letter]:
+                    continue
+            if modification_types[i] not in CONFIG.MODIFICATIONS:
+                continue
+            present_modifications.add(modification_types[i])
+    return present_modifications
+
 def get_modifications_per_position(mod_file):
     with open(mod_file, 'r') as f:
         rows = f.readlines()[1:4]
@@ -36,18 +55,16 @@ def get_modifications_per_position(mod_file):
                 exon_1_length = utils.EXON_1_OFFSET['index_end'] - utils.EXON_1_OFFSET['index_start'] + 1
                 exon_2_length = utils.EXON_2_OFFSET['index_end'] - utils.EXON_2_OFFSET['index_start'] + 1
                 position += min(exon_1_length, exon_2_length)
-
             modifications_by_position[position].append((label, modification_types[i], PLOT_CONFIG.MODIFICATIONS_GROUP[modification_types[i]], isoform))
         for position, mods in modifications_by_position.items():
             modifications_by_position[position] = list(set(mods))
     return modifications_by_position
 
-def plot_labels(fig, mod_file):
+def plot_labels(fig, modifications_by_position):
     x0 = utils.SEQUENCE_BOUNDARIES['x0']
     x1 = utils.SEQUENCE_BOUNDARIES['x1']
     y0 = utils.SEQUENCE_BOUNDARIES['y0']
     y1 = utils.SEQUENCE_BOUNDARIES['y1']
-    modifications_by_position = get_modifications_per_position(mod_file)
 
     label_offsets_with_orientation = get_label_offsets_with_orientation(modifications_by_position)
     for aa_position in label_offsets_with_orientation.keys():
@@ -307,9 +324,17 @@ def plot_label(fig, x, y, text, modification_type, position_label):
                                  color=CONFIG.MODIFICATIONS[modification_type][1])))
 
 def create_overview_plot(input_file: str | os.PathLike, output_path: str | os.PathLike):
-    fig = sequence.create_plot(input_file, None, 'A')
+    present_modifications = get_present_groups(PLOT_CONFIG.INPUT_FILE)
+    groups_present = {PLOT_CONFIG.MODIFICATIONS_GROUP[mod] for mod in present_modifications if mod in PLOT_CONFIG.MODIFICATIONS_GROUP}
+    if not 'A' in groups_present:
+        fig = sequence.create_plot(input_file, 'A', 'A')
+    elif not 'B' in groups_present:
+        fig = sequence.create_plot(input_file, 'B', 'B')
+    else:
+        fig = sequence.create_plot(input_file, None, 'A')
 
-    fig = plot_labels(fig, PLOT_CONFIG.OVERVIEW_INPUT_FILE)
+    modifications_by_position = get_modifications_per_position(PLOT_CONFIG.INPUT_FILE)
+    fig = plot_labels(fig, modifications_by_position)
 
     utils.show_plot(fig, output_path)
     
