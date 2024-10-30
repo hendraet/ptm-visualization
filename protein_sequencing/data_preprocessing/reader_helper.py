@@ -195,3 +195,24 @@ def get_isoform_for_offset(isoform: str, offset: int, exon_start_index: int, exo
         if offset >= exon_start_index and offset <= exon_start_index + exon_2_length:
             iso = 'exon2'
     return iso
+
+def sort_by_index_and_exons(entries):
+    before = []
+    after = []
+    exon1 = []
+    exon2 = []
+    exon = False
+    for entry in entries:
+        _, type_part = entry.split("_")
+        if type_part == "general" and not exon:
+            before.append(entry)
+        elif type_part == "exon1":
+            exon1.append(entry)
+            exon = True
+        elif type_part == "exon2":
+            exon2.append(entry)
+            exon = True
+        else:
+            after.append(entry)
+    result = before + exon1 + exon2 + after
+    return result

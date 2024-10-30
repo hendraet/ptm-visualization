@@ -104,7 +104,7 @@ def get_position_with_offset(position, isoform):
     return position
 
 def offset_line_for_exon(line_position, aa_position, oritentation):
-    if aa_position > EXON_1_OFFSET['index_start']:
+    if aa_position >= EXON_1_OFFSET['index_start']:
         if oritentation == 0:
             line_position += CONFIG.EXONS_GAP
         else:

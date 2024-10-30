@@ -305,9 +305,9 @@ def plot_sequence(fig, region_boundaries, groups_missing):
             sequence_x0, sequence_y0 = x0, y0
     if CONFIG.FIGURE_ORIENTATION == 0:
         x = x1 + utils.get_label_length(str(region_end))
-        y = y
+        y = y_label
     else:
-        x = x0 + (x1-x0)//2
+        x = x_label
         y = y1 - utils.get_label_height()
     fig.add_annotation(
         x=x,

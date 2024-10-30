@@ -199,14 +199,19 @@ def process_protein_pilot_dir():
             cleavages_per_file[file] = cleavages_for_file
             file_counter += 1
             print(f"Processed file {file} ({file_counter}/{xlsx_count})")
-    all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
-    all_cleavages = sorted(set(all_cleavages), key=reader_helper.extract_index)
 
     for index, row in groups_df.iterrows():
         if pd.notna(row['replicate']):
             mods_per_file[row['file_name']] = mods_per_file[row['file_name']].union(mods_per_file[row['replicate']])
             cleavages_per_file[row['file_name']] = cleavages_per_file[row['file_name']].union(cleavages_per_file[row['replicate']])
             del mods_per_file[row['replicate']]
+
+    all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
+    all_mods = reader_helper.sort_by_index_and_exons(all_mods)
+    
+    all_cleavages = sorted(set(all_cleavages), key=reader_helper.extract_index)
+    all_cleavages = reader_helper.sort_by_index_and_exons(all_cleavages)    
+    cleavages_with_ranges = reader_helper.extract_cleavages_ranges(all_cleavages)
 
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_mods.csv", 'w', newline='') as f:
         writer = csv.writer(f)
@@ -218,8 +223,6 @@ def process_protein_pilot_dir():
             row = [1 if mod in mods else 0 for mod in all_mods]
             group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]
             writer.writerow([file[:-10], group] + row)
-
-    cleavages_with_ranges = reader_helper.extract_cleavages_ranges(all_cleavages)
         
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_cleavages.csv", 'w', newline='') as f:
         writer = csv.writer(f)

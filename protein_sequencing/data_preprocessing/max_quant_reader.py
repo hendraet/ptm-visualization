@@ -136,10 +136,13 @@ def process_max_quant_file(input_file: str):
                         mods_for_exp[fields[exp_idx]].extend(mods)
 
     all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
+    all_mods = reader_helper.sort_by_index_and_exons(all_mods)
     for key in mods_for_exp:
         mods_for_exp[key] = sorted(set(mods_for_exp[key]), key=reader_helper.extract_index)
+        mods_for_exp[key] = reader_helper.sort_by_index_and_exons(mods_for_exp[key])
 
     all_cleavages = sorted(set(all_cleavages), key=reader_helper.extract_cleavage_location)
+    all_cleavages = reader_helper.sort_by_index_and_exons(all_cleavages)
     cleavages_with_ranges = reader_helper.extract_cleavages_ranges(all_cleavages)
     write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp)
                 

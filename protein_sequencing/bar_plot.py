@@ -9,6 +9,8 @@ from protein_sequencing import utils,sequence_plot
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 PLOT_CONFIG = importlib.import_module('configs.default_bar', 'configs')
 
+# TODO: linie mittig schwerpunk in plot
+
 def get_bar_positions(modification_sights_all_A: dict[int, list[tuple[int, str, str]]], modification_sights_all_B: dict[int, list[tuple[int, str, str]]]):
    positions_A = []
    positions_B = []
