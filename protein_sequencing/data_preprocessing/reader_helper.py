@@ -132,15 +132,29 @@ def count_missing_amino_acids(peptide: str, aligned_sequence: str, peptide_offse
 
 # calculates with 1 based index
 def calculate_exon_offset(offset: int, isoform: str, exon_found: bool, exon_end_index: int, exon_1_isoforms: list, exon_2_isoforms: list, exon_1_length: int, exon_2_length: int, exon_length: int) -> int:
-    if exon_found and offset > exon_end_index:
+    if exon_found:
         if isoform in exon_1_isoforms:
-            return offset - exon_1_length + exon_length
+            if exon_1_length < exon_length and offset > exon_end_index:
+                return offset + exon_length - exon_1_length
+            return offset
         elif isoform in exon_2_isoforms:
-            return offset - exon_2_length + exon_length
+            if exon_2_length < exon_length and offset > exon_end_index:
+                return offset + exon_length - exon_2_length
+            return offset
         else:
+            if offset < exon_end_index - exon_length + 1:
+                return offset
             return offset + exon_length
     else:
         return offset
+    
+def count_missing_aa_in_exon(aligned_sequence: str, exon_start_index: int, exon_end_index: int, offset: int) -> int:
+    missing = 0
+    for i in range(offset):
+        if i >= exon_start_index-1 and i < exon_end_index:
+            if aligned_sequence[i] == '-':
+                missing += 1
+    return missing
     
 def check_N_term_cleavage(peptide: str, accession: str, sorted_isoform_headers, exon_found: bool, exon_start_index: int, exon_end_index: int, exon_1_isoforms: list, exon_2_isoforms: list, exon_1_length: int, exon_2_length: int, exon_length: int) -> str:
     isoform, sequence, offset, aligned_sequence = get_accession(accession, peptide, sorted_isoform_headers)

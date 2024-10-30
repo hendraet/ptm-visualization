@@ -56,10 +56,17 @@ def split_mod(mod, seq):
     return mod_name.strip(), amino_acid.strip(), int(mod_pos)
 
 def get_accession(row, accession_index, seq_index) -> Tuple[str, str, int, str] | Tuple[None, None, None, None]:
-    search_header = row[accession_index].split('|')[1]
-    if search_header in READER_CONFIG.ISOFORM_HELPER_DICT:
-        search_header = READER_CONFIG.ISOFORM_HELPER_DICT[search_header]
-    if search_header not in [header[0] for header in sorted_isoform_headers]:
+    search_headers = row[accession_index].split(';')
+    isoform_found = False
+    for search in search_headers:
+        search_header = search.split('|')[1]
+        if search_header in READER_CONFIG.ISOFORM_HELPER_DICT:
+            search_header = READER_CONFIG.ISOFORM_HELPER_DICT[search_header]
+
+        if search_header in [header[0] for header in sorted_isoform_headers]:
+            isoform_found = True
+            break
+    if not isoform_found:
         return None, None, None, None
     index_offset = None
     for header in sorted_isoform_headers:
@@ -103,8 +110,9 @@ def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, access
                 if len(sequence) != len(aligned_sequence):
                     missing_aa = reader_helper.count_missing_amino_acids(peptide[:mod_pos], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
                 offset = reader_helper.calculate_exon_offset(mod_pos+peptide_offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
-                if aligned_sequence[offset-1] != amino_acid:
-                    raise ValueError(f"AA don't match for {amino_acid} for peptide {peptide} in sequence {sequence} with offset {offset}")
+                aligned_offset = offset-1+reader_helper.count_missing_aa_in_exon(aligned_sequence, exon_start_index, exon_end_index, offset)
+                if aligned_sequence[aligned_offset] != amino_acid:
+                    raise ValueError(f"AA don't match for {amino_acid} for peptide {peptide} in sequence {aligned_sequence} with offset {aligned_offset}")
                 iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
                 modstring = f"{mod_name}({amino_acid})@{offset}_{iso}"
                 mods.append(modstring)
@@ -129,7 +137,7 @@ def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index
                 site_index = len(row[seq_index])
             missing_aa = 0
             if len(sequence) != len(aligned_sequence):
-                missing_aa = reader_helper.count_missing_amino_acids(row[seq_index], aligned_sequence, offset, exon_start_index, exon_end_index)
+                missing_aa = reader_helper.count_missing_amino_acids(row[seq_index], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
     
             offset = reader_helper.calculate_exon_offset(peptide_offset+site_index+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
             iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
@@ -177,6 +185,9 @@ def process_protein_pilot_dir():
     all_cleavages = []
     mods_per_file = {}
     cleavages_per_file = {}
+
+    xlsx_count = len([file for file in os.listdir(input_dir) if file.endswith('.xlsx')])
+    file_counter = 0
     for file in os.listdir(input_dir):
         if file.endswith('.xlsx'):
             mods_for_file, cleavages_for_file = process_protein_pilot_xlsx_file(input_dir+file)
@@ -186,26 +197,16 @@ def process_protein_pilot_dir():
             all_cleavages.extend(cleavages_for_file)
             mods_per_file[file] = mods_for_file
             cleavages_per_file[file] = cleavages_for_file
+            file_counter += 1
+            print(f"Processed file {file} ({file_counter}/{xlsx_count})")
     all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
     all_cleavages = sorted(set(all_cleavages), key=reader_helper.extract_index)
 
-    for file, mods in mods_per_file.items():
-        if 'Acetyl' not in file:
-            file_name = '_'.join(file.split('_')[0:3] + ['Acetyl'] + file.split('_')[3:])
-            mods_per_file[file] = mods.union(mods_per_file[file_name])
-
-    for file in list(mods_per_file.keys()):
-        if 'Acetyl' in file:
-            del mods_per_file[file]
-
-    for file, cleavages in cleavages_per_file.items():
-        if 'Acetyl' not in file:
-            file_name = '_'.join(file.split('_')[0:3] + ['Acetyl'] + file.split('_')[3:])
-            cleavages_per_file[file] = cleavages.union(cleavages_per_file[file_name])
-
-    for file in list(cleavages_per_file.keys()):
-        if 'Acetyl' in file:
-            del cleavages_per_file[file]
+    for index, row in groups_df.iterrows():
+        if pd.notna(row['replicate']):
+            mods_per_file[row['file_name']] = mods_per_file[row['file_name']].union(mods_per_file[row['replicate']])
+            cleavages_per_file[row['file_name']] = cleavages_per_file[row['file_name']].union(cleavages_per_file[row['replicate']])
+            del mods_per_file[row['replicate']]
 
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_mods.csv", 'w', newline='') as f:
         writer = csv.writer(f)

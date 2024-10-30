@@ -6,7 +6,7 @@ MODIFICATIONS_GROUP = {
     'GG': 'B',
     'Citrullination': 'B',
 }
-OVERVIEW_INPUT_FILE = 'output/result_max_quant_mods.csv'
+OVERVIEW_INPUT_FILE = 'output/result_protein_pilot_mods.csv'
 
 # Sequence Minimum Line Length
 SEQUENCE_MIN_LINE_LENGTH = 20

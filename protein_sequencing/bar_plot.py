@@ -52,7 +52,7 @@ def add_bar_plot(fig: go.Figure, group: str, modification_sights_all: dict[int, 
          label, modification_type, _ = modification_sight
          if CONFIG.FIGURE_ORIENTATION == 0:
             # x position for protein sequence
-            x_0_line = protein_position * utils.PIXELS_PER_PROTEIN + utils.SEQUENCE_OFFSET
+            x_0_line = protein_position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
             # x position for bar plot
             x_1_line = utils.get_width() - (modifications_visited * bar_width + bar_width//2)
             y_0_line = utils.SEQUENCE_BOUNDARIES['y1'] if group == 'A' else utils.SEQUENCE_BOUNDARIES['y0']
@@ -101,7 +101,7 @@ def add_bar_plot(fig: go.Figure, group: str, modification_sights_all: dict[int, 
                )
 
          else:
-            y_0_line = utils.get_height() - (protein_position * utils.PIXELS_PER_PROTEIN + utils.SEQUENCE_OFFSET)
+            y_0_line = utils.get_height() - (protein_position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET)
             y_1_line = modifications_visited * bar_width + bar_width//2
             x_0_line = utils.SEQUENCE_BOUNDARIES['x1'] if group == 'A' else utils.SEQUENCE_BOUNDARIES['x0']
             x_1_line = x_0_line + group_direction * height_offset

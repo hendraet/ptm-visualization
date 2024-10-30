@@ -1,5 +1,5 @@
 # General
-FASTA_FILE = 'data/uniprot_data/tau_isoforms2N4R.fasta'
+FASTA_FILE = 'data/uniprot_data/P14136_a_e.fasta'
 ISOFORM_HELPER_DICT = { "0N3R": "P10636-2",
                         "1N3R": "P10636-4",
                         "2N3R": "P10636-5",
@@ -13,7 +13,7 @@ MASCOT_INPUT_DIR = 'data/mascot/'
 
 # Protein Pilot
 # choose between local and global
-PROTEIN_PILOT_INPUT_DIR = 'data/protein_pilot/'
+PROTEIN_PILOT_INPUT_DIR = 'data/protein_pilot_gfap/'
 FDR_GLOBAL = 'global'
 CONFIDENCE_THRESHOLD = 0.01
 

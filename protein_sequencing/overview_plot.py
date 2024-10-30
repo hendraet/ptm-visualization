@@ -18,7 +18,6 @@ def get_modifications_per_position(mod_file):
         for i, (label) in enumerate(labels):
             if label == '':
                 continue
-            position = int(label[1:])
             letter = label[0]
             if letter in CONFIG.EXCLUDED_MODIFICATIONS:
                 if CONFIG.EXCLUDED_MODIFICATIONS[letter] is None:
@@ -28,10 +27,16 @@ def get_modifications_per_position(mod_file):
             if modification_types[i] not in CONFIG.MODIFICATIONS:
                 continue
             isoform = isoforms[i]
-            if isoform not in utils.ISOFORM_IDS:
-                # TODO remove comment only for debugging purposes not included
-                pass
-                # raise ValueError(f"Isoform {isoform} from PTM file ({mod_file}) not found in fasta input file")
+            position = int(label[1:])
+            if isoforms[i] == 'exon2':
+                position += utils.EXON_1_OFFSET['index_end'] - utils.EXON_1_OFFSET['index_start'] + 1
+            if position > max(utils.EXON_1_OFFSET['index_end'], utils.EXON_2_OFFSET['index_end']):
+                if isoforms[i] != 'general':
+                    raise ValueError(f"Position {position} from PTM file ({mod_file}) is out of range for isoform {isoforms[i]}")
+                exon_1_length = utils.EXON_1_OFFSET['index_end'] - utils.EXON_1_OFFSET['index_start'] + 1
+                exon_2_length = utils.EXON_2_OFFSET['index_end'] - utils.EXON_2_OFFSET['index_start'] + 1
+                position += min(exon_1_length, exon_2_length)
+
             modifications_by_position[position].append((label, modification_types[i], PLOT_CONFIG.MODIFICATIONS_GROUP[modification_types[i]], isoform))
         for position, mods in modifications_by_position.items():
             modifications_by_position[position] = list(set(mods))
@@ -44,13 +49,16 @@ def plot_labels(fig, mod_file):
     y1 = utils.SEQUENCE_BOUNDARIES['y1']
     modifications_by_position = get_modifications_per_position(mod_file)
 
-    label_offsets_with_orientation = get_label_offsets_with_orientation(modifications_by_position, utils.PIXELS_PER_PROTEIN)
-    for protein_position in label_offsets_with_orientation.keys():
+    label_offsets_with_orientation = get_label_offsets_with_orientation(modifications_by_position)
+    for aa_position in label_offsets_with_orientation.keys():
         line_plotted_A, line_plotted_B = False, False
-        for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[protein_position]:
+        for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[aa_position]:
             if CONFIG.FIGURE_ORIENTATION == 0:
-                x_position_line = (protein_position * utils.PIXELS_PER_PROTEIN) + utils.SEQUENCE_OFFSET
-
+                x_position_line = (aa_position * utils.PIXELS_PER_AA) + utils.SEQUENCE_OFFSET
+                if aa_position > utils.EXON_1_OFFSET['index_start']:
+                    x_position_line += CONFIG.EXONS_GAP
+                if x_position_line >= max(utils.EXON_1_OFFSET['pixel_end'], utils.EXON_2_OFFSET['pixel_end']):
+                    x_position_line += CONFIG.EXONS_GAP
                 y_length = PLOT_CONFIG.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_height()
                 y_beginning_line = y0 if group == 'B' else y1
                 y_end_line = y_beginning_line - y_length if group == 'B' else y_beginning_line + y_length
@@ -70,7 +78,7 @@ def plot_labels(fig, mod_file):
                 
                 plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
             else:
-                y_position_line = CONFIG.FIGURE_WIDTH - (protein_position * utils.PIXELS_PER_PROTEIN) - utils.SEQUENCE_OFFSET
+                y_position_line = CONFIG.FIGURE_WIDTH - (aa_position * utils.PIXELS_PER_AA) - utils.SEQUENCE_OFFSET
 
                 x_length = PLOT_CONFIG.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_length(label)
                 x_beginning_line = x0 if group == 'B' else x1
@@ -96,7 +104,7 @@ def plot_labels(fig, mod_file):
                 plot_label(fig, x_end_line, y_position_line, label, modification_type, position_label)
     return fig
 
-def get_distance_groups(group, pixels_per_protein):
+def get_distance_groups(group):
     result = []
     last_sight = {'position': None, 'mod': None}
     distance_group = defaultdict(list)
@@ -106,7 +114,7 @@ def get_distance_groups(group, pixels_per_protein):
         for modification in group[aa_pos]:
             current_sight = {'position': aa_pos, 'mod': modification}
             if last_sight['position'] is not None:
-                if check_distance(last_sight, current_sight, pixels_per_protein) <= 0:
+                if check_distance(last_sight, current_sight) <= 0:
                     if new_group:
                         distance_group[last_sight['position']].append(last_sight['mod'])
                         size += 1
@@ -193,7 +201,7 @@ def get_offsets_with_orientations(distance_group, label_offsets_with_orientation
     
     return label_offsets_with_orientation
 
-def find_nearest_positions(label_offsets_with_orientation, distance_group, pixels_per_protein):
+def find_nearest_positions(label_offsets_with_orientation, distance_group):
     first_position = min(distance_group[1].keys())
     last_position = max(distance_group[1].keys())
 
@@ -205,8 +213,7 @@ def find_nearest_positions(label_offsets_with_orientation, distance_group, pixel
     for position in sorted((k for k in label_offsets_with_orientation.keys() if k < first_position), reverse=True):
         if position < first_position:
             distance = check_distance({'position': position, 'mod': (label_offsets_with_orientation[position][-1][2], label_offsets_with_orientation[position][-1][3])},
-                                      {'position': first_position, 'mod': distance_group[1][first_position][0]},
-                                      pixels_per_protein)
+                                      {'position': first_position, 'mod': distance_group[1][first_position][0]})
             if distance < 2:
                 nearest_smaller = position
                 smaller_offset = label_offsets_with_orientation[position][-1][0]
@@ -216,8 +223,7 @@ def find_nearest_positions(label_offsets_with_orientation, distance_group, pixel
     for position in sorted(k for k in label_offsets_with_orientation.keys() if k > last_position):
         if position > last_position:
             distance = check_distance({'position': position, 'mod': (label_offsets_with_orientation[position][-1][2], label_offsets_with_orientation[position][-1][3])},
-                                      {'position': last_position, 'mod': distance_group[1][last_position][0]},
-                                      pixels_per_protein)
+                                      {'position': last_position, 'mod': distance_group[1][last_position][0]})
             if distance < 2:
                 nearest_larger = position
                 larger_offset = label_offsets_with_orientation[position][-1][0]
@@ -226,26 +232,28 @@ def find_nearest_positions(label_offsets_with_orientation, distance_group, pixel
 
     return (nearest_smaller, smaller_offset), (nearest_larger, larger_offset)
 
-def get_label_offsets_with_orientation(groups_by_position_and_isoform, pixels_per_protein):
+def get_label_offsets_with_orientation(groups_by_position_and_isoform):
     group_a, group_b = utils.separate_by_group(groups_by_position_and_isoform)
     label_offsets_with_orientation_a = defaultdict(list)
     label_offsets_with_orientation_b = defaultdict(list)
 
     for group, label_offsets_with_orientation in [(group_a, label_offsets_with_orientation_a), (group_b, label_offsets_with_orientation_b)]:
         group_label = 'A' if group == group_a else 'B'
-        distance_groups = get_distance_groups(group, pixels_per_protein)
+        if len(group) == 0:
+            continue
+        distance_groups = get_distance_groups(group)
         for distance_group in sorted(distance_groups, key=lambda x: x[0], reverse=True):
-            nearest_left, nearest_right = find_nearest_positions(label_offsets_with_orientation, distance_group, pixels_per_protein)
+            nearest_left, nearest_right = find_nearest_positions(label_offsets_with_orientation, distance_group)
             get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label, nearest_left, nearest_right)
 
     return {**label_offsets_with_orientation_a, **label_offsets_with_orientation_b}
 
 # distance between positions, -1 if label must be positioned left or right, 0 if label must be positioned in the center, 1 if label can be positioned anywhere, 2 if there is enogh space for both labels to be positioned left and right
-def check_distance(first_modification, second_modification, pixels_per_protein):
+def check_distance(first_modification, second_modification):
     first_position = int(first_modification['position'])
     second_position = int(second_modification['position'])
     label_length = utils.get_label_length(first_modification['mod'][0]) if CONFIG.FIGURE_ORIENTATION == 0 else utils.get_label_height()
-    distance_between_modifications = abs(first_position - second_position) * pixels_per_protein
+    distance_between_modifications = abs(first_position - second_position) * utils.PIXELS_PER_AA
     if distance_between_modifications < label_length/2:
         return -1
     if distance_between_modifications < label_length:

@@ -9,18 +9,16 @@ CONFIG = importlib.import_module('configs.default_config', 'configs')
 
 # x0, x1, y0, y1
 SEQUENCE_BOUNDARIES = {'x0': 0, 'x1': 0, 'y0': 0, 'y1': 0}
-PIXELS_PER_PROTEIN = 0
+PIXELS_PER_AA = 0
 SEQUENCE_OFFSET = 0
 EXON_1_OFFSET = {'index_start': -1,
                 'index_end': -1,
                 'pixel_start': -1,
-                'pixel_end': -1,
-                'isoforms': []}
+                'pixel_end': -1}
 EXON_2_OFFSET = {'index_start': -1,
                 'index_end': -1,
                 'pixel_start': -1,
-                'pixel_end': -1,
-                'isoforms': []}
+                'pixel_end': -1}
 
 ISOFORM_IDS = []
 

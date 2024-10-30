@@ -36,7 +36,6 @@ EXCLUDED_MODIFICATIONS = {'Q': None,
                           'S': ['GG'],}
 
 # Input Output Settings
-FASTA_INPUT_FILE = 'protein_sequencing/data_preprocessing/data/uniprot_analysis/output_aligned_2/P14136_aligned.fasta'
 OUTPUT_FOLDER = 'output'
 
 # Plot Settings
@@ -66,7 +65,7 @@ BOTTOM_MARGIN = 0.025
 SEQUENCE_PLOT_FONT_SIZE = FONT_SIZE
 SEQUENCE_PLOT_HEIGHT = 50
 # works best with an even number
-EXONS_GAP = 20
+EXONS_GAP = 10
 MIN_EXON_LENGTH = 5
 
 # Sequence Region Colors
