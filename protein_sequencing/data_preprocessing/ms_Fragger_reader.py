@@ -49,11 +49,13 @@ def process_modifications(mod_sequence: str, peptide_offset: int, isoform: str, 
     peptide = re.sub(r'\[(\d+\.\d+?)\]', '', mod_sequence)
     aa_offsets = get_exact_indexes(mod_sequence)
     for i, match in enumerate(matches):
-        if match in READER_CONFIG.MS_FRAGGER_MODS and READER_CONFIG.MS_FRAGGER_MODS[match] in CONFIG.MODIFICATIONS:
+        if match in READER_CONFIG.MS_FRAGGER_MODS and READER_CONFIG.MS_FRAGGER_MODS[match] in CONFIG.INCLUDED_MODIFICATIONS:
             modified_aa = peptide[aa_offsets[i]-1]
-            if modified_aa in CONFIG.EXCLUDED_MODIFICATIONS:
-                if CONFIG.EXCLUDED_MODIFICATIONS[modified_aa] is not None and READER_CONFIG.MS_FRAGGER_MODS[match] in CONFIG.EXCLUDED_MODIFICATIONS[modified_aa]:
+            if CONFIG.INCLUDED_MODIFICATIONS.get(match):
+                if modified_aa not in CONFIG.INCLUDED_MODIFICATIONS[match]:
                     continue
+                if modified_aa == 'R' and match == 'Deamidated':
+                        match = 'Citrullination'
             missing_aa = 0
             if len(sequence) != len(aligned_sequence):
                 missing_aa = reader_helper.count_missing_amino_acids(peptide[:aa_offsets[i]], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)

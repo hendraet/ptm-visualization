@@ -16,14 +16,12 @@ def get_present_groups(mod_file):
         for i, (label) in enumerate(rows[1].strip().split(',')):
             if label == '':
                 continue
-            letter = label[0]
-            if letter in CONFIG.EXCLUDED_MODIFICATIONS:
-                if CONFIG.EXCLUDED_MODIFICATIONS[letter] is None:
+            aa = label[0]
+            if CONFIG.INCLUDED_MODIFICATIONS.get(modification_types[i]):
+                if aa not in CONFIG.INCLUDED_MODIFICATIONS[modification_types[i]]:
                     continue
-                if modification_types[i] in CONFIG.EXCLUDED_MODIFICATIONS[letter]:
-                    continue
-            if modification_types[i] not in CONFIG.MODIFICATIONS:
-                continue
+                if aa == 'R' and modification_types[i] == 'Deamidated':
+                    modification_types[i] = 'Citrullination'
             present_modifications.add(modification_types[i])
     return present_modifications
 
@@ -37,14 +35,12 @@ def get_modifications_per_position(mod_file):
         for i, (label) in enumerate(labels):
             if label == '':
                 continue
-            letter = label[0]
-            if letter in CONFIG.EXCLUDED_MODIFICATIONS:
-                if CONFIG.EXCLUDED_MODIFICATIONS[letter] is None:
+            aa = label[0]
+            if CONFIG.INCLUDED_MODIFICATIONS.get(modification_types[i]):
+                if aa not in CONFIG.INCLUDED_MODIFICATIONS[modification_types[i]]:
                     continue
-                if modification_types[i] in CONFIG.EXCLUDED_MODIFICATIONS[letter]:
-                    continue
-            if modification_types[i] not in CONFIG.MODIFICATIONS:
-                continue
+                if aa == 'R' and modification_types[i] == 'Deamidated':
+                    modification_types[i] = 'Citrullination'
             isoform = isoforms[i]
             position = utils.get_position_with_offset(int(label[1:]), isoform)
             modifications_by_position[position].append((label, modification_types[i], PLOT_CONFIG.MODIFICATIONS_GROUP[modification_types[i]], isoform))

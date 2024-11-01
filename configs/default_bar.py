@@ -1,14 +1,16 @@
 # Bar Plot Settings
-BAR_NEUROPATHOLOGIES = {'HMWC': 'HMW <br>Wessling et al. <br>identified',
-                        'HMW': 'HMW <br>Patient <br>frequency',
+# group from groups.csv and display name
+BAR_NEUROPATHOLOGIES = {'FTLD-PiD': 'group 1',
+                        'FTLD-Tau': 'group 2',
+                        'CTRL': 'group 3',
                         }
 BAR_WIDTH = 0.8
 INVERT_AXIS_GROUP_B = True
-BAR_INPUT_FILE = 'data/chris/bar_plot/PP-MASCOT-CellAll-All_cutoff_0-05FDR_TAU_reformat_reduced_sub_binaryCell.csv'
+BAR_INPUT_FILE = 'output/result_protein_pilot_mods.csv'
 MODIFICATIONS_GROUP = {
     'Phospho': 'A',
-    'Acetyl': 'B',
+    'Acetyl': 'A',
+    'GG': 'A',
+    'Citrullination': 'A',
     'Methyl': 'B',
-    'GG': 'B',
-    'Citrullination': 'B',
 }

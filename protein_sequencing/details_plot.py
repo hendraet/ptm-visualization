@@ -311,7 +311,7 @@ def plot_neuropathology_labels_vertical(fig: go.Figure, mean_values: pd.DataFram
                 size=CONFIG.SEQUENCE_PLOT_FONT_SIZE,
                 color=color))
         
-def preprocess_neuropathologies(df: pd.DataFrame, ptm: bool):
+def preprocess_neuropathologies(df: pd.DataFrame):
     df.columns = df.iloc[0]
     labels = df.iloc[1:2,2:].values.flatten().tolist()
     df = df.iloc[3:]
@@ -344,7 +344,7 @@ def offset_region_label_from_angle():
 
 def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavage: int, label_plot_height: int, group: str):
     # prepare data:
-    mean_values, cleavages = preprocess_neuropathologies(cleavage_df, False)
+    mean_values, cleavages = preprocess_neuropathologies(cleavage_df)
     isoforms = cleavage_df.iloc[2:3,2:].values.flatten().tolist()
     if group == 'B':
         mean_values = mean_values.iloc[::-1]
@@ -519,7 +519,8 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
 
 def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_plot_height: int, group: str, second_row: bool):
     group_direction = 1 if group == 'A' else -1
-    mean_values, ptms = preprocess_neuropathologies(ptm_df, True)
+    mean_values, ptms = preprocess_neuropathologies(ptm_df)
+    isoforms = ptm_df.iloc[2:3,2:].values.flatten().tolist()
     # For debugging purposes
     #new_row = pd.DataFrame([ptms], columns=mean_values.columns, index=['ptm_position'])
     #mean_values = pd.concat([new_row, mean_values])
@@ -607,7 +608,9 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
             ptms_in_region = 0
         ptms_in_region += 1
         if CONFIG.FIGURE_ORIENTATION == 0:
-            x_0_line = ptm_position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
+            position = utils.get_position_with_offset(ptm_position, isoforms[i])
+            x_0_line = position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
+            x_0_line = utils.offset_line_for_exon(x_0_line, ptm_position, CONFIG.FIGURE_ORIENTATION)
             x_1_line = ptms_visited * pixels_per_ptm + utils.SEQUENCE_OFFSET
             y_3_line = y_2_line + 10 * group_direction
             if second_row and i % 2 == 1:
@@ -626,7 +629,9 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
                       line=dict(width=1, color='grey'),
                       showlegend=False,)
         else:
-            y_0_line = utils.get_height() - ptm_position * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
+            position = utils.get_position_with_offset(ptm_position, isoforms[i])
+            y_0_line = utils.get_height() - position * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
+            y_0_line = utils.offset_line_for_exon(y_0_line, ptm_position, CONFIG.FIGURE_ORIENTATION)
             y_1_line = utils.get_height() - ptms_visited * pixels_per_ptm - utils.SEQUENCE_OFFSET
             x_3_line = x_2_line + 10 * group_direction
             if second_row and i % 2 == 1:
@@ -744,11 +749,16 @@ def create_custome_colorscale(fig: go.Figure, vertical_space_left: int, group_di
 
 def filter_relevant_modification_sights(ptm_file: str, threshold: int):
     df = pd.read_csv(ptm_file)
-    columns_to_keep = [col for col in df.columns if df[col].iloc[0] in CONFIG.MODIFICATIONS.keys() and
-                       (df[col].iloc[1][:1] not in CONFIG.EXCLUDED_MODIFICATIONS.keys() or
-                       df[col].iloc[0] not in CONFIG.EXCLUDED_MODIFICATIONS[df[col].iloc[1][:1]])]
+    columns_to_keep = []
+    for col in df.columns:
+        if CONFIG.INCLUDED_MODIFICATIONS.get(df[col].iloc[0]):
+            if df[col].iloc[1][:1] not in CONFIG.INCLUDED_MODIFICATIONS.get(df[col].iloc[0]):
+                continue
+            if df[col].iloc[1][:1] == 'R' and df[col].iloc[0] == 'Deamidation':
+                df[col].iloc[0] = 'Citrullination'
+            columns_to_keep.append(col)
     df_filtered = df[columns_to_keep]
-    df_values = df_filtered.iloc[2:].astype(int)
+    df_values = df_filtered.iloc[3:].astype(int)
     sums = df_values.sum()
     filtered_columns = sums[sums >= threshold].index
     # all filter options result in an empty dataframe, check relevant modifications and threshold to keep more columns
@@ -826,7 +836,7 @@ def create_details_plot(input_file: str | os.PathLike, output_path: str | os.Pat
 
         plot_cleavages(fig, cleavage_df, pixels_per_cleavage, label_plot_height, cleavage_group)
 
-    if not ptm_file_path:
+    if ptm_file_path:
         ptm_df = filter_relevant_modification_sights(ptm_file_path, PLOT_CONFIG.MODIFICATION_THRESHOLD)
         present_regions = get_present_regions_ptm(ptm_df)
         number_of_ptms = len(ptm_df.columns)

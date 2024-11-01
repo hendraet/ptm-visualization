@@ -25,9 +25,11 @@ def reformmods(mods, sites, peptide, variable_mods, isoform, sequence, aligned_s
         if site != 0:
             mod = variable_mods[site]
             aa = peptide[i]
-            if aa in CONFIG.EXCLUDED_MODIFICATIONS:
-                if CONFIG.EXCLUDED_MODIFICATIONS[aa] is not None and mod in CONFIG.EXCLUDED_MODIFICATIONS[aa]:
-                    continue 
+            if CONFIG.INCLUDED_MODIFICATIONS.get(mod):
+                if aa not in CONFIG.INCLUDED_MODIFICATIONS[mod]:
+                    continue
+                if aa == 'R' and mod == 'Deamidated':
+                    mod = 'Citrullination'
             peptide_offset = sequence.index(peptide)+1
             missing_aa = 0
             if len(sequence) != len(aligned_sequence):

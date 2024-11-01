@@ -29,11 +29,23 @@ MODIFICATIONS = {
     'Methyl': ('Methylation', '#C35728'),
     'GG': ('Ubiquitination', '#548056'),
     'Citrullination': ('Citrullination', '#FF17E3'),
+    'Deamidated': ('Deamidation', '#34AEEB'),
 }
-
-EXCLUDED_MODIFICATIONS = {'Q': None,
-                          'X': None,
-                          'S': ['GG'],}
+# TODO
+# umdrehen
+# phospho sty
+# acetyl k
+# gg k
+# citrullination R - Deamidation R
+# deamidation n q
+# methyl k r
+# default alle
+INCLUDED_MODIFICATIONS = {'Phospho': ['S', 'T', 'Y'],
+                          'Acetyl': ['K'],
+                          'Methyl': ['K', 'R'],
+                          'GG': ['K'],
+                          'Citrullination': ['R'],
+                          'Deamidated': ['N', 'Q', 'R'],}
 
 # Input Output Settings
 OUTPUT_FOLDER = 'output'

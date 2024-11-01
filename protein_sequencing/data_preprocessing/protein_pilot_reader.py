@@ -95,7 +95,7 @@ def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, access
         for rel_mod in relevant_mods:
             matched_mod = None
             rel_mod_name, rel_amino_acid, rel_mod_pos = split_mod(rel_mod, peptide)
-            if rel_mod_name not in CONFIG.MODIFICATIONS:
+            if rel_mod_name not in CONFIG.INCLUDED_MODIFICATIONS:
                 continue
             for mod in all_mods:
                 mod_name, amino_acid, mod_pos = split_mod(mod, peptide)
@@ -104,8 +104,11 @@ def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, access
                     break
             if matched_mod is not None:
                 mod_name, amino_acid, mod_pos = split_mod(matched_mod, peptide)
-                if CONFIG.EXCLUDED_MODIFICATIONS.get(amino_acid) is not None and mod_name in CONFIG.EXCLUDED_MODIFICATIONS[amino_acid]:
-                    continue
+                if CONFIG.INCLUDED_MODIFICATIONS.get(mod_name):
+                    if amino_acid not in CONFIG.INCLUDED_MODIFICATIONS[mod_name]:
+                        continue
+                    if amino_acid == 'R' and mod_name == 'Deamidated':
+                        mod_name = 'Citrullination'
                 missing_aa = 0
                 if len(sequence) != len(aligned_sequence):
                     missing_aa = reader_helper.count_missing_amino_acids(peptide[:mod_pos], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
@@ -151,8 +154,11 @@ def extract_data_with_threshold(calamine_sheet, threshold):
     relavent_cleavage_rows = []
     for row in rows:
         if 'ProteinModifications' in row and 'Conf' in row:
-            protein_mod_index = row.index('ProteinModifications')
             mod_index = row.index('Modifications')
+            if READER_CONFIG.RELEVANT_MODS == 'all':
+                protein_mod_index = mod_index
+            else: 
+                protein_mod_index = row.index('ProteinModifications')
             seq_index = row.index('Sequence')
             conf_index = row.index('Conf')
             cleavage_index = row.index('Cleavages')
@@ -163,7 +169,7 @@ def extract_data_with_threshold(calamine_sheet, threshold):
                     relevant_mod_rows.append(row)
                 if row[cleavage_index] is not None and row[cleavage_index] != '' and 'cleaved' in row[cleavage_index]:
                     relavent_cleavage_rows.append(row)
-
+    
     mods = extract_mods_from_rows(relevant_mod_rows, protein_mod_index, mod_index, seq_index, accession_index)
     cleavages = extract_cleavages_from_rows(relavent_cleavage_rows, cleavage_index, seq_index, accession_index)
 
@@ -208,7 +214,7 @@ def process_protein_pilot_dir():
 
     all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
     all_mods = reader_helper.sort_by_index_and_exons(all_mods)
-    
+
     all_cleavages = sorted(set(all_cleavages), key=reader_helper.extract_index)
     all_cleavages = reader_helper.sort_by_index_and_exons(all_cleavages)    
     cleavages_with_ranges = reader_helper.extract_cleavages_ranges(all_cleavages)

@@ -52,26 +52,28 @@ def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, seque
     counter = 0
     for mod_type, mod_position in matches:
         if mod_position == "Protein N-term":
-            mod_location = sequence[peptide_offset-1]
+            aa = sequence[peptide_offset-1]
             aa_offset = 0
         elif mod_position == "Protein C-term":
-            mod_location = peptide[-1]
+            aa = peptide[-1]
             aa_offset = len(peptide)
         else:
-            mod_location = peptide[indexes[counter]-1]
+            aa = peptide[indexes[counter]-1]
             aa_offset = indexes[counter]
 
-        if mod_location in CONFIG.EXCLUDED_MODIFICATIONS:
-            if CONFIG.EXCLUDED_MODIFICATIONS[mod_location] is not None and mod_type in CONFIG.EXCLUDED_MODIFICATIONS[mod_location]:
-                continue       
+        if CONFIG.INCLUDED_MODIFICATIONS.get(mod_type):
+            if aa not in CONFIG.INCLUDED_MODIFICATIONS[mod_type]:
+                continue
+            if aa == 'R' and mod_type == 'Deamidated':
+                mod_type = 'Citrullination'     
         missing_aa = 0
         if len(sequence) != len(aligned_sequence):
             missing_aa = reader_helper.count_missing_amino_acids(peptide[:aa_offset], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
         offset = reader_helper.calculate_exon_offset(aa_offset+peptide_offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
-        if aligned_sequence[offset-1] != mod_location:
-            raise ValueError(f"AA don't match for {mod_location} for peptide {peptide} in sequence {sequence} with offset {offset}")
+        if aligned_sequence[offset-1] != aa:
+            raise ValueError(f"AA don't match for {aa} for peptide {peptide} in sequence {sequence} with offset {offset}")
         iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
-        mod_strings.append(f"{mod_type}({mod_location})@{offset}_{iso}")
+        mod_strings.append(f"{mod_type}({aa})@{offset}_{iso}")
         counter += 1
     return mod_strings
 

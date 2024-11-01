@@ -288,7 +288,7 @@ def filter_relevant_modification_sights(helper_file: str):
    df = pd.read_csv(helper_file)
 
    # only keep first two columns and columns that are in MODIFICATIONS
-   columns_to_keep = list(PLOT_CONFIG.MODIFICATIONS_GROUP.keys())
+   columns_to_keep = list(CONFIG.INCLUDED_MODIFICATIONS.keys())
    df = df[[col for col in df.columns if df[col][0] in columns_to_keep or col in ['ID', 'Neuropathology']]]
 
    # create dict for all modification sights
@@ -298,8 +298,11 @@ def filter_relevant_modification_sights(helper_file: str):
          continue
       column_modification = df[column][0]
       column_label = df[column][1][0]
-      if column_modification in CONFIG.EXCLUDED_MODIFICATIONS.get(column_label, []):
-         continue
+      if CONFIG.INCLUDED_MODIFICATIONS.get(column_modification):
+         if column_label not in CONFIG.INCLUDED_MODIFICATIONS[column_modification]:
+            continue
+         if column_label == 'R' and column_modification == 'Deamidated':
+            column_modification = 'Citrullination'
       isoform = df[column][2]
       position = utils.get_position_with_offset(int(df[column][1][1:]), isoform)
       all_modification_sights[position].append((df[column][1], column_modification, PLOT_CONFIG.MODIFICATIONS_GROUP[column_modification], isoform))
@@ -324,8 +327,11 @@ def filter_relevant_modification_sights(helper_file: str):
          continue
       column_modification = df[column][0]
       column_label = df[column][1][0]
-      if column_modification in CONFIG.EXCLUDED_MODIFICATIONS.get(column_label, []):
-         continue
+      if CONFIG.INCLUDED_MODIFICATIONS.get(column_modification):
+         if column_label not in CONFIG.INCLUDED_MODIFICATIONS[column_modification]:
+            continue
+         if column_label == 'R' and column_modification == 'Deamidated':
+            column_modification = 'Citrullination'
       isoform = df[column][2]
       position = utils.get_position_with_offset(int(df[column][1][1:]), isoform)
       relevant_modification_sights[position].append((df[column][1], column_modification, PLOT_CONFIG.MODIFICATIONS_GROUP[column_modification], isoform))
