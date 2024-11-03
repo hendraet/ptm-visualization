@@ -2,11 +2,10 @@ import csv
 import importlib
 import os
 import pandas as pd
+from protein_sequencing import exon_helper, uniprot_align
 from protein_sequencing.data_preprocessing import reader_helper
 from typing import Tuple
 import re
-
-# TODO make changable from main input script
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 READER_CONFIG = importlib.import_module('configs.reader_config', 'configs')
@@ -16,47 +15,11 @@ aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_file = READER_CONFIG.MS_FRAGGER_FILE
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
-
-sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
-
-ms_fragger_mods = READER_CONFIG.MS_FRAGGER_MODS
-
-def get_accession(accession: str, peptide: str) -> Tuple[str, str, int]:
-    offset = 0
-    sequence = None
-    for header in sorted_isoform_headers:
-        if peptide in header[1]:
-            isoform = header[0]
-            sequence = header[1]
-            offset = sequence.index(peptide)
-            break
-    if sequence is not None:
-        return isoform, sequence, offset
-    else:
-        raise ValueError(f"Peptide {peptide} with accession {accession} not found in fasta file")
-
-def check_N_term_cleavage(peptide: str, accession: str) -> str:
-    _, sequence, offset = get_accession(accession, peptide)
-    amino_acid_first = peptide[0]
-    amino_acid_before = ""
-    if offset > 0:
-        amino_acid_before = sequence[offset - 1]
-    if amino_acid_before != "K" and amino_acid_before != "R":
-        return f"{amino_acid_first}@{offset+1}"
-
-    return ""
-
-def check_C_term_cleavage(peptide: str, accession: str) -> str:
-    _, _, offset = get_accession(accession, peptide)
-    amino_acid_last = peptide[-1]
-    if amino_acid_last not in ["K", "R"]:
-        return f"{amino_acid_last}@{offset+len(peptide)}"
-
-    return ""
+exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def check_modification_present(mod_sequence: str) -> bool:
     relevant_mod_present = False
-    for mod_idx in ms_fragger_mods:
+    for mod_idx in READER_CONFIG.MS_FRAGGER_MODS:
         if mod_idx in mod_sequence:
             relevant_mod_present = True
             break
@@ -71,6 +34,7 @@ def get_exact_indexes(mod_sequence: str) -> list:
             inside_brackets = True
         elif char == ']':
             inside_brackets = False
+            continue
         elif not inside_brackets and char.isalpha():
             if i + 1 < len(mod_sequence) and mod_sequence[i + 1] == '[':
                 indexes.append(current_index)
@@ -79,18 +43,27 @@ def get_exact_indexes(mod_sequence: str) -> list:
 
     return indexes
 
-def process_modifications(mod_sequence: str, offset: int):
+def process_modifications(mod_sequence: str, peptide_offset: int, isoform: str, sequence: str, aligned_sequence: str) -> list:
     all_mods = []
     matches = re.findall(r'\[(\d+\.\d+?)\]', mod_sequence)
-    mod_indexes = get_exact_indexes(mod_sequence)
+    peptide = re.sub(r'\[(\d+\.\d+?)\]', '', mod_sequence)
+    aa_offsets = get_exact_indexes(mod_sequence)
     for i, match in enumerate(matches):
-        if match in ms_fragger_mods and ms_fragger_mods[match] in CONFIG.MODIFICATIONS:
-            modified_aa = mod_sequence[mod_sequence.index(match)-2]
-            if modified_aa in CONFIG.EXCLUDED_MODIFICATIONS:
-                if CONFIG.EXCLUDED_MODIFICATIONS[modified_aa] is not None and ms_fragger_mods[match] in CONFIG.EXCLUDED_MODIFICATIONS[modified_aa]:
+        if match in READER_CONFIG.MS_FRAGGER_MODS and READER_CONFIG.MS_FRAGGER_MODS[match] in CONFIG.INCLUDED_MODIFICATIONS:
+            modified_aa = peptide[aa_offsets[i]-1]
+            if CONFIG.INCLUDED_MODIFICATIONS.get(match):
+                if modified_aa not in CONFIG.INCLUDED_MODIFICATIONS[match]:
                     continue
-            offset = mod_indexes[i] + offset
-            mod_string = f"{ms_fragger_mods[match]}({modified_aa})@{offset}"
+                if modified_aa == 'R' and match == 'Deamidated':
+                        match = 'Citrullination'
+            missing_aa = 0
+            if len(sequence) != len(aligned_sequence):
+                missing_aa = reader_helper.count_missing_amino_acids(peptide[:aa_offsets[i]], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
+            offset = reader_helper.calculate_exon_offset(aa_offsets[i] + peptide_offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+            if aligned_sequence[offset-1] != modified_aa:
+                raise ValueError(f"AA don't match for {modified_aa} for peptide {peptide} in sequence {sequence} with offset {offset}")
+            iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+            mod_string = f"{READER_CONFIG.MS_FRAGGER_MODS[match]}({modified_aa})@{offset}_{iso}"
             all_mods.append(mod_string)
     return all_mods
 
@@ -100,6 +73,7 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         writer.writerow(['ID', 'Neuropathology'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
         writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
+        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
         for key, value in mods_for_exp.items():
             row = [1 if mod in value else 0 for mod in all_mods]
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
@@ -109,7 +83,8 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         writer = csv.writer(f)
         writer.writerow(['ID', 'Neuropathology'] + cleavages_with_ranges)
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
-        writer.writerow(['', ''] + [cleavage for cleavage in cleavages_with_ranges])
+        writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
+        writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])
         ranges = reader_helper.parse_ranges(cleavages_with_ranges)
         for key, value in cleavages_for_exp.items():
             indexes = [reader_helper.extract_index(cleavage) for cleavage in value]
@@ -158,12 +133,12 @@ def process_ms_fragger_file(file: str):
                     if row[prot_accession_idx] in READER_CONFIG.ISOFORM_HELPER_DICT:
                         row[prot_accession_idx] = READER_CONFIG.ISOFORM_HELPER_DICT[row[prot_accession_idx]]
                     try:
-                        _, _, offset = get_accession(row[prot_accession_idx], row[pep_seq_idx])
+                        isoform, sequence, offset, aligned_sequence = reader_helper.get_accession(row[prot_accession_idx], row[pep_seq_idx], sorted_isoform_headers)
                     except ValueError:
                         continue                       
                         
-                    nterm_cleav = check_N_term_cleavage(row[pep_seq_idx], row[prot_accession_idx])
-                    cterm_cleav = check_C_term_cleavage(row[pep_seq_idx], row[prot_accession_idx])
+                    nterm_cleav = reader_helper.check_N_term_cleavage(row[pep_seq_idx], row[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+                    cterm_cleav = reader_helper.check_C_term_cleavage(row[pep_seq_idx], row[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
                     cleavage = ""
                     if nterm_cleav != "" and cterm_cleav != "":
                         all_cleavages.append(nterm_cleav)
@@ -177,7 +152,7 @@ def process_ms_fragger_file(file: str):
                         cleavage = cterm_cleav
 
                     if check_modification_present(row[pep_mod_seq_idx]):
-                        mods_for_peptide = process_modifications(row[pep_mod_seq_idx], offset)
+                        mods_for_peptide = process_modifications(row[pep_mod_seq_idx], offset, isoform, sequence, aligned_sequence)
                         all_mods.extend(mods_for_peptide)
                         for i, idx in enumerate(exp_idx):
                             if row[idx] != "0.0":
@@ -187,11 +162,16 @@ def process_ms_fragger_file(file: str):
                                     cleavages_for_exp[exp_names[i]].append(cleavage)
 
     all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
+    all_mods = reader_helper.sort_by_index_and_exons(all_mods)
     for key in mods_for_exp:
         mods_for_exp[key] = sorted(set(mods_for_exp[key]), key=reader_helper.extract_index)
 
     all_cleavages = sorted(set(all_cleavages), key=reader_helper.extract_cleavage_location)
+    all_cleavages = reader_helper.sort_by_index_and_exons(all_cleavages)
     cleavages_with_ranges = reader_helper.extract_cleavages_ranges(all_cleavages)
     write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp)
+
+uniprot_align.get_alignment(fasta_file)
+sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
 
 process_ms_fragger_file(input_file)

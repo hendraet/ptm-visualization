@@ -2,11 +2,10 @@ import csv
 import importlib
 import os
 import pandas as pd
+from protein_sequencing import exon_helper, uniprot_align
 from protein_sequencing.data_preprocessing import reader_helper
 from typing import Tuple
 import re
-
-# TODO make changable from main input script
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 READER_CONFIG = importlib.import_module('configs.reader_config', 'configs')
@@ -16,41 +15,7 @@ aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_file = READER_CONFIG.MAX_QUANT_FILE
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups_max_quant.csv")
-
-sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
-
-def get_accession(accession: str, peptide: str) -> Tuple[str, str, int]:
-    offset = 0
-    sequence = None
-    for header in sorted_isoform_headers:
-        if peptide in header[1]:
-            isoform = header[0]
-            sequence = header[1]
-            offset = sequence.index(peptide)
-            break
-    if sequence is not None:
-        return isoform, sequence, offset
-    else:
-        raise ValueError(f"Peptide {peptide} with accession {accession} not found in fasta file")
-
-def check_N_term_cleavage(peptide: str, accession: str) -> str:
-    _, sequence, offset = get_accession(accession, peptide)
-    amino_acid_first = peptide[0]
-    amino_acid_before = ""
-    if offset > 0:
-        amino_acid_before = sequence[offset - 1]
-    if amino_acid_before != "K" and amino_acid_before != "R":
-        return f"{amino_acid_first}@{offset+1}"
-
-    return ""
-
-def check_C_term_cleavage(peptide: str, accession: str) -> str:
-    _, _, offset = get_accession(accession, peptide)
-    amino_acid_last = peptide[-1]
-    if amino_acid_last not in ["K", "R"]:
-        return f"{amino_acid_last}@{offset+len(peptide)}"
-
-    return ""
+exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def get_exact_indexes(mod_sequence: str) -> list:
     indexes = []
@@ -78,7 +43,7 @@ def get_exact_indexes(mod_sequence: str) -> list:
 
     return indexes
 
-def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, sequence: str) -> list[str]:
+def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, sequence: str, isoform: str, aligned_sequence: str) -> list[str]:
     mod_strings = []
     
     pattern = r"\((\w+)\s*\(([^)]+)\)\)"
@@ -87,22 +52,28 @@ def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, seque
     counter = 0
     for mod_type, mod_position in matches:
         if mod_position == "Protein N-term":
-            mod_location = sequence[peptide_offset-1]
+            aa = sequence[peptide_offset-1]
             aa_offset = 0
         elif mod_position == "Protein C-term":
-            mod_location = peptide[-1]
+            aa = peptide[-1]
             aa_offset = len(peptide)
         else:
-            mod_location = peptide[indexes[counter]-1]
+            aa = peptide[indexes[counter]-1]
             aa_offset = indexes[counter]
 
-        if mod_location in CONFIG.EXCLUDED_MODIFICATIONS:
-            if CONFIG.EXCLUDED_MODIFICATIONS[mod_location] is not None and mod_type in CONFIG.EXCLUDED_MODIFICATIONS[mod_location]:
+        if CONFIG.INCLUDED_MODIFICATIONS.get(mod_type):
+            if aa not in CONFIG.INCLUDED_MODIFICATIONS[mod_type]:
                 continue
-
-        if sequence[aa_offset+peptide_offset-1] != mod_location:
-            raise ValueError(f"AA don't match for {mod_location} for peptide {peptide} in sequence {sequence} with offset {peptide_offset+aa_offset}")
-        mod_strings.append(f"{mod_type}({mod_location})@{aa_offset+peptide_offset}")
+            if aa == 'R' and mod_type == 'Deamidated':
+                mod_type = 'Citrullination'     
+        missing_aa = 0
+        if len(sequence) != len(aligned_sequence):
+            missing_aa = reader_helper.count_missing_amino_acids(peptide[:aa_offset], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
+        offset = reader_helper.calculate_exon_offset(aa_offset+peptide_offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+        if aligned_sequence[offset-1] != aa:
+            raise ValueError(f"AA don't match for {aa} for peptide {peptide} in sequence {sequence} with offset {offset}")
+        iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+        mod_strings.append(f"{mod_type}({aa})@{offset}_{iso}")
         counter += 1
     return mod_strings
 
@@ -145,32 +116,35 @@ def process_max_quant_file(input_file: str):
                 if fields[prot_accession_idx] in READER_CONFIG.ISOFORM_HELPER_DICT:
                     fields[prot_accession_idx] = READER_CONFIG.ISOFORM_HELPER_DICT[fields[prot_accession_idx]]
                 try:
-                    _, sequence, offset = get_accession(fields[prot_accession_idx], fields[pep_seq_idx])
+                    isoform, sequence, peptide_offset, aligned_sequence = reader_helper.get_accession(fields[prot_accession_idx], fields[pep_seq_idx], sorted_isoform_headers)
                 except ValueError:
                     continue
 
-                cleavage = check_N_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx])
+                cleavage = reader_helper.check_N_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
                 if cleavage != "":
                     all_cleavages.append(cleavage)
                     if fields[exp_idx] not in cleavages_for_exp:
                         cleavages_for_exp[fields[exp_idx]] = []
                     cleavages_for_exp[fields[exp_idx]].append(cleavage)
-                cleavage = check_C_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx])
+                cleavage = reader_helper.check_C_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
                 if cleavage != "":
                     all_cleavages.append(cleavage)
                     cleavages_for_exp[fields[exp_idx]].append(cleavage)
                 
                 if float(fields[pep_score_idx]) < READER_CONFIG.THRESHOLD:
                     if fields[mods_idx] != "Unmodified":
-                        mods = reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], offset, sequence)
+                        mods = reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], peptide_offset, sequence, isoform, aligned_sequence)
                         all_mods.extend(mods)
                         mods_for_exp[fields[exp_idx]].extend(mods)
 
     all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
+    all_mods = reader_helper.sort_by_index_and_exons(all_mods)
     for key in mods_for_exp:
         mods_for_exp[key] = sorted(set(mods_for_exp[key]), key=reader_helper.extract_index)
+        mods_for_exp[key] = reader_helper.sort_by_index_and_exons(mods_for_exp[key])
 
     all_cleavages = sorted(set(all_cleavages), key=reader_helper.extract_cleavage_location)
+    all_cleavages = reader_helper.sort_by_index_and_exons(all_cleavages)
     cleavages_with_ranges = reader_helper.extract_cleavages_ranges(all_cleavages)
     write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp)
                 
@@ -180,6 +154,7 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         writer.writerow(['ID', 'Neuropathology'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
         writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
+        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
         for key, value in mods_for_exp.items():
             row = [1 if mod in value else 0 for mod in all_mods]
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
@@ -189,7 +164,8 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         writer = csv.writer(f)
         writer.writerow(['ID', 'Neuropathology'] + cleavages_with_ranges)
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
-        writer.writerow(['', ''] + [cleavage for cleavage in cleavages_with_ranges])
+        writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
+        writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])
         ranges = reader_helper.parse_ranges(cleavages_with_ranges)
         for key, value in cleavages_for_exp.items():
             indexes = [reader_helper.extract_index(cleavage) for cleavage in value]
@@ -197,4 +173,7 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
             writer.writerow([key, group] + row)           
         
+uniprot_align.get_alignment(fasta_file)
+sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
+
 process_max_quant_file(input_file)

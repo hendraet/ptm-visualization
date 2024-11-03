@@ -9,8 +9,18 @@ CONFIG = importlib.import_module('configs.default_config', 'configs')
 
 # x0, x1, y0, y1
 SEQUENCE_BOUNDARIES = {'x0': 0, 'x1': 0, 'y0': 0, 'y1': 0}
-PIXELS_PER_PROTEIN = 0
+PIXELS_PER_AA = 0
 SEQUENCE_OFFSET = 0
+EXON_1_OFFSET = {'index_start': -1,
+                'index_end': -1,
+                'pixel_start': -1,
+                'pixel_end': -1}
+EXON_2_OFFSET = {'index_start': -1,
+                'index_end': -1,
+                'pixel_start': -1,
+                'pixel_end': -1}
+
+ISOFORM_IDS = []
 
 def get_width():
     if CONFIG.FIGURE_ORIENTATION == 0:
@@ -40,17 +50,16 @@ def get_label_length(label):
 def get_label_height():
     return CONFIG.FONT_SIZE+CONFIG.FONT_SIZE//5
 
-def separate_by_group(groups_by_position):
+def separate_by_group(groups_by_position_and_isoform):
     group_a = defaultdict(list)
     group_b = defaultdict(list)
 
-    for protein_position in groups_by_position.keys():
-        modification_sights = groups_by_position[protein_position]
-        for modification_sight in modification_sights:
+    for key, value in groups_by_position_and_isoform.items():
+        for modification_sight in value:
             if modification_sight[2] == 'A':  # group A
-                group_a[protein_position].append(modification_sight)
+                group_a[key].append(modification_sight)
             else:  # group B
-                group_b[protein_position].append(modification_sight)
+                group_b[key].append(modification_sight)
     
     return group_a, group_b
 
@@ -72,10 +81,38 @@ def clean_up():
             os.remove(file_path)
 
 def show_plot(fig, output_path):
-    output_file = f"{output_path}/figure1.svg"
+    output_svg = f"{output_path}/figure1.svg"
+    output_png = f"{output_path}/figure1.svg"
     fig.show()
-    fig.write_image(output_file)
+    fig.write_image(output_png)
+    fig.write_image(output_svg)
 
     clean_up()
 
-    return output_file
+    return output_png
+
+def get_position_with_offset(position, isoform):
+    if isoform == 'exon2':
+        position += EXON_1_OFFSET['index_end'] - EXON_1_OFFSET['index_start'] + 1
+    elif position > max(EXON_1_OFFSET['index_end'], EXON_2_OFFSET['index_end']):
+        if isoform != 'general':
+            raise ValueError(f"Position {position} is out of range for isoform {isoform}")
+        exon_1_length = EXON_1_OFFSET['index_end'] - EXON_1_OFFSET['index_start'] + 1
+        exon_2_length = EXON_2_OFFSET['index_end'] - EXON_2_OFFSET['index_start'] + 1
+        position += min(exon_1_length, exon_2_length)
+
+    return position
+
+def offset_line_for_exon(line_position, aa_position, oritentation):
+    if aa_position >= EXON_1_OFFSET['index_start']:
+        if oritentation == 0:
+            line_position += CONFIG.EXONS_GAP
+        else:
+            line_position -= CONFIG.EXONS_GAP
+    if aa_position > EXON_1_OFFSET['index_end']:
+        if oritentation == 0:
+            line_position += CONFIG.EXONS_GAP
+        else:
+            line_position -= CONFIG.EXONS_GAP
+
+    return line_position

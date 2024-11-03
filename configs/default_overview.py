@@ -1,12 +1,12 @@
 # Overview Plot Settings
 MODIFICATIONS_GROUP = {
     'Phospho': 'A',
-    'Acetyl': 'B',
-    'Methyl': 'B',
-    'GG': 'B',
-    'Citrullination': 'B',
+    'Acetyl': 'A',
+    'Methyl': 'A',
+    'GG': 'A',
+    'Citrullination': 'A',
 }
-OVERVIEW_INPUT_FILE = 'data/chris/overview_plot/PPc_COMPLETE_cutoff_0-05FDR_reformat_XX_reduced.csv'
+INPUT_FILE = 'output/result_protein_pilot_mods.csv'
 
-# Sequence Minimum Line Length
+# Sequence Minimum Distance between label and sequence
 SEQUENCE_MIN_LINE_LENGTH = 20

@@ -11,7 +11,7 @@ from protein_sequencing import utils, sequence_plot
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 PLOT_CONFIG = importlib.import_module('configs.default_details', 'configs')
 
-def get_present_regions(positions):
+def get_present_regions(positions, isoforms):
     ranges = []
     for range in positions:
         if '-' in str(range):
@@ -23,26 +23,36 @@ def get_present_regions(positions):
 
     region_ranges = []
     region_start = 1
-    for _, region_end, _, _ in CONFIG.REGIONS:
+    for _, region_end, _, _, _ in CONFIG.REGIONS:
         region_ranges.append((region_start, region_end))
         region_start = region_end + 1
 
     regions_present = [False] * len(region_ranges)
     region_index = 0
-    for range in ranges:
+    for i, range in enumerate(ranges):
+        if isoforms[i] == 'exon1':
+            index = next((index for index, region in enumerate(CONFIG.REGIONS) if region[1] == utils.EXON_1_OFFSET["index_end"]), None)
+            if index:
+                regions_present[index] = True
+        elif isoforms[i] == 'exon2':
+            index = next((index for index, region in enumerate(CONFIG.REGIONS) if region[1] == utils.EXON_2_OFFSET["index_end"]), None)
+            if index:
+                regions_present[index] = True
         while range[0] > region_ranges[region_index][1]:
             region_index += 1
         regions_present[region_index] = True
     return regions_present
 
 def get_present_regions_cleavage(cleavage_df: pd.DataFrame):
-    cleavages = cleavage_df.iloc[0:1,2:].values[0].tolist()
-    return get_present_regions(cleavages)
+    cleavages = cleavage_df.iloc[1:2,2:].values[0].tolist()
+    isoforms = cleavage_df.iloc[2:3,2:].values[0].tolist()
+    return get_present_regions(cleavages, isoforms)
 
 def get_present_regions_ptm(ptm_df: pd.DataFrame):
     ptms = ptm_df.iloc[1:2,2:].values[0].tolist()
     ptms = [ptm[1:] for ptm in ptms]
-    return get_present_regions(ptms)
+    isoforms = ptm_df.iloc[2:3,2:].values[0].tolist()
+    return get_present_regions(ptms, isoforms)
     
 
 def plot_line_with_label_horizontal(fig: go.Figure, x_0: int, x_1: int, y_0: int, y_1: int, y_2: int, y_3: int, y_label: int, label: str, ptm: bool, ptm_color: str | None = None, ptm_modification: str | None = None):
@@ -301,14 +311,10 @@ def plot_neuropathology_labels_vertical(fig: go.Figure, mean_values: pd.DataFram
                 size=CONFIG.SEQUENCE_PLOT_FONT_SIZE,
                 color=color))
         
-def preprocess_neuropathologies(df: pd.DataFrame, ptm: bool):
+def preprocess_neuropathologies(df: pd.DataFrame):
     df.columns = df.iloc[0]
-    if ptm:
-        labels = df.iloc[1:2,2:].values.flatten().tolist()
-        df = df.iloc[2:]
-    else:
-        labels = df.iloc[0:1,2:].values.flatten().tolist()
-        df = df.iloc[1:]
+    labels = df.iloc[1:2,2:].values.flatten().tolist()
+    df = df.iloc[3:]
 
     reverse_neuropathology_mapping = {}
     for key, list in PLOT_CONFIG.NEUROPATHOLOGIES.items():
@@ -323,7 +329,7 @@ def preprocess_neuropathologies(df: pd.DataFrame, ptm: bool):
 
 def offset_region_label_from_angle():
     longest_label = ''
-    for i, (_, _, _, region_label_short) in enumerate(CONFIG.REGIONS):
+    for i, (_, _, _, region_label_short, _) in enumerate(CONFIG.REGIONS):
         if utils.get_label_length(region_label_short) > utils.get_label_length(longest_label):
             longest_label = region_label_short
         
@@ -338,7 +344,8 @@ def offset_region_label_from_angle():
 
 def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavage: int, label_plot_height: int, group: str):
     # prepare data:
-    mean_values, cleavages = preprocess_neuropathologies(cleavage_df, False)
+    mean_values, cleavages = preprocess_neuropathologies(cleavage_df)
+    isoforms = cleavage_df.iloc[2:3,2:].values.flatten().tolist()
     if group == 'B':
         mean_values = mean_values.iloc[::-1]
 
@@ -385,13 +392,13 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
         dx = horizontal_space_left//len(mean_values.index)*group_direction
 
         plot_neuropathology_labels_vertical(fig, mean_values, x_0_neuropathologies, dx, dy)
-
-    for cleavage in cleavages:
+    previous_index = 0
+    for i, cleavage in enumerate(cleavages):
         if '-' in str(cleavage):
             start, end = map(int, cleavage.split('-'))
         else:
             start = end = int(cleavage)
-        if start > last_end:
+        if start > last_end or start < previous_index:
             if CONFIG.FIGURE_ORIENTATION == 0:
                 x_0_neuropathologies = first_cleavage_in_region * pixels_per_cleavage + utils.SEQUENCE_OFFSET
                 x_divider = cleavages_visited * pixels_per_cleavage + utils.SEQUENCE_OFFSET
@@ -416,16 +423,21 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                             y=[y_divider, y_divider],
                             mode='lines',
                             line=dict(color="black", width=3), showlegend=False, hoverinfo='none'))
-                
-            while start > last_end:
+            if start < previous_index:
                 last_region += 1
                 last_end = CONFIG.REGIONS[last_region][1]
+            else:    
+                while start > last_end:
+                    last_region += 1
+                    last_end = CONFIG.REGIONS[last_region][1]
             cleavages_visited += 1
             first_cleavage_in_region = cleavages_visited
         if CONFIG.FIGURE_ORIENTATION == 0:
             if start == end:
                 label = str(start)
-                x_0_line = start * utils.PIXELS_PER_PROTEIN + utils.SEQUENCE_OFFSET
+                position = utils.get_position_with_offset(start, isoforms[i])
+                x_0_line = position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
+                x_0_line = utils.offset_line_for_exon(x_0_line, start, CONFIG.FIGURE_ORIENTATION)
                 x_1_line = cleavages_visited * pixels_per_cleavage + utils.SEQUENCE_OFFSET
                 y_3_line = y_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 y_label = y_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
@@ -437,8 +449,12 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                                  label, False, None, None)
             else:
                 label = f'{start}-{end}'
-                x_0_start_line = start * utils.PIXELS_PER_PROTEIN + utils.SEQUENCE_OFFSET
-                x_0_end_line = end * utils.PIXELS_PER_PROTEIN + utils.SEQUENCE_OFFSET
+                start_position = utils.get_position_with_offset(start, isoforms[i])
+                end_position = utils.get_position_with_offset(end, isoforms[i])
+                x_0_start_line = start_position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
+                x_0_end_line = end_position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
+                x_0_start_line = utils.offset_line_for_exon(x_0_start_line, start, CONFIG.FIGURE_ORIENTATION)
+                x_0_end_line = utils.offset_line_for_exon(x_0_end_line, end, CONFIG.FIGURE_ORIENTATION)
                 x_1_line = cleavages_visited * pixels_per_cleavage + utils.SEQUENCE_OFFSET
                 y_3_line = y_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 y_label = y_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
@@ -451,7 +467,9 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
         else:
             if start == end:
                 label = str(start)
-                y_0_line = utils.get_height() - start * utils.PIXELS_PER_PROTEIN - utils.SEQUENCE_OFFSET
+                position = utils.get_position_with_offset(start, isoforms[i])
+                y_0_line = utils.get_height() - position * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
+                y_0_line = utils.offset_line_for_exon(x_0_line, start, CONFIG.FIGURE_ORIENTATION)
                 y_1_line = utils.get_height() - cleavages_visited * pixels_per_cleavage - utils.SEQUENCE_OFFSET
                 x_3_line = x_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 x_label = x_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
@@ -463,8 +481,12 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                                  label, False, None, None)
             else:
                 label = f'{start}-{end}'
-                y_0_start_line = utils.get_height() - start * utils.PIXELS_PER_PROTEIN - utils.SEQUENCE_OFFSET
-                y_0_end_line = utils.get_height() - end * utils.PIXELS_PER_PROTEIN - utils.SEQUENCE_OFFSET
+                start_position = utils.get_position_with_offset(start, isoforms[i])
+                end_position = utils.get_position_with_offset(end, isoforms[i])
+                y_0_start_line = utils.get_height() - start_position * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
+                y_0_end_line = utils.get_height() - end_position * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
+                y_0_start_line = utils.offset_line_for_exon(x_0_line, start, CONFIG.FIGURE_ORIENTATION)
+                y_0_end_line = utils.offset_line_for_exon(x_0_line, end, CONFIG.FIGURE_ORIENTATION)
                 y_1_line = utils.get_height() - cleavages_visited * pixels_per_cleavage - utils.SEQUENCE_OFFSET
                 x_3_line = x_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 x_label = x_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
@@ -476,6 +498,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                                     x_label,
                                     label)
         cleavages_visited += 1
+        previous_index = start
     # plot neuropathologies for last region
     if CONFIG.FIGURE_ORIENTATION == 0:
         x_0_neuropathologies = first_cleavage_in_region * pixels_per_cleavage + utils.SEQUENCE_OFFSET
@@ -496,7 +519,8 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
 
 def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_plot_height: int, group: str, second_row: bool):
     group_direction = 1 if group == 'A' else -1
-    mean_values, ptms = preprocess_neuropathologies(ptm_df, True)
+    mean_values, ptms = preprocess_neuropathologies(ptm_df)
+    isoforms = ptm_df.iloc[2:3,2:].values.flatten().tolist()
     # For debugging purposes
     #new_row = pd.DataFrame([ptms], columns=mean_values.columns, index=['ptm_position'])
     #mean_values = pd.concat([new_row, mean_values])
@@ -584,7 +608,9 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
             ptms_in_region = 0
         ptms_in_region += 1
         if CONFIG.FIGURE_ORIENTATION == 0:
-            x_0_line = ptm_position * utils.PIXELS_PER_PROTEIN + utils.SEQUENCE_OFFSET
+            position = utils.get_position_with_offset(ptm_position, isoforms[i])
+            x_0_line = position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
+            x_0_line = utils.offset_line_for_exon(x_0_line, ptm_position, CONFIG.FIGURE_ORIENTATION)
             x_1_line = ptms_visited * pixels_per_ptm + utils.SEQUENCE_OFFSET
             y_3_line = y_2_line + 10 * group_direction
             if second_row and i % 2 == 1:
@@ -603,7 +629,9 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
                       line=dict(width=1, color='grey'),
                       showlegend=False,)
         else:
-            y_0_line = utils.get_height() - ptm_position * utils.PIXELS_PER_PROTEIN - utils.SEQUENCE_OFFSET
+            position = utils.get_position_with_offset(ptm_position, isoforms[i])
+            y_0_line = utils.get_height() - position * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
+            y_0_line = utils.offset_line_for_exon(y_0_line, ptm_position, CONFIG.FIGURE_ORIENTATION)
             y_1_line = utils.get_height() - ptms_visited * pixels_per_ptm - utils.SEQUENCE_OFFSET
             x_3_line = x_2_line + 10 * group_direction
             if second_row and i % 2 == 1:
@@ -721,11 +749,16 @@ def create_custome_colorscale(fig: go.Figure, vertical_space_left: int, group_di
 
 def filter_relevant_modification_sights(ptm_file: str, threshold: int):
     df = pd.read_csv(ptm_file)
-    columns_to_keep = [col for col in df.columns if df[col].iloc[0] in CONFIG.MODIFICATIONS.keys() and
-                       (df[col].iloc[1][:1] not in CONFIG.EXCLUDED_MODIFICATIONS.keys() or
-                       df[col].iloc[0] not in CONFIG.EXCLUDED_MODIFICATIONS[df[col].iloc[1][:1]])]
+    columns_to_keep = []
+    for col in df.columns:
+        if CONFIG.INCLUDED_MODIFICATIONS.get(df[col].iloc[0]):
+            if df[col].iloc[1][:1] not in CONFIG.INCLUDED_MODIFICATIONS.get(df[col].iloc[0]):
+                continue
+            if df[col].iloc[1][:1] == 'R' and df[col].iloc[0] == 'Deamidation':
+                df[col].iloc[0] = 'Citrullination'
+            columns_to_keep.append(col)
     df_filtered = df[columns_to_keep]
-    df_values = df_filtered.iloc[2:].astype(int)
+    df_values = df_filtered.iloc[3:].astype(int)
     sums = df_values.sum()
     filtered_columns = sums[sums >= threshold].index
     # all filter options result in an empty dataframe, check relevant modifications and threshold to keep more columns
@@ -795,9 +828,10 @@ def create_details_plot(input_file: str | os.PathLike, output_path: str | os.Pat
     if cleavage_file_path:
         cleavage_df = pd.read_csv(cleavage_file_path)
         present_regions = get_present_regions_cleavage(cleavage_df)
-        cleavages = cleavage_df.iloc[0:1,2:].values[0].tolist()
+        number_of_cleavages = len(cleavage_df.columns)
+        number_of_dividers = present_regions.count(True)-1
         cleavage_space = plot_space - calculate_legend_space(False)
-        pixels_per_cleavage = cleavage_space // (len(cleavages) + present_regions.count(True)-1)
+        pixels_per_cleavage = cleavage_space // (number_of_cleavages + number_of_dividers)
         assert(pixels_per_cleavage >= CONFIG.FONT_SIZE)
 
         plot_cleavages(fig, cleavage_df, pixels_per_cleavage, label_plot_height, cleavage_group)

@@ -1,63 +1,110 @@
 import plotly.graph_objects as go
 import os
-from protein_sequencing import utils, uniprot_align
+from protein_sequencing import utils, exon_helper
 import importlib
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 
 def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_positioning = None) -> go.Figure:
+    exon_found, exon_start_index, exon_end_index, max_exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(input_file, CONFIG.MIN_EXON_LENGTH)
 
-    alignments = list(uniprot_align.get_alignment(input_file))
-    max_sequence_length = 0
-    for alignment in alignments:
-        if len(alignment.seq) > max_sequence_length:
-            max_sequence_length = len(alignment.seq)
+    # exon checks
+    if exon_found:
+        # get exon lengths
+        utils.EXON_1_OFFSET['index_start'] = exon_start_index
+        utils.EXON_1_OFFSET['index_end'] = exon_start_index + exon_1_length-1
+        utils.EXON_2_OFFSET['index_start'] = exon_start_index
+        utils.EXON_2_OFFSET['index_end'] = exon_start_index + exon_2_length-1
 
-    assert all(len(alignment.seq) == max_sequence_length for alignment in alignments)
+        # calculate new max sequence length with exons
+        max_sequence_length = max_sequence_length - max_exon_length + exon_1_length + exon_2_length
 
-    different_possibilities = [-1]*max_sequence_length
-    for i in range(len(alignments[0].seq)):
-        proteins = set()
-        for alignment in alignments:
-            protein = alignment.seq[i]
-            proteins.add(protein)
-        
-        if '-' in proteins:
-            if len(proteins) == 2:
-                different_possibilities[i] = -1
-            if len(proteins) > 2:
-                different_possibilities[i] = len(proteins)-1
-        else:
-            different_possibilities[i] = len(proteins)
-
-    # TODO: needed later for different starts/ endings
-    count, i = 0, 0
-    while i < len(different_possibilities):
-        if different_possibilities[i] == 2:
-            count += 1
-            while i < len(different_possibilities) and different_possibilities[i+1] == 2:
-                i += 1
-        i += 1
+        # check if exon lengths match with regions
+        region_end_matches_exon = False
+        for i, region in enumerate(CONFIG.REGIONS):
+            if region[1]+1 == exon_start_index:
+                region_end_matches_exon = True
+                if len(CONFIG.REGIONS) < i+2:
+                    raise ValueError(f"Exon start {exon_start_index} matches a region end for region {region}, but there are not enough regions after it, please check your supplied region list.")
+                else:
+                    exon_1_region = CONFIG.REGIONS[i+1]
+                    exon_2_region = CONFIG.REGIONS[i+2]
+                    if exon_1_region[1] - region[1] != exon_1_length:
+                        if exon_1_region[1] - region[1] != exon_2_length:
+                            raise ValueError(f"Exon 1 length {exon_1_length} does not match with end for region {exon_1_region}.")
+                        else:
+                            # Swap regions in case they are in the wrong order
+                            exon_1_region, exon_2_region = exon_2_region, exon_1_region
+                            exon_1_length, exon_2_length = exon_2_length, exon_1_length
+                    if exon_2_region[1] - region[1] != exon_2_length:
+                        raise ValueError(f"Exon 2 length {exon_2_length} does not match with end for region {exon_2_region}.")
+        if not region_end_matches_exon:
+            raise ValueError(f"Exon start {exon_start_index} does not match any region end, please check your supplied region list.")
 
     # basis for all pixel calculations
     if CONFIG.FIGURE_ORIENTATION == 0:
         max_sequence_length_pixels = utils.get_width() - utils.get_left_margin() - utils.get_right_margin()
-        utils.PIXELS_PER_PROTEIN = int(max_sequence_length_pixels // max_sequence_length)
+        utils.PIXELS_PER_AA = int((max_sequence_length_pixels - CONFIG.EXONS_GAP * exon_found * 2) // max_sequence_length)
         utils.SEQUENCE_OFFSET = utils.get_left_margin()
     else:
         max_sequence_length_pixels = utils.get_height() - utils.get_top_margin() - utils.get_bottom_margin()
-        utils.PIXELS_PER_PROTEIN = int(max_sequence_length_pixels // max_sequence_length)
+        utils.PIXELS_PER_AA = int((max_sequence_length_pixels - CONFIG.EXONS_GAP * exon_found * 2) // max_sequence_length)
         utils.SEQUENCE_OFFSET = utils.get_top_margin()
 
     # calculate region boundaries in pixels
     region_boundaries = []
     region_end_pixel = utils.SEQUENCE_OFFSET
     region_start = 1
-    for region_name, region_end, region_color, _ in CONFIG.REGIONS:
+    exon_offset = 0
+    region_index = 0
+    # 0 = normal region, 1 = region before exon, 2 = region after start exon, 3 = end exon/ region after exon, 4 = start exon, 5 = middle exon
+    region_plot_type = 0
+    while region_index < len(CONFIG.REGIONS):
+        region_name, region_end, region_group, region_short_name, isoform = CONFIG.REGIONS[region_index]
         region_start_pixel = region_end_pixel
-        region_end_pixel = region_end * utils.PIXELS_PER_PROTEIN + 1 + utils.SEQUENCE_OFFSET
-        region_boundaries.append((region_name, region_start_pixel, region_end_pixel, CONFIG.SEQUENCE_REGION_COLORS[region_color], region_start, region_end))
+        region_end_pixel = region_end * utils.PIXELS_PER_AA + 1 + utils.SEQUENCE_OFFSET
+        if exon_found:
+            if region_end == exon_1_region[1]:
+                # alter last boundary to include exon
+                if region_index > 0:
+                    last_boundary = region_boundaries[-1]
+                    region_boundaries[-1] = (last_boundary[0], last_boundary[1], last_boundary[2], last_boundary[3], last_boundary[4], last_boundary[5], 1)
+                else:
+                    region_plot_type = 4
+
+                # add current exon
+                # if next region is also last region
+                if region_index+1 == len(CONFIG.REGIONS)-1:
+                    region_plot_type = 3
+                # if next region is not last region and also not start exon
+                elif region_index > 0:
+                    region_plot_type = 5
+                first_exon_offset = CONFIG.EXONS_GAP
+                utils.EXON_1_OFFSET['pixel_start'] = region_start_pixel+first_exon_offset
+                utils.EXON_1_OFFSET['pixel_end'] = region_end_pixel+first_exon_offset
+                region_boundaries.append((region_name, region_start_pixel+first_exon_offset, region_end_pixel+first_exon_offset, CONFIG.SEQUENCE_REGION_COLORS[region_group], region_start, region_end, region_plot_type))
+                exon_offset = exon_1_length*utils.PIXELS_PER_AA + CONFIG.EXONS_GAP
+                exon_1_region_end = region_end
+                # process next exon
+                region_index+=1
+                region_name, region_end, region_group, region_short_name, isoform = CONFIG.REGIONS[region_index]
+                region_start_pixel = region_end_pixel + CONFIG.EXONS_GAP*2
+                region_end_pixel = region_end * utils.PIXELS_PER_AA + 1 + utils.SEQUENCE_OFFSET + exon_offset
+                utils.EXON_2_OFFSET['pixel_start'] = region_start_pixel
+                utils.EXON_2_OFFSET['pixel_end'] = region_end_pixel
+                region_boundaries.append((region_name, region_start_pixel, region_end_pixel, CONFIG.SEQUENCE_REGION_COLORS[region_group], region_start, region_end, region_plot_type))
+                region_start = max(exon_1_region_end, region_end) + 1
+                region_index+=1
+                if region_plot_type == 4:
+                    region_plot_type = 2
+                else:
+                    region_plot_type = 3
+                continue
+
+        region_boundaries.append((region_name, region_start_pixel+exon_offset, region_end_pixel+exon_offset, CONFIG.SEQUENCE_REGION_COLORS[region_group], region_start, region_end, 0))
         region_start = region_end + 1
+        region_index += 1
+        region_plot_type = 0
 
     fig = create_sequence_plot(region_boundaries, groups_missing, legend_positioning)
     
@@ -113,6 +160,7 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
                     y_legend = height - CONFIG.SEQUENCE_PLOT_HEIGHT
             if groups_missing == 'B':
                 if CONFIG.FIGURE_ORIENTATION == 1:
+                    y_legend = utils.get_height()
                     x_legend = CONFIG.SEQUENCE_PLOT_HEIGHT
                 else:
                     y_legend = CONFIG.SEQUENCE_PLOT_HEIGHT + (len(CONFIG.MODIFICATIONS.keys())+1) * utils.get_label_height()
@@ -166,7 +214,7 @@ def plot_sequence(fig, region_boundaries, groups_missing):
                 x0 = utils.get_width() - CONFIG.SEQUENCE_PLOT_HEIGHT
         x1 = x0+CONFIG.SEQUENCE_PLOT_HEIGHT
 
-    for i, (region_name, region_start_pixel, region_end_pixel, region_color, region_start, region_end) in enumerate(region_boundaries):
+    for i, (region_name, region_start_pixel, region_end_pixel, region_color, region_start, region_end, exon_type) in enumerate(region_boundaries):
         if CONFIG.FIGURE_ORIENTATION == 0:
             x0 = region_start_pixel
             x1 = region_end_pixel
@@ -174,17 +222,60 @@ def plot_sequence(fig, region_boundaries, groups_missing):
             y0 = utils.get_height() - region_start_pixel
             y1 = utils.get_height() - region_end_pixel
 
-        # Region rects
-        fig.add_shape(
-            type="rect",
-            x0=x0,
-            y0=y0,
-            x1=x1,
-            y1=y1,
-            line=dict(color="darkgrey", width=2),
-            fillcolor=region_color
-        )
-
+        # 0 = normal region, 1 = region before exon, 2 = region after start exon, 3 = end exon/ region after exon, 4 = start exon, 5 = middle exon
+        if exon_type == 0:
+            # Region rects
+            fig.add_shape(
+                type="rect",
+                x0=x0,
+                y0=y0,
+                x1=x1,
+                y1=y1,
+                line=dict(color="darkgrey", width=2),
+                fillcolor=region_color
+            )
+        elif exon_type == 1:
+            if CONFIG.FIGURE_ORIENTATION == 0:
+                x = [x0, x1, x1+CONFIG.EXONS_GAP//2, x0, x0]
+                y = [y0, y0, y1, y1, y0] 
+            else:
+                x=[x0, x1, x1, x0, x0]
+                y=[y0, y0, y1, y1-CONFIG.EXONS_GAP//2, y0]
+        elif exon_type == 2:
+            if CONFIG.FIGURE_ORIENTATION == 0:
+                x =[x0, x1, x1, x0-CONFIG.EXONS_GAP//2, x0]
+                y =[y0, y0, y1, y1, y0]
+            else:
+                x=[x0, x1, x1, x0, x0]
+                y=[y0+CONFIG.EXONS_GAP//2, y0, y1, y1, y0+CONFIG.EXONS_GAP//2]
+        elif exon_type == 3:
+            if CONFIG.FIGURE_ORIENTATION == 0:
+                x = [x0-CONFIG.EXONS_GAP//2, x1, x1, x0, x0-CONFIG.EXONS_GAP//2]
+                y = [y0, y0, y1, y1, y0]
+            else:
+                x=[x0, x1, x1, x0, x0]
+                y=[y0, y0+CONFIG.EXONS_GAP//2, y1, y1, y0]
+        elif exon_type == 4:
+            if CONFIG.FIGURE_ORIENTATION == 0:
+                x=[x0, x1+CONFIG.EXON_GAP//2, x1, x0, x0]
+                y=[y0, y0, y1, y1, y0]
+            else:
+                x=[x0, x1, x1, x0, x0]
+                y=[y0, y0, y1-CONFIG.EXON_GAP//2, y1, y0]
+        elif exon_type == 5:
+            if CONFIG.FIGURE_ORIENTATION == 0:
+                x=[x0-CONFIG.EXON_GAP//2, x1, x1+CONFIG.EXON_GAP//2, x0, x0-CONFIG.EXON_GAP//2]
+                y=[y0, y0, y1, y1, y0]
+            else:
+                x=[x0, x1, x1, x0, x0]
+                y=[y0, y0+CONFIG.EXON_GAP//2, y1, y1-CONFIG.EXON_GAP//2, y0]
+        if exon_type != 0:
+            fig.add_trace(go.Scatter(x=x,
+                            y=y,
+                            mode='lines',
+                            fillcolor=region_color,
+                            fill='toself',
+                            line=dict(color="darkgrey", width=2), showlegend=False, hoverinfo='none'))
         # Labels
         x_label = (x0 + x1) / 2
         y_label = (y0 + y1) / 2
@@ -196,7 +287,6 @@ def plot_sequence(fig, region_boundaries, groups_missing):
             font=dict(size=CONFIG.SEQUENCE_PLOT_FONT_SIZE, color="black"),
             textangle= 90 if CONFIG.FIGURE_ORIENTATION == 1 else 0
         )
-
         if i == 0:
             if CONFIG.FIGURE_ORIENTATION == 0:
                 x = x0 - utils.get_label_length(str(region_start))
@@ -215,14 +305,14 @@ def plot_sequence(fig, region_boundaries, groups_missing):
             sequence_x0, sequence_y0 = x0, y0
     if CONFIG.FIGURE_ORIENTATION == 0:
         x = x1 + utils.get_label_length(str(region_end))
-        y = y
+        y = y_label
     else:
-        x = x
+        x = x_label
         y = y1 - utils.get_label_height()
     fig.add_annotation(
         x=x,
         y=y,
-        text=region_end,
+        text=max(region_end, region_boundaries[i-1][5]),
         showarrow=False,
         font=dict(size=CONFIG.SEQUENCE_PLOT_FONT_SIZE, color="gray"),
         textangle= 0

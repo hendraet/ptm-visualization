@@ -3,6 +3,7 @@ import os
 import csv
 import re
 import pandas as pd
+from protein_sequencing import exon_helper, uniprot_align
 from protein_sequencing.data_preprocessing import reader_helper
 
 
@@ -11,25 +12,34 @@ READER_CONFIG = importlib.import_module('configs.reader_config', 'configs')
 
 fasta_file = READER_CONFIG.FASTA_FILE
 aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
-input_dir = READER_CONFIG.INPUT_DIR
+input_dir = READER_CONFIG.MASCOT_INPUT_DIR
 
 groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
+exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
-isoform_helper_dict = READER_CONFIG.isoform_helper_dict
-
-def reformmods(mods, sites, short_sequence, variable_mods, isoform, sequence, aligned_sequence):
+def reformmods(mods, sites, peptide, variable_mods, isoform, sequence, aligned_sequence):
     modstrings = []
     sites = sites.split('.')[1]
-    sequence_split_offset = 0
     for i, site in enumerate(sites):
         site = int(site)
         if site != 0:
             mod = variable_mods[site]
-            aa = short_sequence[i]
-            pos = sequence.index(short_sequence) + sequence_split_offset
-            modstring = f"{mod}({aa})@{pos}"
+            aa = peptide[i]
+            if CONFIG.INCLUDED_MODIFICATIONS.get(mod):
+                if aa not in CONFIG.INCLUDED_MODIFICATIONS[mod]:
+                    continue
+                if aa == 'R' and mod == 'Deamidated':
+                    mod = 'Citrullination'
+            peptide_offset = sequence.index(peptide)+1
+            missing_aa = 0
+            if len(sequence) != len(aligned_sequence):
+                missing_aa = reader_helper.count_missing_amino_acids(peptide[:i], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
+            offset = reader_helper.calculate_exon_offset(peptide_offset + i + missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+            if aligned_sequence[offset-1] != aa:
+                raise ValueError(f"AA don't match for {aa} for peptide {peptide} in sequence {sequence} with offset {offset}")
+            iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+            modstring = f"{mod}({aa})@{offset}_{iso}"
             modstrings.append(modstring)
-        sequence_split_offset += 1
     return modstrings
 
 def process_mascot_file(file, fasta_headers):
@@ -98,8 +108,8 @@ def process_mascot_file(file, fasta_headers):
                         return modified_line
                     header_found = False
                     search_header = row[pep_accession_idx][1:-1]
-                    if search_header in isoform_helper_dict:
-                        search_header = isoform_helper_dict[search_header]
+                    if search_header in READER_CONFIG.ISOFORM_HELPER_DICT:
+                        search_header = READER_CONFIG.ISOFORM_HELPER_DICT[search_header]
                     for fasta_header in fasta_headers:
                         if search_header in fasta_header[0]:
                             header_found = True
@@ -139,13 +149,15 @@ def process_mascot_file(file, fasta_headers):
 
 def process_results(all_mod_strings, mod_strings_for_files):    
     all_mod_strings = sorted(set(all_mod_strings), key=reader_helper.extract_index)
+    all_mods = reader_helper.sort_by_index_and_exons(all_mod_strings)
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_mascot.csv", 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', 'Neuropathology'] + all_mod_strings)
-        writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mod_strings])
-        writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mod_strings])
+        writer.writerow(['ID', 'Neuropathology'] + all_mods)
+        writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
+        writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
+        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
         for file, mods in mod_strings_for_files.items():
-            row = [1 if mod in mods else 0 for mod in all_mod_strings]
+            row = [1 if mod in mods else 0 for mod in all_mods]
             group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]
             writer.writerow([file, group] + row)
 
@@ -161,5 +173,7 @@ def process_mascot_dir(input_dir, tau_headers):
 
     process_results(all_mod_strings, mod_strings_for_files)
 
+uniprot_align.get_alignment(fasta_file)
 fasta_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
+
 process_mascot_dir(input_dir, fasta_headers)
