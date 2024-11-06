@@ -15,7 +15,7 @@ fasta_file = READER_CONFIG.FASTA_FILE
 aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_dir = READER_CONFIG.PROTEIN_PILOT_INPUT_DIR
 
-groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
+groups_df = pd.read_csv(READER_CONFIG.GROUPS_CSV)
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def extract_confidence_score(calamine_sheet):

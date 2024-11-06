@@ -60,7 +60,7 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
     # 0 = normal region, 1 = region before exon, 2 = region after start exon, 3 = end exon/ region after exon, 4 = start exon, 5 = middle exon
     region_plot_type = 0
     while region_index < len(CONFIG.REGIONS):
-        region_name, region_end, region_group, region_short_name, isoform = CONFIG.REGIONS[region_index]
+        region_name, region_end, region_group, region_short_name = CONFIG.REGIONS[region_index]
         region_start_pixel = region_end_pixel
         region_end_pixel = region_end * utils.PIXELS_PER_AA + 1 + utils.SEQUENCE_OFFSET
         if exon_found:
@@ -87,7 +87,7 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
                 exon_1_region_end = region_end
                 # process next exon
                 region_index+=1
-                region_name, region_end, region_group, region_short_name, isoform = CONFIG.REGIONS[region_index]
+                region_name, region_end, region_group, region_short_name = CONFIG.REGIONS[region_index]
                 region_start_pixel = region_end_pixel + CONFIG.EXONS_GAP*2
                 region_end_pixel = region_end * utils.PIXELS_PER_AA + 1 + utils.SEQUENCE_OFFSET + exon_offset
                 utils.EXON_2_OFFSET['pixel_start'] = region_start_pixel

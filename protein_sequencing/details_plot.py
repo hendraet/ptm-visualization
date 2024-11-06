@@ -23,7 +23,7 @@ def get_present_regions(positions, isoforms):
 
     region_ranges = []
     region_start = 1
-    for _, region_end, _, _, _ in CONFIG.REGIONS:
+    for _, region_end, _, _ in CONFIG.REGIONS:
         region_ranges.append((region_start, region_end))
         region_start = region_end + 1
 
@@ -329,7 +329,7 @@ def preprocess_neuropathologies(df: pd.DataFrame):
 
 def offset_region_label_from_angle():
     longest_label = ''
-    for i, (_, _, _, region_label_short, _) in enumerate(CONFIG.REGIONS):
+    for i, (_, _, _, region_label_short) in enumerate(CONFIG.REGIONS):
         if utils.get_label_length(region_label_short) > utils.get_label_length(longest_label):
             longest_label = region_label_short
         
@@ -356,7 +356,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
 
     group_direction = 1 if group == 'A' else -1
     first_cleavage_in_region = 0
-    cleavages_visited = 0
+    cleavage_idx = 0
     last_end = CONFIG.REGIONS[0][1]
     last_region = 0
 
@@ -392,6 +392,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
         dx = horizontal_space_left//len(mean_values.index)*group_direction
 
         plot_neuropathology_labels_vertical(fig, mean_values, x_0_neuropathologies, dx, dy)
+        
     previous_index = 0
     for i, cleavage in enumerate(cleavages):
         if '-' in str(cleavage):
@@ -400,24 +401,26 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
             start = end = int(cleavage)
         if start > last_end or start < previous_index:
             if CONFIG.FIGURE_ORIENTATION == 0:
-                x_0_neuropathologies = first_cleavage_in_region * pixels_per_cleavage + utils.SEQUENCE_OFFSET
-                x_divider = cleavages_visited * pixels_per_cleavage + utils.SEQUENCE_OFFSET
+                start_idx = cleavage_idx - (i - first_cleavage_in_region)
+                x_0_neuropathologies = start_idx * pixels_per_cleavage + utils.SEQUENCE_OFFSET
+                x_divider = cleavage_idx * pixels_per_cleavage + utils.SEQUENCE_OFFSET
                 x_label = x_0_neuropathologies + (x_divider-x_0_neuropathologies)//2 - dx//2
                 y_label = y_0_neuropathologies + len(mean_values.index)*dy + (5+utils.get_label_height()//2) * group_direction
 
-                plot_neuropathologies_horizontal(fig, mean_values.iloc[:,first_cleavage_in_region-last_region:cleavages_visited-last_region], x_0_neuropathologies, y_0_neuropathologies, dx, dy, x_label, y_label, last_region, group_direction, False)                
+                plot_neuropathologies_horizontal(fig, mean_values.iloc[:,first_cleavage_in_region:i], x_0_neuropathologies, y_0_neuropathologies, dx, dy, x_label, y_label, last_region, group_direction, False)                
                 
                 fig.add_trace(go.Scatter(x=[x_divider,x_divider],
                             y=[y_0_neuropathologies, y_0_neuropathologies+len(mean_values.index)*dy],
                             mode='lines',
                             line=dict(color="black", width=3), showlegend=False, hoverinfo='none'))
             else:
-                y_0_neuropathologies = utils.get_height() - first_cleavage_in_region * pixels_per_cleavage - utils.SEQUENCE_OFFSET
-                y_divider = utils.get_height() - cleavages_visited * pixels_per_cleavage - utils.SEQUENCE_OFFSET
+                start_idx = cleavage_idx - (i - first_cleavage_in_region)
+                y_0_neuropathologies = utils.get_height() - start_idx * pixels_per_cleavage - utils.SEQUENCE_OFFSET
+                y_divider = utils.get_height() - cleavage_idx * pixels_per_cleavage - utils.SEQUENCE_OFFSET
                 y_label = y_0_neuropathologies - (y_0_neuropathologies - y_divider)//2 + dy//2
                 x_label = x_0_neuropathologies + len(mean_values.index)*dx + (5+utils.get_label_height()//2) * group_direction
 
-                plot_neurophatologies_vertical(fig, mean_values.iloc[:,first_cleavage_in_region-last_region:cleavages_visited-last_region], x_0_neuropathologies, y_0_neuropathologies, dx, dy, x_label, y_label, last_region, group_direction, False)
+                plot_neurophatologies_vertical(fig, mean_values.iloc[:,first_cleavage_in_region:i], x_0_neuropathologies, y_0_neuropathologies, dx, dy, x_label, y_label, last_region, group_direction, False)
                 
                 fig.add_trace(go.Scatter(x=[x_0_neuropathologies, x_0_neuropathologies+len(mean_values.index)*dx],
                             y=[y_divider, y_divider],
@@ -430,15 +433,15 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                 while start > last_end:
                     last_region += 1
                     last_end = CONFIG.REGIONS[last_region][1]
-            cleavages_visited += 1
-            first_cleavage_in_region = cleavages_visited
+            cleavage_idx += 1
+            first_cleavage_in_region = i
         if CONFIG.FIGURE_ORIENTATION == 0:
             if start == end:
                 label = str(start)
                 position = utils.get_position_with_offset(start, isoforms[i])
                 x_0_line = position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
                 x_0_line = utils.offset_line_for_exon(x_0_line, start, CONFIG.FIGURE_ORIENTATION)
-                x_1_line = cleavages_visited * pixels_per_cleavage + utils.SEQUENCE_OFFSET
+                x_1_line = cleavage_idx * pixels_per_cleavage + utils.SEQUENCE_OFFSET
                 y_3_line = y_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 y_label = y_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
                 
@@ -455,7 +458,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                 x_0_end_line = end_position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
                 x_0_start_line = utils.offset_line_for_exon(x_0_start_line, start, CONFIG.FIGURE_ORIENTATION)
                 x_0_end_line = utils.offset_line_for_exon(x_0_end_line, end, CONFIG.FIGURE_ORIENTATION)
-                x_1_line = cleavages_visited * pixels_per_cleavage + utils.SEQUENCE_OFFSET
+                x_1_line = cleavage_idx * pixels_per_cleavage + utils.SEQUENCE_OFFSET
                 y_3_line = y_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 y_label = y_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
 
@@ -470,7 +473,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                 position = utils.get_position_with_offset(start, isoforms[i])
                 y_0_line = utils.get_height() - position * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
                 y_0_line = utils.offset_line_for_exon(x_0_line, start, CONFIG.FIGURE_ORIENTATION)
-                y_1_line = utils.get_height() - cleavages_visited * pixels_per_cleavage - utils.SEQUENCE_OFFSET
+                y_1_line = utils.get_height() - cleavage_idx * pixels_per_cleavage - utils.SEQUENCE_OFFSET
                 x_3_line = x_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 x_label = x_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
 
@@ -487,7 +490,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                 y_0_end_line = utils.get_height() - end_position * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
                 y_0_start_line = utils.offset_line_for_exon(x_0_line, start, CONFIG.FIGURE_ORIENTATION)
                 y_0_end_line = utils.offset_line_for_exon(x_0_line, end, CONFIG.FIGURE_ORIENTATION)
-                y_1_line = utils.get_height() - cleavages_visited * pixels_per_cleavage - utils.SEQUENCE_OFFSET
+                y_1_line = utils.get_height() - cleavage_idx * pixels_per_cleavage - utils.SEQUENCE_OFFSET
                 x_3_line = x_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 x_label = x_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
 
@@ -497,23 +500,25 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                                     y_1_line,
                                     x_label,
                                     label)
-        cleavages_visited += 1
+        cleavage_idx += 1
         previous_index = start
     # plot neuropathologies for last region
     if CONFIG.FIGURE_ORIENTATION == 0:
-        x_0_neuropathologies = first_cleavage_in_region * pixels_per_cleavage + utils.SEQUENCE_OFFSET
-        region_length = len(mean_values.iloc[0:1,first_cleavage_in_region-last_region:].columns)
+        start_idx = cleavage_idx - (i - first_cleavage_in_region)-1
+        x_0_neuropathologies = start_idx * pixels_per_cleavage + utils.SEQUENCE_OFFSET
+        region_length = len(mean_values.iloc[0:1,first_cleavage_in_region:].columns)
         x_label = x_0_neuropathologies + (region_length * pixels_per_cleavage)//2 - dx//2
         y_label = y_0_neuropathologies + len(mean_values.index)*dy + (5+utils.get_label_height()//2) * group_direction
-        plot_neuropathologies_horizontal(fig, mean_values.iloc[:,first_cleavage_in_region-last_region:], x_0_neuropathologies, y_0_neuropathologies, dx, dy, x_label, y_label, last_region, group_direction, False)
+        plot_neuropathologies_horizontal(fig, mean_values.iloc[:,first_cleavage_in_region:], x_0_neuropathologies, y_0_neuropathologies, dx, dy, x_label, y_label, last_region, group_direction, False)
 
         create_custome_colorscale(fig, vertical_space_left, group_direction, x_0_neuropathologies, y_0_neuropathologies, region_length, pixels_per_cleavage, False)
     else:
-        y_0_neuropathologies = utils.get_height() - first_cleavage_in_region * pixels_per_cleavage - utils.SEQUENCE_OFFSET
-        region_length = len(mean_values.iloc[0:1,first_cleavage_in_region-last_region:].columns)
+        start_idx = cleavage_idx - (i - first_cleavage_in_region)-1
+        y_0_neuropathologies = utils.get_height() - start_idx * pixels_per_cleavage - utils.SEQUENCE_OFFSET
+        region_length = len(mean_values.iloc[0:1,first_cleavage_in_region:].columns)
         y_label = y_0_neuropathologies - (region_length * pixels_per_cleavage)//2 + dy//2
         x_label = x_0_neuropathologies + len(mean_values.index)*dx + (5+utils.get_label_height()//2) * group_direction
-        plot_neurophatologies_vertical(fig, mean_values.iloc[:,first_cleavage_in_region-last_region:], x_0_neuropathologies, y_0_neuropathologies, dx, dy, x_label, y_label, last_region, group_direction, False)
+        plot_neurophatologies_vertical(fig, mean_values.iloc[:,first_cleavage_in_region:], x_0_neuropathologies, y_0_neuropathologies, dx, dy, x_label, y_label, last_region, group_direction, False)
 
         create_custome_colorscale(fig, horizontal_space_left, group_direction, x_0_neuropathologies, y_0_neuropathologies, region_length, pixels_per_cleavage, False)
 

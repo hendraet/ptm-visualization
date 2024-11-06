@@ -14,7 +14,7 @@ fasta_file = READER_CONFIG.FASTA_FILE
 aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_file = READER_CONFIG.MAX_QUANT_FILE
 
-groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups_max_quant.csv")
+groups_df = pd.read_csv(READER_CONFIG.GROUPS_CSV)
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def get_exact_indexes(mod_sequence: str) -> list:
