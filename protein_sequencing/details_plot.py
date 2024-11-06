@@ -197,7 +197,7 @@ def plot_neuropathologies_horizontal(fig: go.Figure, df: pd.DataFrame, x_0_neuro
     if group_dircetion == -1:
         yanchor = 'top'
         xanchor = 'right'
-    fig.add_annotation(x=x_label-utils.get_label_height()*group_dircetion, y=y_label-int((7/offset_region_label_from_angle())*group_dircetion),    
+    fig.add_annotation(x=x_label-utils.get_label_height()*group_dircetion, y=y_label-int((8/offset_region_label_from_angle())*group_dircetion),    
             text=CONFIG.REGIONS[last_region][3],
             showarrow=False,
             textangle=-PLOT_CONFIG.REGION_LABEL_ANGLE_NEUROPATHOLOGIES,
@@ -339,7 +339,7 @@ def offset_region_label_from_angle():
     angle_radians = math.radians(-PLOT_CONFIG.REGION_LABEL_ANGLE_NEUROPATHOLOGIES)
     dy = abs((length / 2) * math.sin(angle_radians)) + abs((height / 2) * math.cos(angle_radians))
     
-    return int(dy)
+    return int(dy)+5
 
 
 def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavage: int, label_plot_height: int, group: str):
@@ -371,7 +371,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
         vertical_space_left -= 2
         # offset for label for region
         dy_label = offset_region_label_from_angle()
-        vertical_space_left -= dy_label*2 + 5
+        vertical_space_left -= dy_label*2
         dx = pixels_per_cleavage
         dy = vertical_space_left//len(mean_values.index)*group_direction
 
@@ -387,7 +387,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
         horizontal_space_left -= 2
         # offset for label for region
         dx_label = offset_region_label_from_angle()
-        horizontal_space_left -= dx_label*2 + 5
+        horizontal_space_left -= dx_label*2
         dy = pixels_per_cleavage
         dx = horizontal_space_left//len(mean_values.index)*group_direction
 
@@ -560,7 +560,7 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
         vertical_space_left = utils.get_height() - y_0_neuropathologies if group == 'A' else y_0_neuropathologies
         # offset for region label
         dy_label = offset_region_label_from_angle()
-        vertical_space_left -= dy_label*2 + 5
+        vertical_space_left -= dy_label*2
         dy = vertical_space_left//len(mean_values.index)*group_direction
 
         plot_neuropathology_labels_horizontal(fig, mean_values, y_0_neuropathologies, dy, dx)
@@ -570,7 +570,7 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
         horizontal_space_left = utils.get_width() - x_0_neuropathologies if group == 'A' else x_0_neuropathologies
         # offset for region label
         dx_label = offset_region_label_from_angle()
-        horizontal_space_left -= dx_label*2 + 5
+        horizontal_space_left -= dx_label*2
         dx = horizontal_space_left//len(mean_values.index)*group_direction
 
         plot_neuropathology_labels_vertical(fig, mean_values, x_0_neuropathologies, dx, dy)

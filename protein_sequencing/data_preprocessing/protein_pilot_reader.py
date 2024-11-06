@@ -15,6 +15,8 @@ fasta_file = READER_CONFIG.FASTA_FILE
 aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_dir = READER_CONFIG.PROTEIN_PILOT_INPUT_DIR
 
+# TODO readers region aware
+
 groups_df = pd.read_csv(READER_CONFIG.GROUPS_CSV)
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
@@ -29,12 +31,12 @@ def extract_confidence_score(calamine_sheet):
     threshold_column = 'Fit Confidence Threshold'
 
     rows = iter(calamine_sheet.to_python())
-    for row in rows:
+    for i, row in enumerate(rows):
         if threshold_column in row:
             threshold_index = row.index(threshold_column)
             fdr_index = row.index(fdr_column)
         else:
-            if row[fdr_index] >= threshold:
+            if row[fdr_index] > threshold:
                 return row[threshold_index]
     raise Exception("No confidence score found.")
 
@@ -164,7 +166,7 @@ def extract_data_with_threshold(calamine_sheet, threshold):
             cleavage_index = row.index('Cleavages')
             accession_index = row.index('Accessions')
         else:
-            if row[conf_index] >= threshold*100:
+            if row[conf_index] > threshold*100:
                 if row[protein_mod_index] is not None and row[protein_mod_index] != '':
                     relevant_mod_rows.append(row)
                 if row[cleavage_index] is not None and row[cleavage_index] != '' and 'cleaved' in row[cleavage_index]:
