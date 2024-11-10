@@ -60,7 +60,7 @@ def plot_labels(fig, modifications_by_position):
         for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[aa_position]:
             if CONFIG.FIGURE_ORIENTATION == 0:
                 x_position_line = (aa_position * utils.PIXELS_PER_AA) + utils.SEQUENCE_OFFSET
-                x_position_line = utils.offset_line_for_exon(x_position_line, aa_position, CONFIG.FIGURE_ORIENTATION)
+                x_position_line = utils.offset_line_for_exon(x_position_line, int(label[1:]), CONFIG.FIGURE_ORIENTATION)
                 y_length = PLOT_CONFIG.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_height()
                 y_beginning_line = y0 if group == 'B' else y1
                 y_end_line = y_beginning_line - y_length if group == 'B' else y_beginning_line + y_length
@@ -81,7 +81,7 @@ def plot_labels(fig, modifications_by_position):
                 plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
             else:
                 y_position_line = CONFIG.FIGURE_WIDTH - (aa_position * utils.PIXELS_PER_AA) - utils.SEQUENCE_OFFSET
-                y_position_line = utils.offset_line_for_exon(y_position_line, aa_position, CONFIG.FIGURE_ORIENTATION)
+                y_position_line = utils.offset_line_for_exon(y_position_line, int(label[1:]), CONFIG.FIGURE_ORIENTATION)
 
                 x_length = PLOT_CONFIG.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_length(label)
                 x_beginning_line = x0 if group == 'B' else x1

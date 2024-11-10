@@ -56,7 +56,8 @@ def add_bar_plot(fig: go.Figure, group: str, modification_sights_all: dict[int, 
          label, modification_type, _, isoform = modification_sight
          if CONFIG.FIGURE_ORIENTATION == 0:
             # x position for protein sequence
-            x_0_line = aa_position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
+            position = utils.get_position_with_offset(aa_position, isoform)
+            x_0_line = position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
             x_0_line = utils.offset_line_for_exon(x_0_line, aa_position, CONFIG.FIGURE_ORIENTATION)
             # x position for bar plot
             x_1_line = utils.get_width() - (modifications_visited * bar_width + bar_width//2)
@@ -106,7 +107,8 @@ def add_bar_plot(fig: go.Figure, group: str, modification_sights_all: dict[int, 
                )
 
          else:
-            y_0_line = utils.get_height() - (aa_position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET)
+            position = utils.get_position_with_offset(aa_position, isoform)
+            y_0_line = utils.get_height() - (position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET)
             y_0_line = utils.offset_line_for_exon(y_0_line, aa_position, CONFIG.FIGURE_ORIENTATION)
             y_1_line = modifications_visited * bar_width + bar_width//2
             x_0_line = utils.SEQUENCE_BOUNDARIES['x1'] if group == 'A' else utils.SEQUENCE_BOUNDARIES['x0']
@@ -304,8 +306,7 @@ def filter_relevant_modification_sights(helper_file: str):
          if column_label == 'R' and column_modification == 'Deamidated':
             column_modification = 'Citrullination'
       isoform = df[column][2]
-      position = utils.get_position_with_offset(int(df[column][1][1:]), isoform)
-      all_modification_sights[position].append((df[column][1], column_modification, PLOT_CONFIG.MODIFICATIONS_GROUP[column_modification], isoform))
+      all_modification_sights[int(df[column][1][1:])].append((df[column][1], column_modification, PLOT_CONFIG.MODIFICATIONS_GROUP[column_modification], isoform))
 
    # remove rows where Neuropathology is not in PLOT_CONFIG.BAR_Neurpathologies
    header_rows = df.iloc[:4, :]
@@ -333,8 +334,7 @@ def filter_relevant_modification_sights(helper_file: str):
          if column_label == 'R' and column_modification == 'Deamidated':
             column_modification = 'Citrullination'
       isoform = df[column][2]
-      position = utils.get_position_with_offset(int(df[column][1][1:]), isoform)
-      relevant_modification_sights[position].append((df[column][1], column_modification, PLOT_CONFIG.MODIFICATIONS_GROUP[column_modification], isoform))
+      relevant_modification_sights[int(df[column][1][1:])].append((df[column][1], column_modification, PLOT_CONFIG.MODIFICATIONS_GROUP[column_modification], isoform))
    return all_modification_sights, relevant_modification_sights, df
 
 
