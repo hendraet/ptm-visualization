@@ -47,8 +47,7 @@ def main():
                         help='Path to configuration file. If not provided, a default config file will be used.')
     parser.add_argument('-f',
                          '--fasta',
-                         required=False,
-                         default='data/uniprot_data/tau_isoforms2N4R.fasta',
+                         required=True,
                          help='Path to Fasta file (e.g., data/uniprot_data/tau_isoforms2N4R.fasta)')
     parser.add_argument('-o', '--output', required=False, default='output', help='Path to output folder, default=output')
     args = parser.parse_args()

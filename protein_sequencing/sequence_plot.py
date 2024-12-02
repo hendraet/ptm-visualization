@@ -145,10 +145,10 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
         if not groups_missing:
             if legend_positioning == 'A':
                 x_legend = 0 if CONFIG.FIGURE_ORIENTATION == 0 else width//2 + CONFIG.SEQUENCE_PLOT_HEIGHT//2
-                y_legend = height//2 + CONFIG.SEQUENCE_PLOT_HEIGHT//2 + (len(CONFIG.MODIFICATIONS.keys())+1) * utils.get_label_height() if CONFIG.FIGURE_ORIENTATION == 0 else height
+                y_legend = height//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2 + (len(CONFIG.MODIFICATIONS.keys())+1) * utils.get_label_height() if CONFIG.FIGURE_ORIENTATION == 0 else height
             else:
                 x_legend = 0 if CONFIG.FIGURE_ORIENTATION == 0 else width//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2 - utils.get_label_length(longest_text)
-                y_legend = height//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2 if CONFIG.FIGURE_ORIENTATION == 0 else height
+                y_legend = height//2 + CONFIG.SEQUENCE_PLOT_HEIGHT//2 if CONFIG.FIGURE_ORIENTATION == 0 else height
         else:
             x_legend = 0
             y_legend = 0

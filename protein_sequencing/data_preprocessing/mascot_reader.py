@@ -152,7 +152,7 @@ def process_results(all_mod_strings, mod_strings_for_files):
     all_mods = reader_helper.sort_by_index_and_exons(all_mod_strings)
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_mascot.csv", 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', 'Neuropathology'] + all_mods)
+        writer.writerow(['ID', 'Group'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
         writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
         writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])

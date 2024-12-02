@@ -33,6 +33,10 @@ def get_height():
     return CONFIG.FIGURE_WIDTH
 
 def get_left_margin():
+    longest_text = CONFIG.MODIFICATION_LEGEND_TITLE
+    for mod in CONFIG.MODIFICATIONS:
+        if len(CONFIG.MODIFICATIONS[mod][0]) > len(longest_text):
+            longest_text = CONFIG.MODIFICATIONS[mod][0]
     return int(CONFIG.LEFT_MARGIN * get_width())
 
 def get_top_margin(): 

@@ -223,7 +223,7 @@ def process_protein_pilot_dir():
 
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_mods.csv", 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', 'Neuropathology'] + all_mods)
+        writer.writerow(['ID', 'Group'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
         writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
         writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
@@ -234,7 +234,7 @@ def process_protein_pilot_dir():
         
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_cleavages.csv", 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', 'Neuropathology'] + cleavages_with_ranges)
+        writer.writerow(['ID', 'Group'] + cleavages_with_ranges)
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
         writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
         writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])

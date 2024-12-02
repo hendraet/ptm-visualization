@@ -17,6 +17,8 @@ def get_present_groups(mod_file):
             if label == '':
                 continue
             aa = label[0]
+            if modification_types[i] not in PLOT_CONFIG.MODIFICATIONS_GROUP:
+                continue
             if CONFIG.INCLUDED_MODIFICATIONS.get(modification_types[i]):
                 if aa not in CONFIG.INCLUDED_MODIFICATIONS[modification_types[i]]:
                     continue
@@ -36,6 +38,8 @@ def get_modifications_per_position(mod_file):
             if label == '':
                 continue
             aa = label[0]
+            if modification_types[i] not in PLOT_CONFIG.MODIFICATIONS_GROUP:
+                continue
             if CONFIG.INCLUDED_MODIFICATIONS.get(modification_types[i]):
                 if aa not in CONFIG.INCLUDED_MODIFICATIONS[modification_types[i]]:
                     continue
