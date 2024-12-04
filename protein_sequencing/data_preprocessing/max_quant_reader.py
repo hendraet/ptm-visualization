@@ -71,7 +71,7 @@ def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, seque
         elif mod_position == 'ci':
             mod_type = 'Citrullination'
         else:
-            mod_type = mod
+            mod_type = mod.split(' ')[0]
         if CONFIG.INCLUDED_MODIFICATIONS.get(mod_type):
             if aa not in CONFIG.INCLUDED_MODIFICATIONS[mod_type]:
                 continue

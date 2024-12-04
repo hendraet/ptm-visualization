@@ -86,7 +86,7 @@ def clean_up():
 
 def show_plot(fig, output_path):
     output_svg = f"{output_path}/figure1.svg"
-    output_png = f"{output_path}/figure1.svg"
+    output_png = f"{output_path}/figure1.png"
     fig.show()
     fig.write_image(output_png)
     fig.write_image(output_svg)
