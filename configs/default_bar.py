@@ -1,8 +1,8 @@
 # Bar Plot Settings
 # group from groups.csv and display name
-BAR_NEUROPATHOLOGIES = {'FTLD-PiD': 'group 1',
-                        'FTLD-Tau': 'group 2',
-                        'CTRL': 'group 3',
+BAR_GROUPS = {
+                        'FTLD-Tau': 'FTLD-Tau',
+                        'CTRL': 'CTRL',
                         }
 BAR_WIDTH = 0.8
 INVERT_AXIS_GROUP_B = True
@@ -12,5 +12,6 @@ MODIFICATIONS_GROUP = {
     'Acetyl': 'A',
     'GG': 'A',
     'Citrullination': 'A',
-    'Methyl': 'B',
+    'Methyl': 'A',
+    'Deamidated': 'B',
 }

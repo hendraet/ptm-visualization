@@ -14,7 +14,7 @@ fasta_file = READER_CONFIG.FASTA_FILE
 aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_file = READER_CONFIG.MS_FRAGGER_FILE
 
-groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
+groups_df = pd.read_csv(READER_CONFIG.GROUPS_CSV)
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def check_modification_present(mod_sequence: str) -> bool:
@@ -70,7 +70,7 @@ def process_modifications(mod_sequence: str, peptide_offset: int, isoform: str, 
 def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp):
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_ms_fragger_mods.csv", 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', 'Neuropathology'] + all_mods)
+        writer.writerow(['ID', 'Group'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
         writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
         writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
@@ -81,7 +81,7 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
 
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_ms_fragger_cleavages.csv", 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', 'Neuropathology'] + cleavages_with_ranges)
+        writer.writerow(['ID', 'Group'] + cleavages_with_ranges)
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
         writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
         writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])

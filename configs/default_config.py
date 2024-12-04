@@ -16,30 +16,30 @@
 #     ('C-term', 441, 'A', 'C-term'),
 # ]
 REGIONS = [
-    ("start", 390, "A", "start", "P14136"),
-    ("alpha", 432, "B", "a", "P14136"),
-    ("epsilon", 431, "A", "e", "P14136-3"),
+    ("N-Term", 72, "A", "N"),
+    ("1A", 104, "A", "1A"),
+    ("", 115, "A", ""),
+    ("1B", 214, "A", "1B"),
+    ("", 230, "A", ""),
+    ("2A", 252, "A", "2A"),
+    ("", 256, "A", ""),
+    ("2B", 377, "A", "2B"),
+    ("", 390, "A", ""),
+    ("α", 432, "B", "α"),
+    ("ε", 431, "A", "ε"),
 ]
 
 # Modification Settings
 MODIFICATION_LEGEND_TITLE = 'PTMs'
 MODIFICATIONS = {
     'Phospho': ('Phosphorylation', '#000000'),
-    'Acetyl': ('Acetylation', '#93478F'),
-    'Methyl': ('Methylation', '#C35728'),
-    'GG': ('Ubiquitination', '#548056'),
+    #'Acetyl': ('Acetylation', '#93478F'),
+    #'Methyl': ('Methylation', '#C35728'),
+    #'GG': ('Ubiquitination', '#548056'),
     'Citrullination': ('Citrullination', '#FF17E3'),
     'Deamidated': ('Deamidation', '#34AEEB'),
 }
-# TODO
-# umdrehen
-# phospho sty
-# acetyl k
-# gg k
-# citrullination R - Deamidation R
-# deamidation n q
-# methyl k r
-# default alle
+
 INCLUDED_MODIFICATIONS = {'Phospho': ['S', 'T', 'Y'],
                           'Acetyl': ['K'],
                           'Methyl': ['K', 'R'],
@@ -54,7 +54,7 @@ OUTPUT_FOLDER = 'output'
 FIGURE_ORIENTATION = 0  # 0 for horizontal, 1 for vertical, note figure height and width are then automatically swapped
 
 # just change width and height to change the size of the figure not the orientation
-FIGURE_WIDTH = 1500
+FIGURE_WIDTH = 1200
 FIGURE_HEIGHT = 1000
 
 FONT_SIZE = 12
@@ -68,7 +68,7 @@ FONT = 'Arial'
 
 # Margins for sequence Plot
 # TODO remove margins and auto calculate based on legend
-LEFT_MARGIN = 0.065
+LEFT_MARGIN = 0.075
 RIGHT_MARGIN = 0.025
 TOP_MARGIN = 0.065
 BOTTOM_MARGIN = 0.025

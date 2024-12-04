@@ -1,10 +1,11 @@
 # Overview Plot Settings
 MODIFICATIONS_GROUP = {
-    'Phospho': 'A',
-    'Acetyl': 'A',
-    'Methyl': 'A',
-    'GG': 'A',
-    'Citrullination': 'A',
+    'Phospho': 'B',
+    'Acetyl': 'B',
+    'Methyl': 'B',
+    'GG': 'B',
+    'Citrullination': 'B',
+    'Deamidated': 'A',
 }
 INPUT_FILE = 'output/result_protein_pilot_mods.csv'
 

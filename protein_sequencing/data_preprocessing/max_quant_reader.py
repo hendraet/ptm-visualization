@@ -14,7 +14,7 @@ fasta_file = READER_CONFIG.FASTA_FILE
 aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_file = READER_CONFIG.MAX_QUANT_FILE
 
-groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups_max_quant.csv")
+groups_df = pd.read_csv(READER_CONFIG.GROUPS_CSV)
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def get_exact_indexes(mod_sequence: str) -> list:
@@ -43,14 +43,14 @@ def get_exact_indexes(mod_sequence: str) -> list:
 
     return indexes
 
-def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, sequence: str, isoform: str, aligned_sequence: str) -> list[str]:
+def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, sequence: str, isoform: str, aligned_sequence: str, mod: str) -> list[str]:
     mod_strings = []
     
-    pattern = r"\((\w+)\s*\(([^)]+)\)\)"
+    pattern = r"\(([^()]*)\)"
     matches = re.findall(pattern, modified_peptide)
     indexes = get_exact_indexes(modified_peptide)
     counter = 0
-    for mod_type, mod_position in matches:
+    for mod_position in matches:
         if mod_position == "Protein N-term":
             aa = sequence[peptide_offset-1]
             aa_offset = 0
@@ -60,12 +60,25 @@ def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, seque
         else:
             aa = peptide[indexes[counter]-1]
             aa_offset = indexes[counter]
-
+        if mod_position == 'ph':
+            mod_type = 'Phospho'
+        elif mod_position == 'ac':
+            mod_type = 'Acetyl'
+        elif mod_position == 'gg':
+            mod_type = 'GG'
+        elif mod_position == 'me':
+            mod_type = 'Methyl'
+        elif mod_position == 'ci':
+            mod_type = 'Citrullination'
+        else:
+            mod_type = mod
         if CONFIG.INCLUDED_MODIFICATIONS.get(mod_type):
             if aa not in CONFIG.INCLUDED_MODIFICATIONS[mod_type]:
                 continue
             if aa == 'R' and mod_type == 'Deamidated':
-                mod_type = 'Citrullination'     
+                mod_type = 'Citrullination'
+        else:
+            continue     
         missing_aa = 0
         if len(sequence) != len(aligned_sequence):
             missing_aa = reader_helper.count_missing_amino_acids(peptide[:aa_offset], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
@@ -133,9 +146,10 @@ def process_max_quant_file(input_file: str):
                 
                 if float(fields[pep_score_idx]) < READER_CONFIG.THRESHOLD:
                     if fields[mods_idx] != "Unmodified":
-                        mods = reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], peptide_offset, sequence, isoform, aligned_sequence)
+                        mods = reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], peptide_offset, sequence, isoform, aligned_sequence, fields[mods_idx])
                         all_mods.extend(mods)
-                        mods_for_exp[fields[exp_idx]].extend(mods)
+                        if fields[exp_idx] in mods_for_exp:
+                            mods_for_exp[fields[exp_idx]].extend(mods)
 
     all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
     all_mods = reader_helper.sort_by_index_and_exons(all_mods)
@@ -151,7 +165,7 @@ def process_max_quant_file(input_file: str):
 def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp):
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_max_quant_mods.csv", 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', 'Neuropathology'] + all_mods)
+        writer.writerow(['ID', 'Group'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
         writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
         writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
@@ -162,7 +176,7 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
 
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_max_quant_cleavages.csv", 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', 'Neuropathology'] + cleavages_with_ranges)
+        writer.writerow(['ID', 'Group'] + cleavages_with_ranges)
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
         writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
         writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])

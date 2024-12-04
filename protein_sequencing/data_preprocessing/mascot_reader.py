@@ -14,7 +14,7 @@ fasta_file = READER_CONFIG.FASTA_FILE
 aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
 input_dir = READER_CONFIG.MASCOT_INPUT_DIR
 
-groups_df = pd.read_csv(f"{os.path.dirname(__file__)}/groups.csv")
+groups_df = pd.read_csv(READER_CONFIG.GROUPS_CSV)
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def reformmods(mods, sites, peptide, variable_mods, isoform, sequence, aligned_sequence):
@@ -152,7 +152,7 @@ def process_results(all_mod_strings, mod_strings_for_files):
     all_mods = reader_helper.sort_by_index_and_exons(all_mod_strings)
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_mascot.csv", 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', 'Neuropathology'] + all_mods)
+        writer.writerow(['ID', 'Group'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
         writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
         writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])

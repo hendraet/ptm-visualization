@@ -33,6 +33,10 @@ def get_height():
     return CONFIG.FIGURE_WIDTH
 
 def get_left_margin():
+    longest_text = CONFIG.MODIFICATION_LEGEND_TITLE
+    for mod in CONFIG.MODIFICATIONS:
+        if len(CONFIG.MODIFICATIONS[mod][0]) > len(longest_text):
+            longest_text = CONFIG.MODIFICATIONS[mod][0]
     return int(CONFIG.LEFT_MARGIN * get_width())
 
 def get_top_margin(): 
@@ -99,7 +103,7 @@ def get_position_with_offset(position, isoform):
             raise ValueError(f"Position {position} is out of range for isoform {isoform}")
         exon_1_length = EXON_1_OFFSET['index_end'] - EXON_1_OFFSET['index_start'] + 1
         exon_2_length = EXON_2_OFFSET['index_end'] - EXON_2_OFFSET['index_start'] + 1
-        position += min(exon_1_length, exon_2_length)
+        position += max(exon_1_length, exon_2_length)
 
     return position
 
