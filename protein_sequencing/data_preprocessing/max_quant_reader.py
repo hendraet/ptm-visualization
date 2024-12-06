@@ -19,10 +19,9 @@ exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon
 
 def get_exact_indexes(mod_sequence: str) -> list:
     indexes = []
-    current_index = 1
+    current_index = 0
     inside_brackets = False
     inside_second_brackets = False
-    mod_sequence = mod_sequence.replace("_", "")
     for i, char in enumerate(mod_sequence):
         if char == '(':
             if inside_brackets:
@@ -35,7 +34,7 @@ def get_exact_indexes(mod_sequence: str) -> list:
             else:
                 inside_brackets = False
                 continue
-        elif not inside_second_brackets and char.isalpha():
+        elif not inside_second_brackets and char.isalpha() or char == '_':  
             if i + 1 < len(mod_sequence) and mod_sequence[i + 1] == '(':
                 indexes.append(current_index)
         if not inside_brackets:
@@ -71,7 +70,7 @@ def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, seque
         elif mod_position == 'ci':
             mod_type = 'Citrullination'
         else:
-            mod_type = mod.split(' ')[0]
+            mod_type = mod_position.split(' ')[0]
         if CONFIG.INCLUDED_MODIFICATIONS.get(mod_type):
             if aa not in CONFIG.INCLUDED_MODIFICATIONS[mod_type]:
                 continue

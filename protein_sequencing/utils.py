@@ -37,7 +37,7 @@ def get_left_margin():
     for mod in CONFIG.MODIFICATIONS:
         if len(CONFIG.MODIFICATIONS[mod][0]) > len(longest_text):
             longest_text = CONFIG.MODIFICATIONS[mod][0]
-    return int(CONFIG.LEFT_MARGIN * get_width())
+    return int((get_label_length(longest_text) / CONFIG.FIGURE_WIDTH * 1.05) * get_width())
 
 def get_top_margin(): 
     return int(CONFIG.TOP_MARGIN * get_height())
@@ -108,12 +108,12 @@ def get_position_with_offset(position, isoform):
     return position
 
 def offset_line_for_exon(line_position, aa_position, oritentation):
-    if aa_position >= EXON_1_OFFSET['index_start']:
+    if aa_position >= EXON_1_OFFSET['index_start'] and EXON_1_OFFSET['index_start'] != -1:
         if oritentation == 0:
             line_position += CONFIG.EXONS_GAP
         else:
             line_position -= CONFIG.EXONS_GAP
-    if aa_position > EXON_1_OFFSET['index_end']:
+    if aa_position > EXON_1_OFFSET['index_end'] and EXON_1_OFFSET['index_start'] != -1:
         if oritentation == 0:
             line_position += CONFIG.EXONS_GAP
         else:
