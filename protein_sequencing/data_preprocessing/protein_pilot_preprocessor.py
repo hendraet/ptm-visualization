@@ -5,24 +5,22 @@ import re
 import pandas as pd
 from python_calamine import CalamineWorkbook
 from protein_sequencing import exon_helper, uniprot_align
-from protein_sequencing.data_preprocessing import reader_helper
+from protein_sequencing.data_preprocessing import preprocessor_helper
 from typing import Tuple
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
-READER_CONFIG = importlib.import_module('configs.reader_config', 'configs')
+PREPROCESSOR_CONFIG = importlib.import_module('configs.PREPROCESSOR_CONFIG', 'configs')
 
-fasta_file = READER_CONFIG.FASTA_FILE
-aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
-input_dir = READER_CONFIG.PROTEIN_PILOT_INPUT_DIR
+fasta_file = PREPROCESSOR_CONFIG.FASTA_FILE
+aligned_fasta_file = PREPROCESSOR_CONFIG.ALIGNED_FASTA_FILE
+input_dir = PREPROCESSOR_CONFIG.PROTEIN_PILOT_INPUT_DIR
 
-# TODO readers region aware
-
-groups_df = pd.read_csv(READER_CONFIG.GROUPS_CSV)
+groups_df = pd.read_csv(PREPROCESSOR_CONFIG.GROUPS_CSV)
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def extract_confidence_score(calamine_sheet):
-    global_column = READER_CONFIG.FDR_GLOBAL == 'global'
-    threshold = READER_CONFIG.CONFIDENCE_THRESHOLD
+    global_column = PREPROCESSOR_CONFIG.FDR_GLOBAL == 'global'
+    threshold = PREPROCESSOR_CONFIG.CONFIDENCE_THRESHOLD
     fdr_column, threshold_column = None, None
     if global_column:
         fdr_column = 'Fit Global FDR'
@@ -62,8 +60,8 @@ def get_accession(row, accession_index, seq_index) -> Tuple[str, str, int, str] 
     isoform_found = False
     for search in search_headers:
         search_header = search.split('|')[1]
-        if search_header in READER_CONFIG.ISOFORM_HELPER_DICT:
-            search_header = READER_CONFIG.ISOFORM_HELPER_DICT[search_header]
+        if search_header in PREPROCESSOR_CONFIG.ISOFORM_HELPER_DICT:
+            search_header = PREPROCESSOR_CONFIG.ISOFORM_HELPER_DICT[search_header]
 
         if search_header in [header[0] for header in sorted_isoform_headers]:
             isoform_found = True
@@ -113,12 +111,12 @@ def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, access
                         mod_name = 'Citrullination'
                 missing_aa = 0
                 if len(sequence) != len(aligned_sequence):
-                    missing_aa = reader_helper.count_missing_amino_acids(peptide[:mod_pos], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
-                offset = reader_helper.calculate_exon_offset(mod_pos+peptide_offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
-                aligned_offset = offset-1+reader_helper.count_missing_aa_in_exon(aligned_sequence, exon_start_index, exon_end_index, offset)
+                    missing_aa = preprocessor_helper.count_missing_amino_acids(peptide[:mod_pos], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
+                offset = preprocessor_helper.calculate_exon_offset(mod_pos+peptide_offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+                aligned_offset = offset-1+preprocessor_helper.count_missing_aa_in_exon(aligned_sequence, exon_start_index, exon_end_index, offset)
                 if aligned_sequence[aligned_offset] != amino_acid:
                     raise ValueError(f"AA don't match for {amino_acid} for peptide {peptide} in sequence {aligned_sequence} with offset {aligned_offset}")
-                iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+                iso = preprocessor_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
                 modstring = f"{mod_name}({amino_acid})@{offset}_{iso}"
                 mods.append(modstring)
 
@@ -142,10 +140,10 @@ def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index
                 site_index = len(row[seq_index])
             missing_aa = 0
             if len(sequence) != len(aligned_sequence):
-                missing_aa = reader_helper.count_missing_amino_acids(row[seq_index], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
+                missing_aa = preprocessor_helper.count_missing_amino_acids(row[seq_index], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
     
-            offset = reader_helper.calculate_exon_offset(peptide_offset+site_index+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
-            iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+            offset = preprocessor_helper.calculate_exon_offset(peptide_offset+site_index+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+            iso = preprocessor_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
             cleavages.append(f"{amino_acid}@{peptide_offset+site_index}_{iso}")
 
     return cleavages
@@ -157,7 +155,7 @@ def extract_data_with_threshold(calamine_sheet, threshold):
     for row in rows:
         if 'ProteinModifications' in row and 'Conf' in row:
             mod_index = row.index('Modifications')
-            if READER_CONFIG.RELEVANT_MODS == 'all':
+            if PREPROCESSOR_CONFIG.RELEVANT_MODS == 'all':
                 protein_mod_index = mod_index
             else: 
                 protein_mod_index = row.index('ProteinModifications')
@@ -214,18 +212,18 @@ def process_protein_pilot_dir():
             cleavages_per_file[row['file_name']] = cleavages_per_file[row['file_name']].union(cleavages_per_file[row['replicate']])
             del mods_per_file[row['replicate']]
 
-    all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
-    all_mods = reader_helper.sort_by_index_and_exons(all_mods)
+    all_mods = sorted(set(all_mods), key=preprocessor_helper.extract_index)
+    all_mods = preprocessor_helper.sort_by_index_and_exons(all_mods)
 
-    all_cleavages = sorted(set(all_cleavages), key=reader_helper.extract_index)
-    all_cleavages = reader_helper.sort_by_index_and_exons(all_cleavages)    
-    cleavages_with_ranges = reader_helper.extract_cleavages_ranges(all_cleavages)
+    all_cleavages = sorted(set(all_cleavages), key=preprocessor_helper.extract_index)
+    all_cleavages = preprocessor_helper.sort_by_index_and_exons(all_cleavages)    
+    cleavages_with_ranges = preprocessor_helper.extract_cleavages_ranges(all_cleavages)
 
     with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_mods.csv", 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Group'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
-        writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
+        writer.writerow(['', ''] + [preprocessor_helper.extract_mod_location(mod) for mod in all_mods])
         writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
         for file, mods in mods_per_file.items():
             row = [1 if mod in mods else 0 for mod in all_mods]
@@ -238,16 +236,16 @@ def process_protein_pilot_dir():
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
         writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
         writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])
-        ranges = reader_helper.parse_ranges(cleavages_with_ranges)
+        ranges = preprocessor_helper.parse_ranges(cleavages_with_ranges)
         for file, cleavages in cleavages_per_file.items():
-            indexes = [reader_helper.extract_index(cleavage) for cleavage in cleavages]
-            row = reader_helper.cleavage_score(ranges, indexes)
+            indexes = [preprocessor_helper.extract_index(cleavage) for cleavage in cleavages]
+            row = preprocessor_helper.cleavage_score(ranges, indexes)
             group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]
             writer.writerow([file[:-10], group] + row)
 
     return all_mods, all_cleavages
 
 uniprot_align.get_alignment(fasta_file)
-sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
+sorted_isoform_headers = preprocessor_helper.process_tau_file(fasta_file, aligned_fasta_file)
 
 process_protein_pilot_dir()

@@ -3,23 +3,23 @@ import importlib
 import os
 import pandas as pd
 from protein_sequencing import exon_helper, uniprot_align
-from protein_sequencing.data_preprocessing import reader_helper
+from protein_sequencing.data_preprocessing import preprocessor_helper
 from typing import Tuple
 import re
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
-READER_CONFIG = importlib.import_module('configs.reader_config', 'configs')
+PREPROCESSOR_CONFIG = importlib.import_module('configs.PREPROCESSOR_CONFIG', 'configs')
 
-fasta_file = READER_CONFIG.FASTA_FILE
-aligned_fasta_file = READER_CONFIG.ALIGNED_FASTA_FILE
-input_file = READER_CONFIG.MS_FRAGGER_FILE
+fasta_file = PREPROCESSOR_CONFIG.FASTA_FILE
+aligned_fasta_file = PREPROCESSOR_CONFIG.ALIGNED_FASTA_FILE
+input_file = PREPROCESSOR_CONFIG.MS_FRAGGER_FILE
 
-groups_df = pd.read_csv(READER_CONFIG.GROUPS_CSV)
+groups_df = pd.read_csv(PREPROCESSOR_CONFIG.GROUPS_CSV)
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def check_modification_present(mod_sequence: str) -> bool:
     relevant_mod_present = False
-    for mod_idx in READER_CONFIG.MS_FRAGGER_MODS:
+    for mod_idx in PREPROCESSOR_CONFIG.MS_FRAGGER_MODS:
         if mod_idx in mod_sequence:
             relevant_mod_present = True
             break
@@ -49,7 +49,7 @@ def process_modifications(mod_sequence: str, peptide_offset: int, isoform: str, 
     peptide = re.sub(r'\[(\d+\.\d+?)\]', '', mod_sequence)
     aa_offsets = get_exact_indexes(mod_sequence)
     for i, match in enumerate(matches):
-        if match in READER_CONFIG.MS_FRAGGER_MODS and READER_CONFIG.MS_FRAGGER_MODS[match] in CONFIG.INCLUDED_MODIFICATIONS:
+        if match in PREPROCESSOR_CONFIG.MS_FRAGGER_MODS and PREPROCESSOR_CONFIG.MS_FRAGGER_MODS[match] in CONFIG.INCLUDED_MODIFICATIONS:
             modified_aa = peptide[aa_offsets[i]-1]
             if CONFIG.INCLUDED_MODIFICATIONS.get(match):
                 if modified_aa not in CONFIG.INCLUDED_MODIFICATIONS[match]:
@@ -58,12 +58,12 @@ def process_modifications(mod_sequence: str, peptide_offset: int, isoform: str, 
                         match = 'Citrullination'
             missing_aa = 0
             if len(sequence) != len(aligned_sequence):
-                missing_aa = reader_helper.count_missing_amino_acids(peptide[:aa_offsets[i]], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
-            offset = reader_helper.calculate_exon_offset(aa_offsets[i] + peptide_offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+                missing_aa = preprocessor_helper.count_missing_amino_acids(peptide[:aa_offsets[i]], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
+            offset = preprocessor_helper.calculate_exon_offset(aa_offsets[i] + peptide_offset+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
             if aligned_sequence[offset-1] != modified_aa:
                 raise ValueError(f"AA don't match for {modified_aa} for peptide {peptide} in sequence {sequence} with offset {offset}")
-            iso = reader_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
-            mod_string = f"{READER_CONFIG.MS_FRAGGER_MODS[match]}({modified_aa})@{offset}_{iso}"
+            iso = preprocessor_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
+            mod_string = f"{PREPROCESSOR_CONFIG.MS_FRAGGER_MODS[match]}({modified_aa})@{offset}_{iso}"
             all_mods.append(mod_string)
     return all_mods
 
@@ -72,7 +72,7 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         writer = csv.writer(f)
         writer.writerow(['ID', 'Group'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
-        writer.writerow(['', ''] + [reader_helper.extract_mod_location(mod) for mod in all_mods])
+        writer.writerow(['', ''] + [preprocessor_helper.extract_mod_location(mod) for mod in all_mods])
         writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
         for key, value in mods_for_exp.items():
             row = [1 if mod in value else 0 for mod in all_mods]
@@ -85,10 +85,10 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
         writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
         writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])
-        ranges = reader_helper.parse_ranges(cleavages_with_ranges)
+        ranges = preprocessor_helper.parse_ranges(cleavages_with_ranges)
         for key, value in cleavages_for_exp.items():
-            indexes = [reader_helper.extract_index(cleavage) for cleavage in value]
-            row = reader_helper.cleavage_score(ranges, indexes)
+            indexes = [preprocessor_helper.extract_index(cleavage) for cleavage in value]
+            row = preprocessor_helper.cleavage_score(ranges, indexes)
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
             writer.writerow([key, group] + row)
 
@@ -130,15 +130,15 @@ def process_ms_fragger_file(file: str):
                 cterm_cleav = ""
 
                 if len(row) > 0:
-                    if row[prot_accession_idx] in READER_CONFIG.ISOFORM_HELPER_DICT:
-                        row[prot_accession_idx] = READER_CONFIG.ISOFORM_HELPER_DICT[row[prot_accession_idx]]
+                    if row[prot_accession_idx] in PREPROCESSOR_CONFIG.ISOFORM_HELPER_DICT:
+                        row[prot_accession_idx] = PREPROCESSOR_CONFIG.ISOFORM_HELPER_DICT[row[prot_accession_idx]]
                     try:
-                        isoform, sequence, offset, aligned_sequence = reader_helper.get_accession(row[prot_accession_idx], row[pep_seq_idx], sorted_isoform_headers)
+                        isoform, sequence, offset, aligned_sequence = preprocessor_helper.get_accession(row[prot_accession_idx], row[pep_seq_idx], sorted_isoform_headers)
                     except ValueError:
                         continue                       
                         
-                    nterm_cleav = reader_helper.check_N_term_cleavage(row[pep_seq_idx], row[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
-                    cterm_cleav = reader_helper.check_C_term_cleavage(row[pep_seq_idx], row[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+                    nterm_cleav = preprocessor_helper.check_N_term_cleavage(row[pep_seq_idx], row[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
+                    cterm_cleav = preprocessor_helper.check_C_term_cleavage(row[pep_seq_idx], row[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
                     cleavage = ""
                     if nterm_cleav != "" and cterm_cleav != "":
                         all_cleavages.append(nterm_cleav)
@@ -161,17 +161,17 @@ def process_ms_fragger_file(file: str):
                                 if cleavage != "":
                                     cleavages_for_exp[exp_names[i]].append(cleavage)
 
-    all_mods = sorted(set(all_mods), key=reader_helper.extract_index)
-    all_mods = reader_helper.sort_by_index_and_exons(all_mods)
+    all_mods = sorted(set(all_mods), key=preprocessor_helper.extract_index)
+    all_mods = preprocessor_helper.sort_by_index_and_exons(all_mods)
     for key in mods_for_exp:
-        mods_for_exp[key] = sorted(set(mods_for_exp[key]), key=reader_helper.extract_index)
+        mods_for_exp[key] = sorted(set(mods_for_exp[key]), key=preprocessor_helper.extract_index)
 
-    all_cleavages = sorted(set(all_cleavages), key=reader_helper.extract_cleavage_location)
-    all_cleavages = reader_helper.sort_by_index_and_exons(all_cleavages)
-    cleavages_with_ranges = reader_helper.extract_cleavages_ranges(all_cleavages)
+    all_cleavages = sorted(set(all_cleavages), key=preprocessor_helper.extract_cleavage_location)
+    all_cleavages = preprocessor_helper.sort_by_index_and_exons(all_cleavages)
+    cleavages_with_ranges = preprocessor_helper.extract_cleavages_ranges(all_cleavages)
     write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp)
 
 uniprot_align.get_alignment(fasta_file)
-sorted_isoform_headers = reader_helper.process_tau_file(fasta_file, aligned_fasta_file)
+sorted_isoform_headers = preprocessor_helper.process_tau_file(fasta_file, aligned_fasta_file)
 
 process_ms_fragger_file(input_file)
