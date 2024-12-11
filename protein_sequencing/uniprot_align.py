@@ -10,13 +10,13 @@ def get_alignment(input_file: str | os.PathLike):
     with open(f"{padded_sequences_path}.fasta", 'w') as f:
         SeqIO.write(records, f, 'fasta')
 
-    # penalties für gap öffnung
+    if len(records) == 1:
+        align = records
+    else:
+        cmd = f"./clustal-omega/clustalo-1.2.4-Ubuntu-x86_64 --infile={padded_sequences_path}.fasta --outfile={padded_sequences_path}_aligned.fasta --outfmt=fasta --iter=0 --force"
+        subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, text=True)
+        align = AlignIO.read(f"{padded_sequences_path}_aligned.fasta", "fasta")
 
-    # tau 2,4-8     0N3R Isoform 1N4R, 2N4R, ...
-    cmd = f"./clustal-omega/clustalo-1.2.4-Ubuntu-x86_64 --infile={padded_sequences_path}.fasta --outfile={padded_sequences_path}_aligned.fasta --outfmt=fasta --iter=0 --force"
-    subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, text=True)
-    
-    align = AlignIO.read(f"{padded_sequences_path}_aligned.fasta", "fasta")
     with open('data/uniprot_data/aligned.fasta', 'w') as f:
         SeqIO.write(align, f, 'fasta')
     
