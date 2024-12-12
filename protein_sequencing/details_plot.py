@@ -259,10 +259,10 @@ def plot_groups_vertical(fig: go.Figure, df: pd.DataFrame, x_0_groups: int, y_0_
 def plot_group_labels_horizontal(fig: go.Figure, mean_values: pd.DataFrame, y_0_groups: int, dy: int, dx: int):
     for i, group in enumerate(mean_values.index):
         y_0_rect = y_0_groups + i*dy
-        x_1_rect = utils.SEQUENCE_OFFSET - dx//2
+        x_1_rect = calculate_group_space()
         fig.add_shape(type='rect',
                       x0 = 0,
-                      x1 = x_1_rect,
+                      x1 = calculate_group_space(),
                       y0 = y_0_rect,
                       y1 = y_0_rect + dy,
                       fillcolor=PLOT_CONFIG.GROUPS[group][1],
@@ -288,7 +288,7 @@ def plot_group_labels_vertical(fig: go.Figure, mean_values: pd.DataFrame, x_0_gr
     for i, group in enumerate(mean_values.index):
         x_0_rect = x_0_groups + i*dx
         y_0_rect = utils.get_height()
-        y_rect = utils.SEQUENCE_OFFSET - dy//2
+        y_rect = calculate_group_space()
         fig.add_shape(type='rect',
                       x0 = x_0_rect,
                       x1 = x_0_rect + dx,
@@ -402,8 +402,8 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
         if start > last_end or start < previous_index:
             if CONFIG.FIGURE_ORIENTATION == 0:
                 start_idx = cleavage_idx - (i - first_cleavage_in_region)
-                x_0_groups = start_idx * pixels_per_cleavage + utils.SEQUENCE_OFFSET
-                x_divider = cleavage_idx * pixels_per_cleavage + utils.SEQUENCE_OFFSET
+                x_0_groups = start_idx * pixels_per_cleavage + get_horizontal_offset(dx)
+                x_divider = cleavage_idx * pixels_per_cleavage + get_horizontal_offset(dx)
                 x_label = x_0_groups + (x_divider-x_0_groups)//2 - dx//2
                 y_label = y_0_groups + len(mean_values.index)*dy + (5+utils.get_label_height()//2) * group_direction
 
@@ -415,8 +415,8 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                             line=dict(color="black", width=3), showlegend=False, hoverinfo='none'))
             else:
                 start_idx = cleavage_idx - (i - first_cleavage_in_region)
-                y_0_groups = utils.get_height() - start_idx * pixels_per_cleavage - utils.SEQUENCE_OFFSET
-                y_divider = utils.get_height() - cleavage_idx * pixels_per_cleavage - utils.SEQUENCE_OFFSET
+                y_0_groups = utils.get_height() - start_idx * pixels_per_cleavage - get_vertical_offset(dy)
+                y_divider = utils.get_height() - cleavage_idx * pixels_per_cleavage - get_vertical_offset(dy)
                 y_label = y_0_groups - (y_0_groups - y_divider)//2 + dy//2
                 x_label = x_0_groups + len(mean_values.index)*dx + (5+utils.get_label_height()//2) * group_direction
 
@@ -441,7 +441,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                 position = utils.get_position_with_offset(start, isoforms[i])
                 x_0_line = position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
                 x_0_line = utils.offset_line_for_exon(x_0_line, start, CONFIG.FIGURE_ORIENTATION)
-                x_1_line = cleavage_idx * pixels_per_cleavage + utils.SEQUENCE_OFFSET
+                x_1_line = cleavage_idx * pixels_per_cleavage + get_horizontal_offset(dx)
                 y_3_line = y_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 y_label = y_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
                 
@@ -458,7 +458,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                 x_0_end_line = end_position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
                 x_0_start_line = utils.offset_line_for_exon(x_0_start_line, start, CONFIG.FIGURE_ORIENTATION)
                 x_0_end_line = utils.offset_line_for_exon(x_0_end_line, end, CONFIG.FIGURE_ORIENTATION)
-                x_1_line = cleavage_idx * pixels_per_cleavage + utils.SEQUENCE_OFFSET
+                x_1_line = cleavage_idx * pixels_per_cleavage + get_horizontal_offset(dx)
                 y_3_line = y_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 y_label = y_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
 
@@ -473,7 +473,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                 position = utils.get_position_with_offset(start, isoforms[i])
                 y_0_line = utils.get_height() - position * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
                 y_0_line = utils.offset_line_for_exon(y_0_line, start, CONFIG.FIGURE_ORIENTATION)
-                y_1_line = utils.get_height() - cleavage_idx * pixels_per_cleavage - utils.SEQUENCE_OFFSET
+                y_1_line = utils.get_height() - cleavage_idx * pixels_per_cleavage - get_vertical_offset(dy)
                 x_3_line = x_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 x_label = x_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
 
@@ -490,7 +490,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                 y_0_end_line = utils.get_height() - end_position * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
                 y_0_start_line = utils.offset_line_for_exon(y_0_start_line, start, CONFIG.FIGURE_ORIENTATION)
                 y_0_end_line = utils.offset_line_for_exon(y_0_end_line, end, CONFIG.FIGURE_ORIENTATION)
-                y_1_line = utils.get_height() - cleavage_idx * pixels_per_cleavage - utils.SEQUENCE_OFFSET
+                y_1_line = utils.get_height() - cleavage_idx * pixels_per_cleavage - get_vertical_offset(dy)
                 x_3_line = x_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 x_label = x_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
 
@@ -513,7 +513,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
     # plot groups for last region
     if CONFIG.FIGURE_ORIENTATION == 0:
         start_idx = cleavage_idx - (i - first_cleavage_in_region)-1
-        x_0_groups = start_idx * pixels_per_cleavage + utils.SEQUENCE_OFFSET
+        x_0_groups = start_idx * pixels_per_cleavage + get_horizontal_offset(dx)
         region_length = len(mean_values.iloc[0:1,first_cleavage_in_region:].columns)
         x_label = x_0_groups + (region_length * pixels_per_cleavage)//2 - dx//2
         y_label = y_0_groups + len(mean_values.index)*dy + (5+utils.get_label_height()//2) * group_direction
@@ -522,13 +522,19 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
         create_custome_colorscale(fig, vertical_space_left, group_direction, x_0_groups, y_0_groups, region_length, pixels_per_cleavage, False)
     else:
         start_idx = cleavage_idx - (i - first_cleavage_in_region)-1
-        y_0_groups = utils.get_height() - start_idx * pixels_per_cleavage - utils.SEQUENCE_OFFSET
+        y_0_groups = utils.get_height() - start_idx * pixels_per_cleavage - get_vertical_offset(dy)
         region_length = len(mean_values.iloc[0:1,first_cleavage_in_region:].columns)
         y_label = y_0_groups - (region_length * pixels_per_cleavage)//2 + dy//2
         x_label = x_0_groups + len(mean_values.index)*dx + (5+utils.get_label_height()//2) * group_direction
         plot_groups_vertical(fig, mean_values.iloc[:,first_cleavage_in_region:], x_0_groups, y_0_groups, dx, dy, x_label, y_label, last_region, group_direction, False)
 
         create_custome_colorscale(fig, horizontal_space_left, group_direction, x_0_groups, y_0_groups, region_length, pixels_per_cleavage, False)
+
+def get_horizontal_offset(dx):
+    return calculate_group_space() + dx//2
+
+def get_vertical_offset(dy):
+    return calculate_group_space() + dy//2
 
 def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_plot_height: int, above: str, second_row: bool):
     group_direction = 1 if above == 'A' else -1
@@ -589,8 +595,8 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
         if ptm_position > last_end or ptm_position < previous_ptm:
             if CONFIG.FIGURE_ORIENTATION == 0:
                 start_idx = ptm_idx - (i - first_ptm_in_region)
-                x_0_groups = start_idx * pixels_per_ptm + utils.SEQUENCE_OFFSET
-                x_divider = ptm_idx * pixels_per_ptm + utils.SEQUENCE_OFFSET                  
+                x_0_groups = start_idx * pixels_per_ptm + get_horizontal_offset(dx)
+                x_divider = ptm_idx * pixels_per_ptm + get_horizontal_offset(dx)                  
                 x_label = x_0_groups + (x_divider-x_0_groups)//2 - dx//2
                 y_label = y_0_groups + len(mean_values.index)*dy + (5+utils.get_label_height()//2) * group_direction
                 
@@ -602,8 +608,8 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
                             line=dict(color="black", width=3), showlegend=False, hoverinfo='none'))
             else:
                 start_idx = ptm_idx - (i - first_ptm_in_region)
-                y_0_groups = utils.get_height() - start_idx * pixels_per_ptm - utils.SEQUENCE_OFFSET
-                y_divider = utils.get_height() - ptm_idx * pixels_per_ptm - utils.SEQUENCE_OFFSET
+                y_0_groups = utils.get_height() - start_idx * pixels_per_ptm - get_vertical_offset(dy)
+                y_divider = utils.get_height() - ptm_idx * pixels_per_ptm - get_vertical_offset(dy)
                 y_label = y_0_groups - (y_0_groups - y_divider)//2 + dy//2
                 x_label = x_0_groups + len(mean_values.index)*dx + (5+utils.get_label_height()//2) * group_direction
 
@@ -626,10 +632,10 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
             position = utils.get_position_with_offset(ptm_position, isoforms[i])
             x_0_line = position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
             x_0_line = utils.offset_line_for_exon(x_0_line, ptm_position, CONFIG.FIGURE_ORIENTATION)
-            x_1_line = ptm_idx * pixels_per_ptm + utils.SEQUENCE_OFFSET
+            x_1_line = ptm_idx * pixels_per_ptm + get_horizontal_offset(dx)
             y_3_line = y_2_line + 10 * group_direction
             if second_row and i % 2 == 1:
-                x_1_line = ptm_idx * pixels_per_ptm + utils.SEQUENCE_OFFSET
+                x_1_line = ptm_idx * pixels_per_ptm + get_horizontal_offset(dx)
                 y_3_line = y_2_line + (label_length + 10 + 5) * group_direction
             y_label = y_3_line + (utils.get_label_length(ptm)+10) // 2 * group_direction
             text_color = CONFIG.MODIFICATIONS[str(ptm_df.iloc[0,i+2])][1]
@@ -647,10 +653,10 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
             position = utils.get_position_with_offset(ptm_position, isoforms[i])
             y_0_line = utils.get_height() - position * utils.PIXELS_PER_AA - utils.SEQUENCE_OFFSET
             y_0_line = utils.offset_line_for_exon(y_0_line, ptm_position, CONFIG.FIGURE_ORIENTATION)
-            y_1_line = utils.get_height() - ptm_idx * pixels_per_ptm - utils.SEQUENCE_OFFSET
+            y_1_line = utils.get_height() - ptm_idx * pixels_per_ptm - get_vertical_offset(dy)
             x_3_line = x_2_line + 10 * group_direction
             if second_row and i % 2 == 1:
-                y_1_line = utils.get_height() - ptm_idx * pixels_per_ptm - utils.SEQUENCE_OFFSET
+                y_1_line = utils.get_height() - ptm_idx * pixels_per_ptm - get_vertical_offset(dy)
                 x_3_line = x_2_line + (label_length + 10 + 5) * group_direction
             x_label = x_3_line + (utils.get_label_length(ptm)+10) // 2 * group_direction
             text_color = CONFIG.MODIFICATIONS[str(ptm_df.iloc[0,i+2])][1]
@@ -678,7 +684,7 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
     # plot groups for last region
     if CONFIG.FIGURE_ORIENTATION == 0:
         start_idx = ptm_idx - (i - first_ptm_in_region)-1
-        x_0_groups = start_idx * pixels_per_ptm + utils.SEQUENCE_OFFSET
+        x_0_groups = start_idx * pixels_per_ptm + get_horizontal_offset(dx)
         region_length = len(mean_values.iloc[0:1,first_ptm_in_region:].columns)
         x_label = x_0_groups + (region_length * pixels_per_ptm)//2 - dx//2
         y_label = y_0_groups + len(mean_values.index)*dy + (5+utils.get_label_height()//2) * group_direction
@@ -688,7 +694,7 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
         
     else:
         start_idx = ptm_idx - (i - first_ptm_in_region)-1
-        y_0_groups = utils.get_height() - start_idx * pixels_per_ptm - utils.SEQUENCE_OFFSET
+        y_0_groups = utils.get_height() - start_idx * pixels_per_ptm - get_vertical_offset(dy)
         region_length = len(mean_values.iloc[0:1,first_ptm_in_region:].columns)
         y_label = y_0_groups - (region_length * pixels_per_ptm)//2 + dy//2
         x_label = x_0_groups + len(mean_values.index)*dx + (5+utils.get_label_height()//2) * group_direction
@@ -802,6 +808,13 @@ def filter_relevant_modification_sights(ptm_file: str, threshold: int):
     
     return result_df
 
+def calculate_group_space():
+    longest_label = ''
+    for key in PLOT_CONFIG.GROUPS.keys():
+        if utils.get_label_length(key) > utils.get_label_length(longest_label):
+            longest_label = key
+    return utils.get_label_length(longest_label)+10
+
 def calculate_legend_space(ptm: bool):
     if CONFIG.FIGURE_ORIENTATION == 0:
         longest_label = ''
@@ -863,7 +876,7 @@ def create_details_plot(input_file: str | os.PathLike, output_path: str | os.Pat
         present_regions = get_present_regions_cleavage(cleavage_df)
         number_of_cleavages = len(cleavage_df.columns)
         number_of_dividers = present_regions.count(True)-1
-        cleavage_space = plot_space - calculate_legend_space(False)
+        cleavage_space = plot_space - calculate_legend_space(False) - calculate_group_space()
         pixels_per_cleavage = cleavage_space // (number_of_cleavages + number_of_dividers)
         assert(pixels_per_cleavage >= CONFIG.FONT_SIZE)
 
@@ -875,7 +888,7 @@ def create_details_plot(input_file: str | os.PathLike, output_path: str | os.Pat
         number_of_ptms = len(ptm_df.columns)
         number_of_dividers = present_regions.count(True)-1
         second_row = False
-        ptm_space = plot_space - calculate_legend_space(True)
+        ptm_space = plot_space - calculate_legend_space(True) - calculate_group_space()
         pixels_per_ptm = ptm_space // (number_of_ptms + number_of_dividers)
         if (number_of_ptms + number_of_dividers) * utils.get_label_height() > 2*ptm_space:
             raise ValueError('Too many PTMs to fit in plot')

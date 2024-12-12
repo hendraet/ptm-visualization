@@ -351,9 +351,9 @@ def create_bar_plot(input_file: str | os.PathLike, output_path: str | os.PathLik
    above_relevant, below_relevant = utils.separate_by_group(relevant_positions)
 
    if len(above_relevant) == 0:
-      fig = sequence_plot.create_plot(input_file, 'A', 'A')
+      fig = sequence_plot.create_plot(input_file, 'A', 'B')
    elif len(below_relevant) == 0:
-      fig = sequence_plot.create_plot(input_file, 'B', 'B')
+      fig = sequence_plot.create_plot(input_file, 'B', 'A')
    else:
       fig = sequence_plot.create_plot(input_file, None, 'A')
 

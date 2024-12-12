@@ -154,21 +154,23 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
             y_legend = 0
             if groups_missing == 'A':
                 if CONFIG.FIGURE_ORIENTATION == 1:
-                    x_legend = width - CONFIG.SEQUENCE_PLOT_HEIGHT - utils.get_label_length(longest_text)
+                    x_legend = width
                     y_legend = height
                 else:
-                    y_legend = height - CONFIG.SEQUENCE_PLOT_HEIGHT
+                    y_legend = height
             if groups_missing == 'B':
                 if CONFIG.FIGURE_ORIENTATION == 1:
-                    y_legend = utils.get_height()
-                    x_legend = CONFIG.SEQUENCE_PLOT_HEIGHT
+                    y_legend = height
                 else:
-                    y_legend = CONFIG.SEQUENCE_PLOT_HEIGHT + (len(CONFIG.MODIFICATIONS.keys())+1) * utils.get_label_height()
+                    y_legend = (len(CONFIG.MODIFICATIONS.keys())+1) * utils.get_label_height()
 
+        text_position = "bottom right"
+        if legend_positioning == 'B' and CONFIG.FIGURE_ORIENTATION == 1:
+            text_position = "bottom left"
         fig.add_trace(go.Scatter(x=[x_legend], y=[y_legend],
                                  mode='text',
                                  text=f"<b>{CONFIG.MODIFICATION_LEGEND_TITLE}</b>",
-                                 textposition="bottom right",
+                                 textposition=text_position,
                                  showlegend=False, hoverinfo='none',
                                  textfont=dict(size=CONFIG.SEQUENCE_PLOT_FONT_SIZE,
                                                color="black")))
@@ -176,7 +178,7 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
 
         labels = [mod for mod in CONFIG.MODIFICATIONS.values()]
         sorted_labels = sorted(labels, key=sort_key)
-        if legend_positioning == 'B' or CONFIG.FIGURE_ORIENTATION == 1:
+        if legend_positioning == 'A' or CONFIG.FIGURE_ORIENTATION == 1:
             sorted_labels = sorted_labels[::-1]
         for i, mod in enumerate(sorted_labels):
             fig.add_trace(
@@ -184,7 +186,7 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
                            y=[y_legend-i*utils.get_label_height()],
                            mode='text',
                            text=mod[0],
-                           textposition="bottom right",
+                           textposition=text_position,
                            showlegend=False,
                            hoverinfo='none',
                            textfont=dict(size=CONFIG.SEQUENCE_PLOT_FONT_SIZE, color=mod[1])))

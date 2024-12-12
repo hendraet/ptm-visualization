@@ -37,10 +37,11 @@ def get_left_margin():
     for mod in CONFIG.MODIFICATIONS:
         if len(CONFIG.MODIFICATIONS[mod][0]) > len(longest_text):
             longest_text = CONFIG.MODIFICATIONS[mod][0]
-    return int((get_label_length(longest_text) / CONFIG.FIGURE_WIDTH * 1.05) * get_width())
+    return int((get_label_length(longest_text) / get_width() * 1.05) * get_width())
 
-def get_top_margin(): 
-    return int(CONFIG.TOP_MARGIN * get_height())
+def get_top_margin():
+    legend_height = (len(CONFIG.MODIFICATIONS)+3) * get_label_height()
+    return int((legend_height / get_height() * 1.05) *get_height())
 
 def get_right_margin():
     return int(CONFIG.RIGHT_MARGIN * get_width())
