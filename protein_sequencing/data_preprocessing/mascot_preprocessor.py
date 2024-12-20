@@ -8,7 +8,7 @@ from protein_sequencing.data_preprocessing import preprocessor_helper
 
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
-PREPROCESSOR_CONFIG = importlib.import_module('configs.PREPROCESSOR_CONFIG', 'configs')
+PREPROCESSOR_CONFIG = importlib.import_module('configs.preprocessor_config', 'configs')
 
 fasta_file = PREPROCESSOR_CONFIG.FASTA_FILE
 aligned_fasta_file = PREPROCESSOR_CONFIG.ALIGNED_FASTA_FILE
