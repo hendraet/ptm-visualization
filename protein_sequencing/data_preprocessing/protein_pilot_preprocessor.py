@@ -1,12 +1,13 @@
+"""ProteinPilotTM preprocessor module. Extracts modifications and cleavages from
+ProteinPilotTM output files and creates a CSV file with the results."""
 import importlib
 import os
 import csv
-import re
+from typing import Tuple
 import pandas as pd
 from python_calamine import CalamineWorkbook
 from protein_sequencing import exon_helper, uniprot_align
 from protein_sequencing.data_preprocessing import preprocessor_helper
-from typing import Tuple
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 PREPROCESSOR_CONFIG = importlib.import_module('configs.preprocessor_config', 'configs')
@@ -19,6 +20,7 @@ groups_df = pd.read_csv(PREPROCESSOR_CONFIG.GROUPS_CSV)
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def extract_confidence_score(calamine_sheet):
+    """Extract confidence score based on user settings from ProteinPilot output file."""
     global_column = PREPROCESSOR_CONFIG.FDR_GLOBAL == 'global'
     threshold = PREPROCESSOR_CONFIG.CONFIDENCE_THRESHOLD
     fdr_column, threshold_column = None, None
@@ -29,16 +31,17 @@ def extract_confidence_score(calamine_sheet):
     threshold_column = 'Fit Confidence Threshold'
 
     rows = iter(calamine_sheet.to_python())
-    for i, row in enumerate(rows):
+    for _, row in enumerate(rows):
         if threshold_column in row:
             threshold_index = row.index(threshold_column)
             fdr_index = row.index(fdr_column)
         else:
             if row[fdr_index] > threshold:
                 return row[threshold_index]
-    raise Exception("No confidence score found.")
+    raise ValueError("No confidence score found.")
 
 def split_mod(mod, seq):
+    """Split modification into name, amino acid and position."""
     if '(' not in mod:
         mod_name = mod.split('@')[0]
         mod_pos = mod.split('@')[1]
@@ -56,6 +59,7 @@ def split_mod(mod, seq):
     return mod_name.strip(), amino_acid.strip(), int(mod_pos)
 
 def get_accession(row, accession_index, seq_index) -> Tuple[str, str, int, str] | Tuple[None, None, None, None]:
+    """Get accession, sequence, offset and aligned sequence for a row."""
     search_headers = row[accession_index].split(';')
     isoform_found = False
     for search in search_headers:
@@ -74,13 +78,14 @@ def get_accession(row, accession_index, seq_index) -> Tuple[str, str, int, str] 
             isoform = header[0].strip()
             sequence = header[1]
             index_offset = header[1].index(row[seq_index])
+            aligned_sequence = header[2]
             break
     if index_offset is not None:
-        return isoform, sequence, index_offset, header[2]
-    else:
-        return None, None, None, None
+        return isoform, sequence, index_offset, aligned_sequence
+    return None, None, None, None
 
 def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, accession_index) -> list:
+    """Extract modification strings from rows"""
     mods = []
     for row in rows:
         isoform, sequence, peptide_offset, aligned_sequence = get_accession(row, accession_index, seq_index)
@@ -94,7 +99,7 @@ def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, access
         peptide = row[seq_index]
         for rel_mod in relevant_mods:
             matched_mod = None
-            rel_mod_name, rel_amino_acid, rel_mod_pos = split_mod(rel_mod, peptide)
+            rel_mod_name, rel_amino_acid, _ = split_mod(rel_mod, peptide)
             if rel_mod_name not in CONFIG.INCLUDED_MODIFICATIONS:
                 continue
             for mod in all_mods:
@@ -123,16 +128,18 @@ def extract_mods_from_rows(rows, protein_mod_index, mod_index, seq_index, access
     return mods
 
 def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index) -> list:
+    """Extract cleavage strings from rows"""
     cleavages = []
     for row in rows:
         isoform, sequence, peptide_offset, aligned_sequence = get_accession(row, accession_index, seq_index)
         if isoform is None or sequence is None or aligned_sequence is None or peptide_offset is None:
             continue
         cleaved_sites = row[cleavage_index].split(';')
+        site_index = -1
         for site in cleaved_sites:
             if not 'cleaved' in site:
                 continue
-            
+
             amino_acid = site.split('@')[0][-1]
             if 'N-term' in site:
                 site_index = 0
@@ -141,7 +148,7 @@ def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index
             missing_aa = 0
             if len(sequence) != len(aligned_sequence):
                 missing_aa = preprocessor_helper.count_missing_amino_acids(row[seq_index], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
-    
+
             offset = preprocessor_helper.calculate_exon_offset(peptide_offset+site_index+missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
             iso = preprocessor_helper.get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length)
             cleavages.append(f"{amino_acid}@{peptide_offset+site_index}_{iso}")
@@ -149,15 +156,17 @@ def extract_cleavages_from_rows(rows, cleavage_index, seq_index, accession_index
     return cleavages
 
 def extract_data_with_threshold(calamine_sheet, threshold):
+    """Extract modifications and cleavages from ProteinPilot output file."""
     rows = iter(calamine_sheet.to_python())
     relevant_mod_rows = []
     relavent_cleavage_rows = []
+    seq_index, mod_index, accession_index = None, None, None
     for row in rows:
         if 'ProteinModifications' in row and 'Conf' in row:
             mod_index = row.index('Modifications')
             if PREPROCESSOR_CONFIG.RELEVANT_MODS == 'all':
                 protein_mod_index = mod_index
-            else: 
+            else:
                 protein_mod_index = row.index('ProteinModifications')
             seq_index = row.index('Sequence')
             conf_index = row.index('Conf')
@@ -169,13 +178,14 @@ def extract_data_with_threshold(calamine_sheet, threshold):
                     relevant_mod_rows.append(row)
                 if row[cleavage_index] is not None and row[cleavage_index] != '' and 'cleaved' in row[cleavage_index]:
                     relavent_cleavage_rows.append(row)
-    
+
     mods = extract_mods_from_rows(relevant_mod_rows, protein_mod_index, mod_index, seq_index, accession_index)
     cleavages = extract_cleavages_from_rows(relavent_cleavage_rows, cleavage_index, seq_index, accession_index)
 
     return mods, cleavages
 
 def process_protein_pilot_xlsx_file(file) -> Tuple[list, list]:
+    """Process ProteinPilot output file and extract modifications and cleavages."""
     workbook = CalamineWorkbook.from_path(file)
 
     distinct_peptide_level_data = workbook.get_sheet_by_name('Distinct Peptide Level Data')
@@ -187,6 +197,7 @@ def process_protein_pilot_xlsx_file(file) -> Tuple[list, list]:
     return mods, cleavages
 
 def process_protein_pilot_dir():
+    """Process all ProteinPilot output files in a directory and create CSV files with the results."""
     all_mods = []
     all_cleavages = []
     mods_per_file = {}
@@ -206,7 +217,7 @@ def process_protein_pilot_dir():
             file_counter += 1
             print(f"Processed file {file} ({file_counter}/{xlsx_count})")
 
-    for index, row in groups_df.iterrows():
+    for _, row in groups_df.iterrows():
         if pd.notna(row['replicate']):
             mods_per_file[row['file_name']] = mods_per_file[row['file_name']].union(mods_per_file[row['replicate']])
             cleavages_per_file[row['file_name']] = cleavages_per_file[row['file_name']].union(cleavages_per_file[row['replicate']])
@@ -216,10 +227,10 @@ def process_protein_pilot_dir():
     all_mods = preprocessor_helper.sort_by_index_and_exons(all_mods)
 
     all_cleavages = sorted(set(all_cleavages), key=preprocessor_helper.extract_index)
-    all_cleavages = preprocessor_helper.sort_by_index_and_exons(all_cleavages)    
+    all_cleavages = preprocessor_helper.sort_by_index_and_exons(all_cleavages)
     cleavages_with_ranges = preprocessor_helper.extract_cleavages_ranges(all_cleavages)
 
-    with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_mods.csv", 'w', newline='') as f:
+    with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_mods.csv", 'w', newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Group'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
@@ -229,8 +240,8 @@ def process_protein_pilot_dir():
             row = [1 if mod in mods else 0 for mod in all_mods]
             group = groups_df.loc[groups_df['file_name'] == file]['group_name'].values[0]
             writer.writerow([file[:-10], group] + row)
-        
-    with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_cleavages.csv", 'w', newline='') as f:
+
+    with open(f"{CONFIG.OUTPUT_FOLDER}/result_protein_pilot_cleavages.csv", 'w', newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Group'] + cleavages_with_ranges)
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])

@@ -1,11 +1,9 @@
-import csv
+"""MaxQuant preprocessor module. Extracts modifications and cleavages from MaxQuant output file."""
 import importlib
-import os
+import re
 import pandas as pd
 from protein_sequencing import exon_helper, uniprot_align
 from protein_sequencing.data_preprocessing import preprocessor_helper
-from typing import Tuple
-import re
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 PREPROCESSOR_CONFIG = importlib.import_module('configs.preprocessor_config', 'configs')
@@ -18,6 +16,7 @@ groups_df = pd.read_csv(PREPROCESSOR_CONFIG.GROUPS_CSV)
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def get_exact_indexes(mod_sequence: str) -> list:
+    """Get exact indexes of the modifications in the sequence."""
     indexes = []
     current_index = 0
     inside_brackets = False
@@ -34,7 +33,7 @@ def get_exact_indexes(mod_sequence: str) -> list:
             else:
                 inside_brackets = False
                 continue
-        elif not inside_second_brackets and char.isalpha() or char == '_':  
+        elif not inside_second_brackets and char.isalpha() or char == '_':
             if i + 1 < len(mod_sequence) and mod_sequence[i + 1] == '(':
                 indexes.append(current_index)
         if not inside_brackets:
@@ -42,9 +41,10 @@ def get_exact_indexes(mod_sequence: str) -> list:
 
     return indexes
 
-def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, sequence: str, isoform: str, aligned_sequence: str, mod: str) -> list[str]:
+def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, sequence: str, isoform: str, aligned_sequence: str) -> list[str]:
+    """Reformat the modification string."""
     mod_strings = []
-    
+
     pattern = r"\(([^()]*)\)"
     matches = re.findall(pattern, modified_peptide)
     indexes = get_exact_indexes(modified_peptide)
@@ -79,7 +79,7 @@ def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, seque
             if aa == 'R' and mod_type == 'Deamidated':
                 mod_type = 'Citrullination'
         else:
-            continue     
+            continue
         missing_aa = 0
         if len(sequence) != len(aligned_sequence):
             missing_aa = preprocessor_helper.count_missing_amino_acids(peptide[:aa_offset], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
@@ -91,7 +91,8 @@ def reformat_mod(modified_peptide: str, peptide: str, peptide_offset: int, seque
         counter += 1
     return mod_strings
 
-def process_max_quant_file(input_file: str):
+def process_max_quant_file(evidence_file: str):
+    """Process MaxQuant file."""
     pep_seq_idx = -1
     pep_mod_seq_idx = -1
     prot_accession_idx = -1
@@ -108,7 +109,7 @@ def process_max_quant_file(input_file: str):
         mods_for_exp[key] = []
         cleavages_for_exp[key] = []
 
-    with open(input_file, 'r') as f:
+    with open(evidence_file, 'r', encoding="utf-8") as f:
         while line := f.readline():
             if line.startswith("Sequence"):
                 header = line.split("\t")
@@ -146,10 +147,10 @@ def process_max_quant_file(input_file: str):
                     if fields[exp_idx] not in cleavages_for_exp:
                         cleavages_for_exp[fields[exp_idx]] = []
                     cleavages_for_exp[fields[exp_idx]].append(cleavage)
-                
+
                 if float(fields[pep_score_idx]) < PREPROCESSOR_CONFIG.THRESHOLD:
                     if fields[mods_idx] != "Unmodified":
-                        mods = reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], peptide_offset, sequence, isoform, aligned_sequence, fields[mods_idx])
+                        mods = reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], peptide_offset, sequence, isoform, aligned_sequence)
                         all_mods.extend(mods)
                         if fields[exp_idx] in mods_for_exp:
                             mods_for_exp[fields[exp_idx]].extend(mods)
@@ -163,33 +164,8 @@ def process_max_quant_file(input_file: str):
     all_cleavages = sorted(set(all_cleavages), key=preprocessor_helper.extract_cleavage_location)
     all_cleavages = preprocessor_helper.sort_by_index_and_exons(all_cleavages)
     cleavages_with_ranges = preprocessor_helper.extract_cleavages_ranges(all_cleavages)
-    write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp)
-                
-def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp):
-    with open(f"{CONFIG.OUTPUT_FOLDER}/result_max_quant_mods.csv", 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['ID', 'Group'] + all_mods)
-        writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
-        writer.writerow(['', ''] + [preprocessor_helper.extract_mod_location(mod) for mod in all_mods])
-        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
-        for key, value in mods_for_exp.items():
-            row = [1 if mod in value else 0 for mod in all_mods]
-            group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
-            writer.writerow([key, group] + row)
+    preprocessor_helper.write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp, CONFIG.OUTPUT_FOLDER, groups_df)
 
-    with open(f"{CONFIG.OUTPUT_FOLDER}/result_max_quant_cleavages.csv", 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['ID', 'Group'] + cleavages_with_ranges)
-        writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
-        writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
-        writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])
-        ranges = preprocessor_helper.parse_ranges(cleavages_with_ranges)
-        for key, value in cleavages_for_exp.items():
-            indexes = [preprocessor_helper.extract_index(cleavage) for cleavage in value]
-            row = preprocessor_helper.cleavage_score(ranges, indexes)
-            group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
-            writer.writerow([key, group] + row)           
-        
 uniprot_align.get_alignment(fasta_file)
 sorted_isoform_headers = preprocessor_helper.process_tau_file(fasta_file, aligned_fasta_file)
 

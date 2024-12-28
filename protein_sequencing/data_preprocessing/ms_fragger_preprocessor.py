@@ -1,11 +1,10 @@
+"""MS Fragger Preprocessor Module. Extracts modifications and cleavages from MS Fragger output file."""
 import csv
 import importlib
-import os
+import re
 import pandas as pd
 from protein_sequencing import exon_helper, uniprot_align
 from protein_sequencing.data_preprocessing import preprocessor_helper
-from typing import Tuple
-import re
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 PREPROCESSOR_CONFIG = importlib.import_module('configs.preprocessor_config', 'configs')
@@ -18,6 +17,7 @@ groups_df = pd.read_csv(PREPROCESSOR_CONFIG.GROUPS_CSV)
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
 def check_modification_present(mod_sequence: str) -> bool:
+    """Check if relevant modification is present in the sequence."""
     relevant_mod_present = False
     for mod_idx in PREPROCESSOR_CONFIG.MS_FRAGGER_MODS:
         if mod_idx in mod_sequence:
@@ -26,6 +26,7 @@ def check_modification_present(mod_sequence: str) -> bool:
     return relevant_mod_present
 
 def get_exact_indexes(mod_sequence: str) -> list:
+    """Get exact indexes of the modifications in the sequence."""
     indexes = []
     current_index = 1
     inside_brackets = False
@@ -44,6 +45,7 @@ def get_exact_indexes(mod_sequence: str) -> list:
     return indexes
 
 def process_modifications(mod_sequence: str, peptide_offset: int, isoform: str, sequence: str, aligned_sequence: str) -> list:
+    """Process modifications in the sequence."""
     all_mods = []
     matches = re.findall(r'\[(\d+\.\d+?)\]', mod_sequence)
     peptide = re.sub(r'\[(\d+\.\d+?)\]', '', mod_sequence)
@@ -55,7 +57,7 @@ def process_modifications(mod_sequence: str, peptide_offset: int, isoform: str, 
                 if modified_aa not in CONFIG.INCLUDED_MODIFICATIONS[match]:
                     continue
                 if modified_aa == 'R' and match == 'Deamidated':
-                        match = 'Citrullination'
+                    match = 'Citrullination'
             missing_aa = 0
             if len(sequence) != len(aligned_sequence):
                 missing_aa = preprocessor_helper.count_missing_amino_acids(peptide[:aa_offsets[i]], aligned_sequence, peptide_offset, exon_start_index, exon_end_index)
@@ -67,32 +69,8 @@ def process_modifications(mod_sequence: str, peptide_offset: int, isoform: str, 
             all_mods.append(mod_string)
     return all_mods
 
-def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp):
-    with open(f"{CONFIG.OUTPUT_FOLDER}/result_ms_fragger_mods.csv", 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['ID', 'Group'] + all_mods)
-        writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
-        writer.writerow(['', ''] + [preprocessor_helper.extract_mod_location(mod) for mod in all_mods])
-        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
-        for key, value in mods_for_exp.items():
-            row = [1 if mod in value else 0 for mod in all_mods]
-            group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
-            writer.writerow([key, group] + row)
-
-    with open(f"{CONFIG.OUTPUT_FOLDER}/result_ms_fragger_cleavages.csv", 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['ID', 'Group'] + cleavages_with_ranges)
-        writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
-        writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
-        writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])
-        ranges = preprocessor_helper.parse_ranges(cleavages_with_ranges)
-        for key, value in cleavages_for_exp.items():
-            indexes = [preprocessor_helper.extract_index(cleavage) for cleavage in value]
-            row = preprocessor_helper.cleavage_score(ranges, indexes)
-            group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
-            writer.writerow([key, group] + row)
-
 def process_ms_fragger_file(file: str):
+    """Process MS Fragger output file."""
     pep_seq_idx = -1
     pep_mod_seq_idx = -1
     prot_accession_idx = -1
@@ -108,7 +86,7 @@ def process_ms_fragger_file(file: str):
         mods_for_exp[key] = []
         cleavages_for_exp[key] = []
 
-    with open(file, 'r') as f:
+    with open(file, 'r', encoding="utf-8") as f:
         while line := f.readline():
             if line.startswith('Peptide Sequence'):
                 row = line.split('\t')
@@ -135,8 +113,8 @@ def process_ms_fragger_file(file: str):
                     try:
                         isoform, sequence, offset, aligned_sequence = preprocessor_helper.get_accession(row[prot_accession_idx], row[pep_seq_idx], sorted_isoform_headers)
                     except ValueError:
-                        continue                       
-                        
+                        continue
+
                     nterm_cleav = preprocessor_helper.check_N_term_cleavage(row[pep_seq_idx], row[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
                     cterm_cleav = preprocessor_helper.check_C_term_cleavage(row[pep_seq_idx], row[prot_accession_idx], sorted_isoform_headers, exon_found, exon_start_index, exon_end_index, exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
                     cleavage = ""
@@ -169,7 +147,7 @@ def process_ms_fragger_file(file: str):
     all_cleavages = sorted(set(all_cleavages), key=preprocessor_helper.extract_cleavage_location)
     all_cleavages = preprocessor_helper.sort_by_index_and_exons(all_cleavages)
     cleavages_with_ranges = preprocessor_helper.extract_cleavages_ranges(all_cleavages)
-    write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp)
+    preprocessor_helper.write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp, CONFIG.OUTPUT_FOLDER, groups_df)
 
 uniprot_align.get_alignment(fasta_file)
 sorted_isoform_headers = preprocessor_helper.process_tau_file(fasta_file, aligned_fasta_file)

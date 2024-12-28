@@ -1,3 +1,4 @@
+"""Mascot Preprocessor Module. Extracting modifications from Mascot results and creating a CSV file with the results."""
 import importlib
 import os
 import csv
@@ -17,7 +18,8 @@ input_dir = PREPROCESSOR_CONFIG.MASCOT_INPUT_DIR
 groups_df = pd.read_csv(PREPROCESSOR_CONFIG.GROUPS_CSV)
 exon_found, exon_start_index, exon_end_index, exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(fasta_file, CONFIG.MIN_EXON_LENGTH)
 
-def reformmods(mods, sites, peptide, variable_mods, isoform, sequence, aligned_sequence):
+def reformmods(sites, peptide, variable_mods, isoform, sequence, aligned_sequence):
+    """Reformat the modification string to have the correct indexes and exon information."""
     modstrings = []
     sites = sites.split('.')[1]
     for i, site in enumerate(sites):
@@ -42,8 +44,8 @@ def reformmods(mods, sites, peptide, variable_mods, isoform, sequence, aligned_s
             modstrings.append(modstring)
     return modstrings
 
-def process_mascot_file(file, fasta_headers):
-
+def process_mascot_file(file, fasta_dict):
+    """Process a Mascot file and extract the modifications."""
     def replace_comma_in_quotes(line):
         pattern = r'\"(.*?)\"'
         def replace_comma(match):
@@ -64,26 +66,26 @@ def process_mascot_file(file, fasta_headers):
 
     variable_mods = {}
     all_mod_strings = []
-    with open(input_dir + file, 'r') as f:
+    with open(input_dir + file, 'r', encoding="utf-8") as f:
         while line := f.readline():
             if line.startswith('\"Variable modifications'):
                 varmods = True
             elif line.startswith('\"Protein hits'):
                 table = True
-            elif varmods == True and line == '\n':
+            elif varmods and line == '\n':
                 emptyrowpars = True
-            elif table == True and line == '\n':
+            elif table and line == '\n':
                 emptyrowpars = True
             elif '--------------------------------------------------------' in line:
                 varmods = False
                 table = False
                 emptyrowpars = False
-            elif varmods == True and emptyrowpars == True:
+            elif varmods and emptyrowpars:
                 if not line.startswith('\"Identifier') and line != '\n':
                     mod_string = line.split(',')[1]
                     mod = mod_string.split(' ')[0][1:]
                     variable_mods[int(line[0])] = mod
-            elif table == True and emptyrowpars == True:
+            elif table and emptyrowpars:
                 if line.startswith('prot_hit_num'):
                     headers = line.split(',')
                     header_length = len(headers)
@@ -100,17 +102,11 @@ def process_mascot_file(file, fasta_headers):
                     line = line.replace(', ', '-')
                     line = replace_comma_in_quotes(line)
                     row = line.split(',')
-                    def replace_comma_in_quotes(line):
-                        pattern = r'\"(.*?)\"'
-                        def replace_comma(match):
-                            return match.group(0).replace(',', '-')
-                        modified_line = re.sub(pattern, replace_comma, line)
-                        return modified_line
                     header_found = False
                     search_header = row[pep_accession_idx][1:-1]
                     if search_header in PREPROCESSOR_CONFIG.ISOFORM_HELPER_DICT:
                         search_header = PREPROCESSOR_CONFIG.ISOFORM_HELPER_DICT[search_header]
-                    for fasta_header in fasta_headers:
+                    for fasta_header in fasta_dict:
                         if search_header in fasta_header[0]:
                             header_found = True
                             break
@@ -135,22 +131,23 @@ def process_mascot_file(file, fasta_headers):
                     isoform = None
                     sequence = None
                     aligned_sequence = None
-                    for fasta_header in fasta_headers:
+                    for fasta_header in fasta_dict:
                         if row[pep_seq_idx] in fasta_header[1]:
-                                isoform = fasta_header[0]
-                                sequence = fasta_header[1]
-                                aligned_sequence = fasta_header[2]
-                                break
+                            isoform = fasta_header[0]
+                            sequence = fasta_header[1]
+                            aligned_sequence = fasta_header[2]
+                            break
                     if isoform is None:
                         continue
-                    reform_mod_strings = reformmods(row[pep_var_mod_idx], row[pep_var_mod_pos_idx], row[pep_seq_idx], variable_mods, isoform, sequence, aligned_sequence)
+                    reform_mod_strings = reformmods(row[pep_var_mod_pos_idx], row[pep_seq_idx], variable_mods, isoform, sequence, aligned_sequence)
                     all_mod_strings.extend(reform_mod_strings)
     return all_mod_strings
 
-def process_results(all_mod_strings, mod_strings_for_files):    
+def process_results(all_mod_strings, mod_strings_for_files):
+    """Process the results and write it to a CSV file."""
     all_mod_strings = sorted(set(all_mod_strings), key=preprocessor_helper.extract_index)
     all_mods = preprocessor_helper.sort_by_index_and_exons(all_mod_strings)
-    with open(f"{CONFIG.OUTPUT_FOLDER}/result_mascot.csv", 'w', newline='') as f:
+    with open(f"{CONFIG.OUTPUT_FOLDER}/result_mascot.csv", 'w', newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Group'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
@@ -162,8 +159,9 @@ def process_results(all_mod_strings, mod_strings_for_files):
             writer.writerow([file, group] + row)
 
 
-def process_mascot_dir(input_dir, tau_headers):
-    files = os.listdir(input_dir)
+def process_mascot_dir(mascot_dir, tau_headers):
+    """Process all Mascot files in a directory."""
+    files = os.listdir(mascot_dir)
     all_mod_strings = []
     mod_strings_for_files = {}
     for file in files:
