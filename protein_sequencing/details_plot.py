@@ -1,24 +1,24 @@
-from collections import defaultdict
+"""Module for plotting cleavages and PTMs on the sequence plot."""
 import math
 import os
+import importlib
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
-import importlib
-
 from protein_sequencing import utils, sequence_plot
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 PLOT_CONFIG = importlib.import_module('configs.default_details', 'configs')
 
 def get_present_regions(positions, isoforms):
+    """Get the regions present in the cleavages or PTMs."""
     ranges = []
-    for range in positions:
-        if '-' in str(range):
-            start, end = map(int, range.split('-'))
+    for position_range in positions:
+        if '-' in str(position_range):
+            start, end = map(int, position_range.split('-'))
             ranges.append((start, end))
         else:
-            start = end = int(range)
+            start = end = int(position_range)
             ranges.append((start, end))
 
     region_ranges = []
@@ -29,7 +29,7 @@ def get_present_regions(positions, isoforms):
 
     regions_present = [False] * len(region_ranges)
     region_index = 0
-    for i, range in enumerate(ranges):
+    for i, position_range in enumerate(ranges):
         if isoforms[i] == 'exon1':
             index = next((index for index, region in enumerate(CONFIG.REGIONS) if region[1] == utils.EXON_1_OFFSET["index_end"]), None)
             if index:
@@ -38,31 +38,33 @@ def get_present_regions(positions, isoforms):
             index = next((index for index, region in enumerate(CONFIG.REGIONS) if region[1] == utils.EXON_2_OFFSET["index_end"]), None)
             if index:
                 regions_present[index] = True
-        while range[0] > region_ranges[region_index][1]:
+        while position_range[0] > region_ranges[region_index][1]:
             region_index += 1
         regions_present[region_index] = True
     return regions_present
 
 def get_present_regions_cleavage(cleavage_df: pd.DataFrame):
+    """Get the regions present in the cleavages."""
     cleavages = cleavage_df.iloc[1:2,2:].values[0].tolist()
     isoforms = cleavage_df.iloc[2:3,2:].values[0].tolist()
     return get_present_regions(cleavages, isoforms)
 
 def get_present_regions_ptm(ptm_df: pd.DataFrame):
+    """Get the regions present in the PTMs."""
     ptms = ptm_df.iloc[1:2,2:].values[0].tolist()
     ptms = [ptm[1:] for ptm in ptms]
     isoforms = ptm_df.iloc[2:3,2:].values[0].tolist()
     return get_present_regions(ptms, isoforms)
-    
 
 def plot_line_with_label_horizontal(fig: go.Figure, x_0: int, x_1: int, y_0: int, y_1: int, y_2: int, y_3: int, y_label: int, label: str, ptm: bool, ptm_color: str | None = None, ptm_modification: str | None = None):
+    """Plot a line with a label for the horizontal plot."""
     line_color = "black"
     if ptm:
         line_color = ptm_color
     fig.add_trace(go.Scatter(x=[x_0, x_0, x_1, x_1],
                             y=[y_0, y_1, y_2, y_3],
                             mode='lines',
-                            line=dict(color=line_color, width=1), showlegend=False, hoverinfo='none'))
+                            line={"color": line_color, "width": 1}, showlegend=False, hoverinfo='none'))
     if ptm:
         color=ptm_color
         if f'{ptm_modification}({label[0]})@{label[1:]}' in CONFIG.PTMS_TO_HIGHLIGHT:
@@ -71,7 +73,7 @@ def plot_line_with_label_horizontal(fig: go.Figure, x_0: int, x_1: int, y_0: int
                             x1 = x_1+utils.get_label_height()//2+1,
                             y0 = y_label-utils.get_label_length(label)//2-3,
                             y1 = y_label+utils.get_label_length(label)//2+3,
-                            line=dict(width=0),
+                            line={"width": 0},
                             fillcolor=CONFIG.PTM_HIGHLIGHT_LABEL_COLOR,
                             showlegend=False,)
     else:
@@ -90,13 +92,14 @@ def plot_line_with_label_horizontal(fig: go.Figure, x_0: int, x_1: int, y_0: int
     return fig
 
 def plot_line_with_label_vertical(fig: go.Figure, x_0: int, x_1: int, x_2: int, x_3: int, y_0: int, y_1: int, x_label: int, label: str, ptm: bool, ptm_color: str | None = None, ptm_modification: str | None = None):
+    """Plot a line with a label for the vertical plot."""
     line_color = "black"
     if ptm:
         line_color = ptm_color
     fig.add_trace(go.Scatter(x=[x_0, x_1, x_2, x_3],
                             y=[y_0, y_0, y_1, y_1],
                             mode='lines',
-                            line=dict(color=line_color, width=1), showlegend=False, hoverinfo='none'))
+                            line={"color": line_color, "width": 1}, showlegend=False, hoverinfo='none'))
     if ptm:
         color=ptm_color
         if f'{ptm_modification}({label[0]})@{label[1:]}' in CONFIG.PTMS_TO_HIGHLIGHT:
@@ -105,7 +108,7 @@ def plot_line_with_label_vertical(fig: go.Figure, x_0: int, x_1: int, x_2: int, 
                             x1 = x_label+utils.get_label_length(label)//2+3,
                             y0 = y_1-utils.get_label_height()//2-1,
                             y1 = y_1+utils.get_label_height()//2+1,
-                            line=dict(width=0),
+                            line={"width": 0},
                             fillcolor=CONFIG.PTM_HIGHLIGHT_LABEL_COLOR,
                             showlegend=False,)
     else:
@@ -115,20 +118,19 @@ def plot_line_with_label_vertical(fig: go.Figure, x_0: int, x_1: int, x_2: int, 
     fig.add_annotation(x=x_label, y=y_1,
                         text=label,
                         showarrow=False,
-                        font=dict(
-                            family=CONFIG.FONT,
-                            size=CONFIG.SEQUENCE_PLOT_FONT_SIZE,
-                            color=color,
-                            ))
+                        font={'family': CONFIG.FONT,
+                              'size': CONFIG.SEQUENCE_PLOT_FONT_SIZE,
+                              'color': color})
     return fig
 
 def plot_range_with_label_horizontal(fig: go.Figure, x_0_start: int, x_0_end: int, x_1: int, y_0: int, y_1: int, y_2: int, y_3: int, y_label: int, label: str):
+    """Plot a range with a label for the horizontal plot."""
     fig.add_trace(go.Scatter(x=[x_0_start, x_0_start, x_1, x_1, x_1, x_0_end, x_0_end],
                             y=[y_0, y_1, y_2, y_3, y_2, y_1, y_0],
                             mode='lines',
                             fill='toself',
-                            line=dict(color="black", width=1), showlegend=False, hoverinfo='none'))
-    
+                            line={"color": "black", "width": 1}, showlegend=False, hoverinfo='none'))
+
     color = PLOT_CONFIG.CLEAVAGE_LABEL_COLOR
     if label in PLOT_CONFIG.CLEAVAGES_TO_HIGHLIGHT:
         color = PLOT_CONFIG.CLEAVAGE_HIGHLIGHT_COLOR
@@ -136,33 +138,31 @@ def plot_range_with_label_horizontal(fig: go.Figure, x_0_start: int, x_0_end: in
                         text=label,
                         showarrow=False,
                         textangle=-90,
-                        font=dict(
-                            family=CONFIG.FONT,
-                            size=CONFIG.SEQUENCE_PLOT_FONT_SIZE,
-                            color=color,
-                            ))
+                        font={'family': CONFIG.FONT,
+                              'size': CONFIG.SEQUENCE_PLOT_FONT_SIZE,
+                              'color': color})
     return fig
 
 def plot_range_with_label_vertical(fig: go.Figure, x_0: int, x_1: int, x_2: int, x_3: int, y_0_start: int, y_0_end: int, y_1: int, x_label: int, label: str):
+    """Plot a range with a label for the vertical plot."""
     fig.add_trace(go.Scatter(x=[x_0, x_1, x_2, x_3, x_2, x_1, x_0],
                             y=[y_0_start, y_0_start, y_1, y_1, y_1, y_0_end, y_0_end],
                             mode='lines',
                             fill='toself',
-                            line=dict(color="black", width=1), showlegend=False, hoverinfo='none'))
+                            line={'color': 'black', 'width': 1}, showlegend=False, hoverinfo='none'))
     color = PLOT_CONFIG.CLEAVAGE_LABEL_COLOR
     if label in PLOT_CONFIG.CLEAVAGES_TO_HIGHLIGHT:
         color = PLOT_CONFIG.CLEAVAGE_HIGHLIGHT_COLOR
     fig.add_annotation(x=x_label, y=y_1,
                         text=label,
                         showarrow=False,
-                        font=dict(
-                            family=CONFIG.FONT,
-                            size=CONFIG.SEQUENCE_PLOT_FONT_SIZE,
-                            color=color,
-                            ))
+                        font={'family': CONFIG.FONT,
+                              'size': CONFIG.SEQUENCE_PLOT_FONT_SIZE,
+                              'color': color})
     return fig
 
 def plot_groups_horizontal(fig: go.Figure, df: pd.DataFrame, x_0_groups: int, y_0_groups: int, dx: int, dy: int, x_label: int, y_label: int, last_region: int, group_dircetion: int, ptm: bool):
+    """Plot the groups for the horizontal plot."""
     x_margin = 0
     if dx % 2 != 0:
         x_margin = 1
@@ -179,7 +179,7 @@ def plot_groups_horizontal(fig: go.Figure, df: pd.DataFrame, x_0_groups: int, y_
                     x1=x_0_groups + dx * len(df.iloc[0:1,:].columns) - dx//2,
                     y1=y_0_groups + dy * len(df.index) + 1,
                     fillcolor='grey',
-                    line=dict(color='grey', width=1),
+                    line={'color': 'grey', 'width': 1},
                     showlegend=False,
                     layer='below',)
     fig.add_trace(go.Heatmap(z=df,
@@ -197,20 +197,20 @@ def plot_groups_horizontal(fig: go.Figure, df: pd.DataFrame, x_0_groups: int, y_
     if group_dircetion == -1:
         yanchor = 'top'
         xanchor = 'right'
-    fig.add_annotation(x=x_label-utils.get_label_height()*group_dircetion, y=y_label-int((8/offset_region_label_from_angle())*group_dircetion),    
-            text=CONFIG.REGIONS[last_region][3],
-            showarrow=False,
-            textangle=-PLOT_CONFIG.REGION_LABEL_ANGLE_GROUPS,
-            xanchor=xanchor,
-            yanchor=yanchor,
-            font=dict(
-                family=CONFIG.FONT,
-                size=CONFIG.SEQUENCE_PLOT_FONT_SIZE,
-                color='black',
-                ))
+    fig.add_annotation(x=x_label-utils.get_label_height()*group_dircetion,
+                    y=y_label-int((8/offset_region_label_from_angle())*group_dircetion),
+                    text=CONFIG.REGIONS[last_region][3],
+                    showarrow=False,
+                    textangle=-PLOT_CONFIG.REGION_LABEL_ANGLE_GROUPS,
+                    xanchor=xanchor,
+                    yanchor=yanchor,
+                    font={'family': CONFIG.FONT,
+                        'size': CONFIG.SEQUENCE_PLOT_FONT_SIZE,
+                        'color': 'black'})
     return fig
 
 def plot_groups_vertical(fig: go.Figure, df: pd.DataFrame, x_0_groups: int, y_0_groups: int, dx: int, dy: int, x_label: int, y_label: int, last_region: int, group_dircetion: int, ptm: bool):
+    """Plot the groups for the vertical plot."""
     y_margin = 0
     if dy % 2 != 0:
         y_margin = 1
@@ -227,10 +227,10 @@ def plot_groups_vertical(fig: go.Figure, df: pd.DataFrame, x_0_groups: int, y_0_
                     x1=x_0_groups + dx * len(df.index) + 1,
                     y1=y_0_groups - dy * len(df.iloc[0:1,:].columns) + dy//2,
                     fillcolor='grey',
-                    line=dict(color='grey', width=1),
+                    line={'color': 'grey', 'width': 1},
                     showlegend=False,
                     layer='below',)
-    
+
     fig.add_trace(go.Heatmap(z=df.T,
                     x0=x_0_groups+dx//2,
                     y0=y_0_groups,
@@ -249,14 +249,13 @@ def plot_groups_vertical(fig: go.Figure, df: pd.DataFrame, x_0_groups: int, y_0_
             showarrow=False,
             textangle=-PLOT_CONFIG.REGION_LABEL_ANGLE_GROUPS+90,
             xanchor=xanchor,
-            font=dict(
-                family=CONFIG.FONT,
-                size=CONFIG.SEQUENCE_PLOT_FONT_SIZE,
-                color='black',
-                ))
+            font={'family': CONFIG.FONT,
+                  'size': CONFIG.SEQUENCE_PLOT_FONT_SIZE,
+                  'color': 'black'})
     return fig
 
-def plot_group_labels_horizontal(fig: go.Figure, mean_values: pd.DataFrame, y_0_groups: int, dy: int, dx: int):
+def plot_group_labels_horizontal(fig: go.Figure, mean_values: pd.DataFrame, y_0_groups: int, dy: int):
+    """Plot the group labels for the horizontal plot."""
     for i, group in enumerate(mean_values.index):
         y_0_rect = y_0_groups + i*dy
         x_1_rect = calculate_group_space()
@@ -266,7 +265,7 @@ def plot_group_labels_horizontal(fig: go.Figure, mean_values: pd.DataFrame, y_0_
                       y0 = y_0_rect,
                       y1 = y_0_rect + dy,
                       fillcolor=PLOT_CONFIG.GROUPS[group][1],
-                      line=dict(width=0),
+                      line={'width': 0},
                       showlegend=False,
                       layer='below',)
         color = get_label_color(group)
@@ -275,16 +274,18 @@ def plot_group_labels_horizontal(fig: go.Figure, mean_values: pd.DataFrame, y_0_
             text=group,
             showarrow=False,
             align='center',
-            font=dict(
-                family=CONFIG.FONT,
-                size=CONFIG.SEQUENCE_PLOT_FONT_SIZE,
-                color=color))
+            font={'family': CONFIG.FONT,
+                  'size': CONFIG.SEQUENCE_PLOT_FONT_SIZE,
+                  'color': color})
+
 def get_label_color(group: str):
+    """Get the label color based on the group color."""
     # based on https://stackoverflow.com/questions/3942878/
     red, green, blue = tuple(int(PLOT_CONFIG.GROUPS[group][1][i:i+2], 16) for i in (1, 3, 5))
     return '#000000' if red*0.299 + green*0.587 + blue*0.114 > 130 else '#ffffff'
 
-def plot_group_labels_vertical(fig: go.Figure, mean_values: pd.DataFrame, x_0_groups: int, dx: int, dy: int):
+def plot_group_labels_vertical(fig: go.Figure, mean_values: pd.DataFrame, x_0_groups: int, dx: int):
+    """Plot the group labels for the vertical plot."""
     for i, group in enumerate(mean_values.index):
         x_0_rect = x_0_groups + i*dx
         y_0_rect = utils.get_height()
@@ -298,7 +299,7 @@ def plot_group_labels_vertical(fig: go.Figure, mean_values: pd.DataFrame, x_0_gr
                       line=dict(width=0),
                       showlegend=False,
                       layer='below',)
-        
+
         color = get_label_color(group)
 
         fig.add_annotation(x=x_0_rect + dx//2, y=y_0_rect - y_rect//2,
@@ -310,17 +311,18 @@ def plot_group_labels_vertical(fig: go.Figure, mean_values: pd.DataFrame, x_0_gr
                 family=CONFIG.FONT,
                 size=CONFIG.SEQUENCE_PLOT_FONT_SIZE,
                 color=color))
-        
+
 def preprocess_groups(df: pd.DataFrame):
+    """Preprocess the groups for the heatmap."""
     df.columns = df.iloc[0]
     labels = df.iloc[1:2,2:].values.flatten().tolist()
     df = df.iloc[3:]
 
     reverse_group_mapping = {}
-    for key, list in PLOT_CONFIG.GROUPS.items():
-        values = list[0]
+    for k, v in PLOT_CONFIG.GROUPS.items():
+        values = v[0]
         for value in values:
-            reverse_group_mapping[value] = key
+            reverse_group_mapping[value] = k
     df.iloc[:,1] = df.iloc[:,1].map(reverse_group_mapping)
     mean_values = df.iloc[:,2:].astype(float).groupby(df.iloc[:,1]).mean()
     mean_values = mean_values.reindex([*PLOT_CONFIG.GROUPS])
@@ -328,22 +330,23 @@ def preprocess_groups(df: pd.DataFrame):
     return mean_values, labels
 
 def offset_region_label_from_angle():
+    """Calculate the offset for the region label based on the angle."""
     longest_label = ''
-    for i, (_, _, _, region_label_short) in enumerate(CONFIG.REGIONS):
+    for (_, _, _, region_label_short) in CONFIG.REGIONS:
         if utils.get_label_length(region_label_short) > utils.get_label_length(longest_label):
             longest_label = region_label_short
-        
+
     length = utils.get_label_length(longest_label)
     height = utils.get_label_height()
 
     angle_radians = math.radians(-PLOT_CONFIG.REGION_LABEL_ANGLE_GROUPS)
     dy = abs((length / 2) * math.sin(angle_radians)) + abs((height / 2) * math.cos(angle_radians))
-    
+
     return int(dy)+10
 
 
 def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavage: int, label_plot_height: int, above: str):
-    # prepare data:
+    """Plot the cleavages on the sequence plot."""
     mean_values, cleavages = preprocess_groups(cleavage_df)
     isoforms = cleavage_df.iloc[2:3,2:].values.flatten().tolist()
     if above == 'B':
@@ -375,7 +378,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
         dx = pixels_per_cleavage
         dy = vertical_space_left//len(mean_values.index)*group_direction
 
-        plot_group_labels_horizontal(fig, mean_values, y_0_groups, dy, dx)
+        plot_group_labels_horizontal(fig, mean_values, y_0_groups, dy)
     else:
         x_0_line = utils.SEQUENCE_BOUNDARIES['x1'] if above == 'A' else utils.SEQUENCE_BOUNDARIES['x0']
         x_1_line = x_0_line + 10 * group_direction
@@ -391,9 +394,10 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
         dy = pixels_per_cleavage
         dx = horizontal_space_left//len(mean_values.index)*group_direction
 
-        plot_group_labels_vertical(fig, mean_values, x_0_groups, dx, dy)
-        
+        plot_group_labels_vertical(fig, mean_values, x_0_groups, dx)
+
     previous_index = 0
+    last_i = 0
     for i, cleavage in enumerate(cleavages):
         if '-' in str(cleavage):
             start, end = map(int, cleavage.split('-'))
@@ -407,8 +411,8 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                 x_label = x_0_groups + (x_divider-x_0_groups)//2 - dx//2
                 y_label = y_0_groups + len(mean_values.index)*dy + (5+utils.get_label_height()//2) * group_direction
 
-                plot_groups_horizontal(fig, mean_values.iloc[:,first_cleavage_in_region:i], x_0_groups, y_0_groups, dx, dy, x_label, y_label, last_region, group_direction, False)                
-                
+                plot_groups_horizontal(fig, mean_values.iloc[:,first_cleavage_in_region:i], x_0_groups, y_0_groups, dx, dy, x_label, y_label, last_region, group_direction, False)
+
                 fig.add_trace(go.Scatter(x=[x_divider,x_divider],
                             y=[y_0_groups, y_0_groups+len(mean_values.index)*dy],
                             mode='lines',
@@ -421,7 +425,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                 x_label = x_0_groups + len(mean_values.index)*dx + (5+utils.get_label_height()//2) * group_direction
 
                 plot_groups_vertical(fig, mean_values.iloc[:,first_cleavage_in_region:i], x_0_groups, y_0_groups, dx, dy, x_label, y_label, last_region, group_direction, False)
-                
+
                 fig.add_trace(go.Scatter(x=[x_0_groups, x_0_groups+len(mean_values.index)*dx],
                             y=[y_divider, y_divider],
                             mode='lines',
@@ -429,7 +433,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
             if start < previous_index:
                 last_region += 1
                 last_end = CONFIG.REGIONS[last_region][1]
-            else:    
+            else:
                 while start > last_end:
                     last_region += 1
                     last_end = CONFIG.REGIONS[last_region][1]
@@ -444,7 +448,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                 x_1_line = cleavage_idx * pixels_per_cleavage + get_horizontal_offset(dx)
                 y_3_line = y_0_line + (label_plot_height - utils.get_label_length(label)) * group_direction
                 y_label = y_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
-                
+
                 plot_line_with_label_horizontal(fig,
                                  x_0_line, x_1_line,
                                  y_0_line, y_1_line, y_2_line, y_3_line,
@@ -502,17 +506,17 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
                                     label)
         cleavage_idx += 1
         previous_index = start
-      
+        last_i = i
     while start > last_end:
         last_region += 1
         last_end = CONFIG.REGIONS[last_region][1]
 
     if isoforms[first_cleavage_in_region] == 'exon2' and isoforms[first_cleavage_in_region-1] != 'exon1':
         last_region += 1
-        
+
     # plot groups for last region
     if CONFIG.FIGURE_ORIENTATION == 0:
-        start_idx = cleavage_idx - (i - first_cleavage_in_region)-1
+        start_idx = cleavage_idx - (last_i - first_cleavage_in_region)-1
         x_0_groups = start_idx * pixels_per_cleavage + get_horizontal_offset(dx)
         region_length = len(mean_values.iloc[0:1,first_cleavage_in_region:].columns)
         x_label = x_0_groups + (region_length * pixels_per_cleavage)//2 - dx//2
@@ -521,7 +525,7 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
 
         create_custome_colorscale(fig, vertical_space_left, group_direction, x_0_groups, y_0_groups, region_length, pixels_per_cleavage, False)
     else:
-        start_idx = cleavage_idx - (i - first_cleavage_in_region)-1
+        start_idx = cleavage_idx - (last_i - first_cleavage_in_region)-1
         y_0_groups = utils.get_height() - start_idx * pixels_per_cleavage - get_vertical_offset(dy)
         region_length = len(mean_values.iloc[0:1,first_cleavage_in_region:].columns)
         y_label = y_0_groups - (region_length * pixels_per_cleavage)//2 + dy//2
@@ -531,12 +535,15 @@ def plot_cleavages(fig: go.Figure, cleavage_df: pd.DataFrame, pixels_per_cleavag
         create_custome_colorscale(fig, horizontal_space_left, group_direction, x_0_groups, y_0_groups, region_length, pixels_per_cleavage, False)
 
 def get_horizontal_offset(dx):
+    """Get the horizontal offset for the heatmap."""
     return calculate_group_space() + dx//2
 
 def get_vertical_offset(dy):
+    """Get the vertical offset for the heatmap."""
     return calculate_group_space() + dy//2
 
 def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_plot_height: int, above: str, second_row: bool):
+    """Plot the PTMs."""
     group_direction = 1 if above == 'A' else -1
     mean_values, ptms = preprocess_groups(ptm_df)
     isoforms = ptm_df.iloc[2:3,2:].values.flatten().tolist()
@@ -577,7 +584,7 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
         vertical_space_left -= dy_label*2
         dy = vertical_space_left//len(mean_values.index)*group_direction
 
-        plot_group_labels_horizontal(fig, mean_values, y_0_groups, dy, dx)
+        plot_group_labels_horizontal(fig, mean_values, y_0_groups, dy)
     else:
         dy = pixels_per_ptm
         x_0_groups = x_0_line + (label_plot_height + 10) * group_direction
@@ -587,19 +594,20 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
         horizontal_space_left -= dx_label*2
         dx = horizontal_space_left//len(mean_values.index)*group_direction
 
-        plot_group_labels_vertical(fig, mean_values, x_0_groups, dx, dy)
-    
+        plot_group_labels_vertical(fig, mean_values, x_0_groups, dx)
+
     previous_ptm = 0
+    last_i = 0
     for i, ptm in enumerate(ptms):
         ptm_position = int(ptm[1:])
         if ptm_position > last_end or ptm_position < previous_ptm:
             if CONFIG.FIGURE_ORIENTATION == 0:
                 start_idx = ptm_idx - (i - first_ptm_in_region)
                 x_0_groups = start_idx * pixels_per_ptm + get_horizontal_offset(dx)
-                x_divider = ptm_idx * pixels_per_ptm + get_horizontal_offset(dx)                  
+                x_divider = ptm_idx * pixels_per_ptm + get_horizontal_offset(dx)
                 x_label = x_0_groups + (x_divider-x_0_groups)//2 - dx//2
                 y_label = y_0_groups + len(mean_values.index)*dy + (5+utils.get_label_height()//2) * group_direction
-                
+
                 plot_groups_horizontal(fig, mean_values.iloc[:,first_ptm_in_region:i], x_0_groups, y_0_groups, dx, dy, x_label, y_label, last_region, group_direction, True)
 
                 fig.add_trace(go.Scatter(x=[x_divider,x_divider],
@@ -672,8 +680,8 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
                       showlegend=False,)
         ptm_idx += 1
         previous_ptm = ptm_position
+        last_i = i
 
-    
     while ptm_position > last_end:
         last_region += 1
         last_end = CONFIG.REGIONS[last_region][1]
@@ -683,17 +691,17 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
 
     # plot groups for last region
     if CONFIG.FIGURE_ORIENTATION == 0:
-        start_idx = ptm_idx - (i - first_ptm_in_region)-1
+        start_idx = ptm_idx - (last_i - first_ptm_in_region)-1
         x_0_groups = start_idx * pixels_per_ptm + get_horizontal_offset(dx)
         region_length = len(mean_values.iloc[0:1,first_ptm_in_region:].columns)
         x_label = x_0_groups + (region_length * pixels_per_ptm)//2 - dx//2
         y_label = y_0_groups + len(mean_values.index)*dy + (5+utils.get_label_height()//2) * group_direction
         plot_groups_horizontal(fig, mean_values.iloc[:,first_ptm_in_region:], x_0_groups, y_0_groups, dx, dy, x_label, y_label, last_region, group_direction, True)
-        
+
         create_custome_colorscale(fig, vertical_space_left, group_direction, x_0_groups, y_0_groups, region_length, pixels_per_ptm, True)
-        
+
     else:
-        start_idx = ptm_idx - (i - first_ptm_in_region)-1
+        start_idx = ptm_idx - (last_i - first_ptm_in_region)-1
         y_0_groups = utils.get_height() - start_idx * pixels_per_ptm - get_vertical_offset(dy)
         region_length = len(mean_values.iloc[0:1,first_ptm_in_region:].columns)
         y_label = y_0_groups - (region_length * pixels_per_ptm)//2 + dy//2
@@ -701,20 +709,21 @@ def plot_ptms(fig: go.Figure, ptm_df: pd.DataFrame, pixels_per_ptm: int, label_p
         plot_groups_vertical(fig, mean_values.iloc[:,first_ptm_in_region:], x_0_groups, y_0_groups, dx, dy, x_label, y_label, last_region, group_direction, True)
 
         create_custome_colorscale(fig, horizontal_space_left, group_direction, x_0_groups, y_0_groups, region_length, pixels_per_ptm, True)
-        
+
 def create_custome_colorscale(fig: go.Figure, vertical_space_left: int, group_direction: int, x_0_groups: int, y_0_groups: int, region_length: int, pixels_per_step: int, ptm: bool):
+    """Create a custom colorscale for the heatmap."""
     if ptm:
         colorscale = [
             [0.0, PLOT_CONFIG.PTM_SCALE_COLOR_LOW],
             [0.5, PLOT_CONFIG.PTM_SCALE_COLOR_MID],
-            [1.0, PLOT_CONFIG.PTM_SCALE_COLOR_HIGH] 
+            [1.0, PLOT_CONFIG.PTM_SCALE_COLOR_HIGH]
         ]
         label = PLOT_CONFIG.PTM_LEGEND_TITLE
     else:
         colorscale = [
             [0.0, PLOT_CONFIG.CLEAVAGE_SCALE_COLOR_LOW],
             [0.5, PLOT_CONFIG.CLEAVAGE_SCALE_COLOR_MID],
-            [1.0, PLOT_CONFIG.CLEAVAGE_SCALE_COLOR_HIGH] 
+            [1.0, PLOT_CONFIG.CLEAVAGE_SCALE_COLOR_HIGH]
         ]
         label = PLOT_CONFIG.CLEAVAGE_LEGEND_TITLE
     # Create a heatmap
@@ -785,6 +794,7 @@ def create_custome_colorscale(fig: go.Figure, vertical_space_left: int, group_di
                             ))
 
 def filter_relevant_modification_sights(ptm_file: str, threshold: int):
+    """Filter the relevant modification sights."""
     df = pd.read_csv(ptm_file)
     columns_to_keep = []
     for col in df.columns:
@@ -805,10 +815,11 @@ def filter_relevant_modification_sights(ptm_file: str, threshold: int):
     filtered_df = df[filtered_columns]
 
     result_df = pd.concat([df.iloc[:, :2], filtered_df], axis=1)
-    
+
     return result_df
 
 def calculate_group_space():
+    """Calculate the space needed for the group labels."""
     longest_label = ''
     for key in PLOT_CONFIG.GROUPS.keys():
         if utils.get_label_length(key) > utils.get_label_length(longest_label):
@@ -816,6 +827,7 @@ def calculate_group_space():
     return utils.get_label_length(longest_label)+10
 
 def calculate_legend_space(ptm: bool):
+    """Calculate the space needed for the legend."""
     if CONFIG.FIGURE_ORIENTATION == 0:
         longest_label = ''
         if ptm:
@@ -835,8 +847,9 @@ def calculate_legend_space(ptm: bool):
         else:
             title_height = utils.get_label_height() * (PLOT_CONFIG.CLEAVAGE_LEGEND_TITLE.count('<br')+1)
         return utils.get_label_height() + title_height + 10
-    
+
 def create_details_plot(input_file: str | os.PathLike, output_path: str | os.PathLike):
+    """Create a detailed sequence plot."""
     legend = None
     if not 'A' in PLOT_CONFIG.INPUT_FILES.keys():
         if PLOT_CONFIG.INPUT_FILES['B'][0] == 'PTM':
@@ -862,7 +875,7 @@ def create_details_plot(input_file: str | os.PathLike, output_path: str | os.Pat
             case 'PTM':
                 ptm_file_path = PLOT_CONFIG.INPUT_FILES[above][1]
                 ptm_above = above
-    
+
     if CONFIG.FIGURE_ORIENTATION == 0:
         plot_space = utils.get_width()-utils.SEQUENCE_BOUNDARIES['x0']
     else:
@@ -870,7 +883,7 @@ def create_details_plot(input_file: str | os.PathLike, output_path: str | os.Pat
         plot_space = utils.get_height() - (utils.get_height()-utils.SEQUENCE_BOUNDARIES['y0'])
 
     label_plot_height = 150
-    
+
     if cleavage_file_path:
         cleavage_df = pd.read_csv(cleavage_file_path)
         present_regions = get_present_regions_cleavage(cleavage_df)
@@ -878,7 +891,7 @@ def create_details_plot(input_file: str | os.PathLike, output_path: str | os.Pat
         number_of_dividers = present_regions.count(True)-1
         cleavage_space = plot_space - calculate_legend_space(False) - calculate_group_space()
         pixels_per_cleavage = cleavage_space // (number_of_cleavages + number_of_dividers)
-        assert(pixels_per_cleavage >= CONFIG.FONT_SIZE)
+        assert pixels_per_cleavage >= CONFIG.FONT_SIZE
 
         plot_cleavages(fig, cleavage_df, pixels_per_cleavage, label_plot_height, cleavage_above)
 
@@ -894,7 +907,7 @@ def create_details_plot(input_file: str | os.PathLike, output_path: str | os.Pat
             raise ValueError('Too many PTMs to fit in plot')
         elif (number_of_ptms + 2*number_of_dividers) * utils.get_label_height() > ptm_space:
             second_row = True
-        
+
         plot_ptms(fig, ptm_df, pixels_per_ptm, label_plot_height, ptm_above, second_row)
-    
+
     utils.show_plot(fig, output_path)

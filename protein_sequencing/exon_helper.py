@@ -1,7 +1,15 @@
+"""Helper functions for exon retrieval"""
 import os
 from protein_sequencing import uniprot_align, utils
 
-def levenshtein_distance(str1, str2, MIN_EXON_LENGTH):
+def levenshtein_distance(str1: str, str2: str, min_exon_length: int) -> bool:
+    """Calculate the Levenshtein distance between two strings.
+    Args:
+        str1 (str): First exon.
+        str2 (str): Second exon.
+        min_exon_length (int): Minimum exon length.
+    Returns:
+        bool: True if the Levenshtein distance is less than or equal to the minimum exon length."""
     if abs(len(str1) - len(str2)) > 1:
         return False
     matrix = [[0] * (len(str2) + 1) for _ in range(len(str1) + 1)]
@@ -20,29 +28,28 @@ def levenshtein_distance(str1, str2, MIN_EXON_LENGTH):
                     matrix[i - 1][j - 1]    # Substitution
                 )
 
-    return matrix[-1][-1] <= MIN_EXON_LENGTH
+    return matrix[-1][-1] <= min_exon_length
 
-def retrieve_exon(input_file: str | os.PathLike, MIN_EXON_LENGTH: int):
+def retrieve_exon(input_file: str | os.PathLike, min_exon_length: int):
+    """Retrieve exon from protein sequence."""
     alignments = list(uniprot_align.get_alignment(input_file))
     max_sequence_length = 0
     for alignment in alignments:
-        if len(alignment.seq) > max_sequence_length:
-            max_sequence_length = len(alignment.seq)
+        max_sequence_length = max(max_sequence_length, len(alignment.seq))
 
     assert all(len(alignment.seq) == max_sequence_length for alignment in alignments)
     for alignment in alignments:
         utils.ISOFORM_IDS.append(alignment.id.split('|')[1])
 
     different_possibilities = [-1]*max_sequence_length
-    for i in range(len(alignments[0].seq)):
+    for i, amino_acid in enumerate(alignments[0].seq):
         amino_acids = dict(list())
         for alignment in alignments:
-            amino_acid = alignment.seq[i]
             if amino_acid not in amino_acids:
                 amino_acids[amino_acid] = [alignment.id.split('|')[1]]
             else:
                 amino_acids[amino_acid].append(alignment.id.split('|')[1])
-    
+
         if '-' in amino_acids:
             if len(amino_acids) == 2:
                 different_possibilities[i] = -1
@@ -82,10 +89,10 @@ def retrieve_exon(input_file: str | os.PathLike, MIN_EXON_LENGTH: int):
                 alignemnt_offset = alignment.seq[exon_start_index:exon_end_index].count('-')
                 if min_alignment_offset == -1 or alignemnt_offset < min_alignment_offset:
                     min_alignment_offset = alignemnt_offset
-                    
+
             max_exon_length = exon_end_index - exon_start_index - min_alignment_offset
             # filters minor differences in aa sequence which should not count as a different exon
-            if max_exon_length < MIN_EXON_LENGTH:
+            if max_exon_length < min_exon_length:
                 max_exon_length = 0
                 exon_start_index = -1
             else:
@@ -101,18 +108,18 @@ def retrieve_exon(input_file: str | os.PathLike, MIN_EXON_LENGTH: int):
                 for alignment in alignments:
                     exon = alignment.seq[exon_start_index:exon_end_index].replace('-', '')
                     isoform = alignment.id.split('|')[1]
-                    if exon != '' and len(exon) > MIN_EXON_LENGTH:
+                    if exon != '' and len(exon) > min_exon_length:
                         if exon_1 is None:
                             exon_1 = exon
                             exon_1_isoforms.append(isoform)
                             exon_1_length = len(exon)
-                        elif levenshtein_distance(exon_1, exon, MIN_EXON_LENGTH):
+                        elif levenshtein_distance(exon_1, exon, min_exon_length):
                             exon_1_isoforms.append(isoform)
                         elif exon_2 is None:
                             exon_2 = exon
                             exon_2_isoforms.append(isoform)
                             exon_2_length = len(exon)
-                        elif levenshtein_distance(exon_1, exon, MIN_EXON_LENGTH):
+                        elif levenshtein_distance(exon_1, exon, min_exon_length):
                             exon_2_isoforms.append(isoform)
                         else:
                             raise ValueError("There are more than 2 different exons in the sequence.")
@@ -123,6 +130,5 @@ def retrieve_exon(input_file: str | os.PathLike, MIN_EXON_LENGTH: int):
     if exon_found:
         # exon_start_index starts with 0 (so the first amino acid in the exon is +1)
         return True, exon_start_index+1, exon_end_index+1, max_exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length
-    
-    else:
-        return False, -1, -1, -1, [], -1, [], -1, [alignment.id.split('|')[1] for alignment in alignments], max_sequence_length
+
+    return False, -1, -1, -1, [], -1, [], -1, [alignment.id.split('|')[1] for alignment in alignments], max_sequence_length

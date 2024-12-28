@@ -1,9 +1,10 @@
-from collections import defaultdict
-import os
-import plotly.graph_objects as go
+"""Utility functions for protein sequencing tool."""
 
-import numpy as np
+import os
 import importlib
+from collections import defaultdict
+import plotly.graph_objects as go
+import numpy as np
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 
@@ -23,16 +24,20 @@ EXON_2_OFFSET = {'index_start': -1,
 ISOFORM_IDS = []
 
 def get_width():
+    """Return width of the plot, based on user settings in default_config.py."""
     if CONFIG.FIGURE_ORIENTATION == 0:
         return CONFIG.FIGURE_WIDTH
     return CONFIG.FIGURE_HEIGHT
 
 def get_height():
+    """Return height of the plot, based on user settings in default_config.py."""
     if CONFIG.FIGURE_ORIENTATION == 0:
         return CONFIG.FIGURE_HEIGHT
     return CONFIG.FIGURE_WIDTH
 
 def get_left_margin():
+    """Return the left margin for the sequence plot.
+    Calculated based on the longest label in the legend."""
     longest_text = CONFIG.MODIFICATION_LEGEND_TITLE
     for mod in CONFIG.MODIFICATIONS:
         if len(CONFIG.MODIFICATIONS[mod][0]) > len(longest_text):
@@ -40,22 +45,29 @@ def get_left_margin():
     return int((get_label_length(longest_text) / get_width() * 1.05) * get_width())
 
 def get_top_margin():
+    """Return the top margin for the sequence plot.
+    Calculated based on the number of modifications in the legend."""
     legend_height = (len(CONFIG.MODIFICATIONS)+3) * get_label_height()
     return int((legend_height / get_height() * 1.05) *get_height())
 
 def get_right_margin():
+    """Return the right margin for the sequence plot."""
     return int(CONFIG.RIGHT_MARGIN * get_width())
 
 def get_bottom_margin():
+    """Return the bottom margin for the sequence plot."""
     return int(CONFIG.BOTTOM_MARGIN * get_height())
 
 def get_label_length(label):
+    """Approximate the length of a label in pixels based on font size and label length."""
     return int(CONFIG.FONT_SIZE/1.5 * len(label))
 
 def get_label_height():
+    """Approximate the height of a label in pixels based on font size."""
     return CONFIG.FONT_SIZE+CONFIG.FONT_SIZE//5
 
 def separate_by_group(groups_by_position_and_isoform):
+    """Separate the modification sights into two groups based on the user defined groups."""
     group_a = defaultdict(list)
     group_b = defaultdict(list)
 
@@ -65,17 +77,19 @@ def separate_by_group(groups_by_position_and_isoform):
                 group_a[key].append(modification_sight)
             else:  # group B
                 group_b[key].append(modification_sight)
-    
+
     return group_a, group_b
 
 def different_possibilities_plot(width: int, height: int, different_possibilities: list[int]):
+    """Debug option. Plot the different possibilities of the sequence in a heatmap."""
     rectangle = np.zeros((height, width))
-    for i, value in enumerate(different_possibilities):        
+    for i, value in enumerate(different_possibilities):
         rectangle[:, i] = value
     fig = go.Figure(data=go.Heatmap(z=rectangle))
     fig.show()
 
 def clean_up():
+    """Remove all files from the temporary directory."""
     directory = 'data/tmp'
 
     files = os.listdir(directory)
@@ -86,6 +100,7 @@ def clean_up():
             os.remove(file_path)
 
 def show_plot(fig, output_path):
+    """Show the plot and save it as a .png and .svg file."""
     output_svg = f"{output_path}/figure1.svg"
     output_png = f"{output_path}/figure1.png"
     fig.show()
@@ -97,6 +112,7 @@ def show_plot(fig, output_path):
     return output_png
 
 def get_position_with_offset(position, isoform):
+    """Return the position in the rendering index based on sequence position and isoform."""
     if isoform == 'exon2':
         position += EXON_1_OFFSET['index_end'] - EXON_1_OFFSET['index_start'] + 1
     elif position > max(EXON_1_OFFSET['index_end'], EXON_2_OFFSET['index_end']):
@@ -109,6 +125,7 @@ def get_position_with_offset(position, isoform):
     return position
 
 def offset_line_for_exon(line_position, aa_position, oritentation):
+    """Offset the line position based on the exon boundaries."""
     if aa_position >= EXON_1_OFFSET['index_start'] and EXON_1_OFFSET['index_start'] != -1:
         if oritentation == 0:
             line_position += CONFIG.EXONS_GAP

@@ -1,15 +1,16 @@
-from collections import defaultdict
+"""Module to generate overview plot for protein sequences."""
 import os
 import importlib
-
+from collections import defaultdict
 import plotly.graph_objects as go
 from protein_sequencing import utils, sequence_plot as sequence
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 PLOT_CONFIG = importlib.import_module('configs.default_overview', 'configs')
 
-def get_present_groups(mod_file):
-    with open(mod_file, 'r') as f:
+def get_present_modifications(mod_file):
+    """Get present modifications"""
+    with open(mod_file, 'r', encoding="utf-8") as f:
         rows = f.readlines()[1:4]
         modification_types = rows[0].strip().split(',')
         present_modifications = set()
@@ -28,7 +29,8 @@ def get_present_groups(mod_file):
     return present_modifications
 
 def get_modifications_per_position(mod_file):
-    with open(mod_file, 'r') as f:
+    """Get modifications per amino acid position"""
+    with open(mod_file, 'r', encoding='utf-8') as f:
         rows = f.readlines()[1:4]
         modification_types = rows[0].strip().split(',')
         labels = rows[1].strip().split(',')
@@ -53,6 +55,7 @@ def get_modifications_per_position(mod_file):
     return modifications_by_position
 
 def plot_labels(fig, modifications_by_position):
+    """Main plotting function. Plots labels for modifications at correspinding positions."""
     x0 = utils.SEQUENCE_BOUNDARIES['x0']
     x1 = utils.SEQUENCE_BOUNDARIES['x1']
     y0 = utils.SEQUENCE_BOUNDARIES['y0']
@@ -60,7 +63,7 @@ def plot_labels(fig, modifications_by_position):
 
     label_offsets_with_orientation = get_label_offsets_with_orientation(modifications_by_position)
     for aa_position in label_offsets_with_orientation.keys():
-        line_plotted_A, line_plotted_B = False, False
+        line_plotted_a, line_plotted_b = False, False
         for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[aa_position]:
             if CONFIG.FIGURE_ORIENTATION == 0:
                 x_position_line = (aa_position * utils.PIXELS_PER_AA) + utils.SEQUENCE_OFFSET
@@ -68,20 +71,20 @@ def plot_labels(fig, modifications_by_position):
                 y_length = PLOT_CONFIG.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_height()
                 y_beginning_line = y0 if group == 'B' else y1
                 y_end_line = y_beginning_line - y_length if group == 'B' else y_beginning_line + y_length
-                
-                if not line_plotted_A and group == 'A':
+
+                if not line_plotted_a and group == 'A':
                     plot_line(fig, x_position_line, x_position_line, y_beginning_line, y_end_line)
-                    line_plotted_A = True
-                if not line_plotted_B and group == 'B':
+                    line_plotted_a = True
+                if not line_plotted_b and group == 'B':
                     plot_line(fig, x_position_line, x_position_line, y_beginning_line, y_end_line)
-                    line_plotted_B = True
+                    line_plotted_b = True
 
                 position_label = 'top center'
                 if group == 'B':
-                        position_label = 'bottom '+orientation
+                    position_label = 'bottom '+orientation
                 if group == 'A':
                     position_label = 'top '+orientation
-                
+
                 plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
             else:
                 y_position_line = CONFIG.FIGURE_WIDTH - (aa_position * utils.PIXELS_PER_AA) - utils.SEQUENCE_OFFSET
@@ -91,12 +94,12 @@ def plot_labels(fig, modifications_by_position):
                 x_beginning_line = x0 if group == 'B' else x1
                 x_end_line = x_beginning_line - x_length if group == 'B' else x_beginning_line + x_length
 
-                if not line_plotted_A and group == 'A':
+                if not line_plotted_a and group == 'A':
                     plot_line(fig, x_beginning_line, x_end_line, y_position_line, y_position_line)
-                    line_plotted_A = True
-                if not line_plotted_B and group == 'B':
+                    line_plotted_a = True
+                if not line_plotted_b and group == 'B':
                     plot_line(fig, x_beginning_line, x_end_line, y_position_line, y_position_line)
-                    line_plotted_B = True
+                    line_plotted_b = True
 
                 position_label = 'middle'
                 if orientation == 'left':
@@ -112,6 +115,7 @@ def plot_labels(fig, modifications_by_position):
     return fig
 
 def get_distance_groups(group):
+    """Get distance groups for modifications."""
     result = []
     last_sight = {'position': None, 'mod': None}
     distance_group = defaultdict(list)
@@ -144,6 +148,7 @@ def get_distance_groups(group):
     return result
 
 def get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label, nearest_left, nearest_right):
+    """Get offsets with orientations for modifications."""
     nearest_left_offset = 0
     nearest_right_offset = 0
     if nearest_left[0] is not None:
@@ -152,12 +157,12 @@ def get_offsets_with_orientations(distance_group, label_offsets_with_orientation
         nearest_right_offset = nearest_right[1]+1
     n = distance_group[0]
     mid_count = (n - nearest_left[1] + nearest_right[1]) // 2
-    sum = 0
+    mod_count = 0
     for position in distance_group[1].keys():
         mid_position = position
-        if sum >= mid_count:
+        if mod_count >= mid_count:
             break
-        sum += len(distance_group[1][position])
+        mod_count += len(distance_group[1][position])
     left_offset, right_offset = -1, -1
 
     additional_offset = 0
@@ -169,7 +174,7 @@ def get_offsets_with_orientations(distance_group, label_offsets_with_orientation
             label_offsets_with_orientation[position].append((offset, group_label, mod[0], mod[1], orientation))
             left_offset = max(left_offset, offset)
         additional_offset -= 1
-    
+
     additional_offset = 0
     for i, position in enumerate(sorted((k for k in distance_group[1].keys() if k > mid_position), reverse=True)):
         for mod in distance_group[1][position]:
@@ -179,7 +184,7 @@ def get_offsets_with_orientations(distance_group, label_offsets_with_orientation
             label_offsets_with_orientation[position].append((offset, group_label, mod[0], mod[1], orientation))
             right_offset = max(right_offset, offset)
         additional_offset -= 1
-        
+
     additional_offset = 0
     if nearest_left_offset > 0:
         left_offset = max(left_offset, nearest_left_offset-1)
@@ -204,11 +209,12 @@ def get_offsets_with_orientations(distance_group, label_offsets_with_orientation
             else:
                 offset = min(offsets) + additional_offset + 1
         additional_offset += 1
-        label_offsets_with_orientation[mid_position].append((offset, group_label, mod[0], mod[1], orientation))        
-    
+        label_offsets_with_orientation[mid_position].append((offset, group_label, mod[0], mod[1], orientation))
+
     return label_offsets_with_orientation
 
 def find_nearest_positions(label_offsets_with_orientation, distance_group):
+    """Find nearest positions for modifications."""
     first_position = min(distance_group[1].keys())
     last_position = max(distance_group[1].keys())
 
@@ -225,7 +231,7 @@ def find_nearest_positions(label_offsets_with_orientation, distance_group):
                 nearest_smaller = position
                 smaller_offset = label_offsets_with_orientation[position][-1][0]
             else:
-                break 
+                break
 
     for position in sorted(k for k in label_offsets_with_orientation.keys() if k > last_position):
         if position > last_position:
@@ -240,6 +246,7 @@ def find_nearest_positions(label_offsets_with_orientation, distance_group):
     return (nearest_smaller, smaller_offset), (nearest_larger, larger_offset)
 
 def get_label_offsets_with_orientation(groups_by_position_and_isoform):
+    """Get label offsets with orientation for modifications."""
     group_a, group_b = utils.separate_by_group(groups_by_position_and_isoform)
     label_offsets_with_orientation_a = defaultdict(list)
     label_offsets_with_orientation_b = defaultdict(list)
@@ -255,8 +262,13 @@ def get_label_offsets_with_orientation(groups_by_position_and_isoform):
 
     return {**label_offsets_with_orientation_a, **label_offsets_with_orientation_b}
 
-# distance between positions, -1 if label must be positioned left or right, 0 if label must be positioned in the center, 1 if label can be positioned anywhere, 2 if there is enogh space for both labels to be positioned left and right
 def check_distance(first_modification, second_modification):
+    """Check distance between modifications.
+    Returns:
+        -1 if label must be positioned left or right
+        0 if label must be positioned in the center
+        1 if label can be positioned anywhere
+        2 if there is enough space for both labels to be positioned left and right"""
     first_position = int(first_modification['position'])
     second_position = int(second_modification['position'])
     label_length = utils.get_label_length(first_modification['mod'][0]) if CONFIG.FIGURE_ORIENTATION == 0 else utils.get_label_height()
@@ -271,9 +283,11 @@ def check_distance(first_modification, second_modification):
     return 1
 
 def plot_line(fig, x_start, x_end, y_start, y_end):
+    """Plot single line for modifications."""
     fig.add_trace(go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1), showlegend=False, hoverinfo='none'))
 
 def plot_label(fig, x, y, text, modification_type, position_label):
+    """Plots single label for modification."""
     #Label bounding box for highlitghted PTMs
     if f'{modification_type}({text[0]})@{text[1:]}' in CONFIG.PTMS_TO_HIGHLIGHT:
         x0 = x+1
@@ -288,9 +302,9 @@ def plot_label(fig, x, y, text, modification_type, position_label):
             x0 = x - 1
         if 'center' in position_label:
             x1 = x + utils.get_label_length(text)//2
-            x0 = x - utils.get_label_length(text)//2 
+            x0 = x - utils.get_label_length(text)//2
         if 'middle' in position_label:
-            y0 = y - utils.get_label_height()//2 
+            y0 = y - utils.get_label_height()//2
             y1 = y + utils.get_label_height()//2
 
         fig.add_shape(
@@ -314,7 +328,8 @@ def plot_label(fig, x, y, text, modification_type, position_label):
                                  color=CONFIG.MODIFICATIONS[modification_type][1])))
 
 def create_overview_plot(input_file: str | os.PathLike, output_path: str | os.PathLike):
-    present_modifications = get_present_groups(PLOT_CONFIG.INPUT_FILE)
+    """Create overview plot for protein sequences."""
+    present_modifications = get_present_modifications(PLOT_CONFIG.INPUT_FILE)
     groups_present = {PLOT_CONFIG.MODIFICATIONS_GROUP[mod] for mod in present_modifications if mod in PLOT_CONFIG.MODIFICATIONS_GROUP}
     if not 'A' in groups_present:
         fig = sequence.create_plot(input_file, 'A', 'A')

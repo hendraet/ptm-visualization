@@ -1,12 +1,15 @@
-import plotly.graph_objects as go
+"""Module for creating main sequence plot."""
+
 import os
-from protein_sequencing import utils, exon_helper
 import importlib
+import plotly.graph_objects as go
+from protein_sequencing import utils, exon_helper
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 
 def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_positioning = None) -> go.Figure:
-    exon_found, exon_start_index, exon_end_index, max_exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length = exon_helper.retrieve_exon(input_file, CONFIG.MIN_EXON_LENGTH)
+    """Create the plot with main sequence and all addiational information."""
+    exon_found, exon_start_index, _, max_exon_length, _, exon_1_length, _, exon_2_length, _, max_sequence_length = exon_helper.retrieve_exon(input_file, CONFIG.MIN_EXON_LENGTH)
 
     # exon checks
     if exon_found:
@@ -25,19 +28,20 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
             if region[1]+1 == exon_start_index:
                 region_end_matches_exon = True
                 if len(CONFIG.REGIONS) < i+2:
-                    raise ValueError(f"Exon start {exon_start_index} matches a region end for region {region}, but there are not enough regions after it, please check your supplied region list.")
-                else:
-                    exon_1_region = CONFIG.REGIONS[i+1]
-                    exon_2_region = CONFIG.REGIONS[i+2]
-                    if exon_1_region[1] - region[1] != exon_1_length:
-                        if exon_1_region[1] - region[1] != exon_2_length:
-                            raise ValueError(f"Exon 1 length {exon_1_length} does not match with end for region {exon_1_region}.")
-                        else:
-                            # Swap regions in case they are in the wrong order
-                            exon_1_region, exon_2_region = exon_2_region, exon_1_region
-                            exon_1_length, exon_2_length = exon_2_length, exon_1_length
-                    if exon_2_region[1] - region[1] != exon_2_length:
-                        raise ValueError(f"Exon 2 length {exon_2_length} does not match with end for region {exon_2_region}.")
+                    raise ValueError(f"Exon start {exon_start_index} matches a region end for region {region}, \
+                                     but there are not enough regions after it, please check your supplied region list.")
+
+                exon_1_region = CONFIG.REGIONS[i+1]
+                exon_2_region = CONFIG.REGIONS[i+2]
+                if exon_1_region[1] - region[1] != exon_1_length:
+                    if exon_1_region[1] - region[1] != exon_2_length:
+                        raise ValueError(f"Exon 1 length {exon_1_length} does not match with end for region {exon_1_region}.")
+
+                    # Swap regions in case they are in the wrong order
+                    exon_1_region, exon_2_region = exon_2_region, exon_1_region
+                    exon_1_length, exon_2_length = exon_2_length, exon_1_length
+                if exon_2_region[1] - region[1] != exon_2_length:
+                    raise ValueError(f"Exon 2 length {exon_2_length} does not match with end for region {exon_2_region}.")
         if not region_end_matches_exon:
             raise ValueError(f"Exon start {exon_start_index} does not match any region end, please check your supplied region list.")
 
@@ -57,10 +61,11 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
     region_start = 1
     exon_offset = 0
     region_index = 0
-    # 0 = normal region, 1 = region before exon, 2 = region after start exon, 3 = end exon/ region after exon, 4 = start exon, 5 = middle exon
+    # 0 = normal region, 1 = region before exon, 2 = region after start exon
+    # 3 = end exon/ region after exon, 4 = start exon, 5 = middle exon
     region_plot_type = 0
     while region_index < len(CONFIG.REGIONS):
-        region_name, region_end, region_group, region_short_name = CONFIG.REGIONS[region_index]
+        region_name, region_end, region_group, _ = CONFIG.REGIONS[region_index]
         region_start_pixel = region_end_pixel
         region_end_pixel = region_end * utils.PIXELS_PER_AA + 1 + utils.SEQUENCE_OFFSET
         if exon_found:
@@ -87,7 +92,7 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
                 exon_1_region_end = region_end
                 # process next exon
                 region_index+=1
-                region_name, region_end, region_group, region_short_name = CONFIG.REGIONS[region_index]
+                region_name, region_end, region_group, _ = CONFIG.REGIONS[region_index]
                 region_start_pixel = region_end_pixel + CONFIG.EXONS_GAP*2
                 region_end_pixel = region_end * utils.PIXELS_PER_AA + 1 + utils.SEQUENCE_OFFSET + exon_offset
                 utils.EXON_2_OFFSET['pixel_start'] = region_start_pixel
@@ -107,18 +112,20 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
         region_plot_type = 0
 
     fig = create_sequence_plot(region_boundaries, groups_missing, legend_positioning)
-    
+
     return fig
 
 def sort_key(mod):
+    """Sort modifications by length and then by number of specific characters."""
     chars_to_count = ['i', 'l', 't', 'j']
     primary_key = len(mod[0])
     secondary_key = -sum(mod[0].count(char) for char in chars_to_count)
     return (primary_key, secondary_key)
 
 def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, int]], groups_missing: str | None, legend_positioning: str | None) -> go.Figure:
+    """Create the sequence plot."""
     fig = go.Figure()
-    
+
     width = utils.get_width()
     height = utils.get_height()
 
@@ -197,6 +204,7 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
     return fig
 
 def plot_sequence(fig, region_boundaries, groups_missing):
+    """Plot the sequence with regions and exons."""
     sequence_x0, sequence_y0 = 0,0
     x0, x1, y0, y1 = 0,0,0,0
     if CONFIG.FIGURE_ORIENTATION == 0:
@@ -215,7 +223,8 @@ def plot_sequence(fig, region_boundaries, groups_missing):
             if groups_missing == 'A':
                 x0 = utils.get_width() - CONFIG.SEQUENCE_PLOT_HEIGHT
         x1 = x0+CONFIG.SEQUENCE_PLOT_HEIGHT
-
+    last_region_end = 0
+    last_i = 0
     for i, (region_name, region_start_pixel, region_end_pixel, region_color, region_start, region_end, exon_type) in enumerate(region_boundaries):
         if CONFIG.FIGURE_ORIENTATION == 0:
             x0 = region_start_pixel
@@ -224,7 +233,8 @@ def plot_sequence(fig, region_boundaries, groups_missing):
             y0 = utils.get_height() - region_start_pixel
             y1 = utils.get_height() - region_end_pixel
 
-        # 0 = normal region, 1 = region before exon, 2 = region after start exon, 3 = end exon/ region after exon, 4 = start exon, 5 = middle exon
+        # 0 = normal region, 1 = region before exon, 2 = region after start exon
+        # 3 = end exon/ region after exon, 4 = start exon, 5 = middle exon
         if exon_type == 0:
             # Region rects
             fig.add_shape(
@@ -239,7 +249,7 @@ def plot_sequence(fig, region_boundaries, groups_missing):
         elif exon_type == 1:
             if CONFIG.FIGURE_ORIENTATION == 0:
                 x = [x0, x1, x1+CONFIG.EXONS_GAP//2, x0, x0]
-                y = [y0, y0, y1, y1, y0] 
+                y = [y0, y0, y1, y1, y0]
             else:
                 x=[x0, x1, x1, x0, x0]
                 y=[y0, y0, y1, y1-CONFIG.EXONS_GAP//2, y0]
@@ -305,8 +315,10 @@ def plot_sequence(fig, region_boundaries, groups_missing):
                 textangle= 0
             )
             sequence_x0, sequence_y0 = x0, y0
+        last_i = i
+        last_region_end = region_end
     if CONFIG.FIGURE_ORIENTATION == 0:
-        x = x1 + utils.get_label_length(str(region_end))
+        x = x1 + utils.get_label_length(str(last_region_end))
         y = y_label
     else:
         x = x_label
@@ -314,7 +326,7 @@ def plot_sequence(fig, region_boundaries, groups_missing):
     fig.add_annotation(
         x=x,
         y=y,
-        text=max(region_end, region_boundaries[i-1][5]),
+        text=max(last_region_end, region_boundaries[last_i-1][5]),
         showarrow=False,
         font=dict(size=CONFIG.SEQUENCE_PLOT_FONT_SIZE, color="gray"),
         textangle= 0
