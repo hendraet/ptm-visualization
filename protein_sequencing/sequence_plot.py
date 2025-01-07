@@ -47,11 +47,11 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
 
     # basis for all pixel calculations
     if CONFIG.FIGURE_ORIENTATION == 0:
-        max_sequence_length_pixels = utils.get_width() - utils.get_left_margin() - utils.get_right_margin()
+        max_sequence_length_pixels = utils.get_width() - utils.get_left_margin()
         utils.PIXELS_PER_AA = int((max_sequence_length_pixels - CONFIG.EXONS_GAP * exon_found * 2) // max_sequence_length)
         utils.SEQUENCE_OFFSET = utils.get_left_margin()
     else:
-        max_sequence_length_pixels = utils.get_height() - utils.get_top_margin() - utils.get_bottom_margin()
+        max_sequence_length_pixels = utils.get_height() - utils.get_top_margin()
         utils.PIXELS_PER_AA = int((max_sequence_length_pixels - CONFIG.EXONS_GAP * exon_found * 2) // max_sequence_length)
         utils.SEQUENCE_OFFSET = utils.get_top_margin()
 

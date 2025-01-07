@@ -1,0 +1,7 @@
+ID,Group,Oxidation(M)@1_general,Phospho(S)@8_general,Phospho(S)@13_general,Phospho(T)@35_general,Citrullination(R)@152_general,Deamidated(Q)@153_general,Methyl(K)@154_general,Acetyl(K)@154_general,GG(K)@154_general,Phospho(S)@409_exon2,Phospho(T)@411_exon2,Citrullination(R)@413_exon2
+,,Oxidation,Phospho,Phospho,Phospho,Citrullination,Deamidated,Methyl,Acetyl,GG,Phospho,Phospho,Citrullination
+,,M1,S8,S13,T35,R152,Q153,K154,K154,K154,S409,T411,R413
+,,general,general,general,general,general,general,general,general,general,exon2,exon2,exon2
+mascot_failed.csv,Failed,0,0,0,1,0,0,0,0,0,0,0,0
+mascot_clean.csv,Clean,1,1,1,1,1,1,1,1,1,0,0,0
+mascot_multiple_exons.csv,Multiple Exons,0,0,0,0,1,0,0,0,1,1,1,1

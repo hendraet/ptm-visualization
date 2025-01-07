@@ -127,12 +127,12 @@ def count_missing_amino_acids(peptide: str, aligned_sequence: str, peptide_offse
             missing += 1
 
     j = 0
-    for i in range(peptide_offset, len(aligned_sequence)):
+    for c in aligned_sequence[peptide_offset-1:]:
         stop_count = exon_start_index-1 <= i < exon_end_index
-        if aligned_sequence[i] == '-':
+        if c == '-':
             if not stop_count:
                 missing += 1
-        elif peptide[j] == aligned_sequence[i]:
+        elif peptide[j] == c:
             j+=1
         if j == len(peptide):
             break
@@ -148,6 +148,8 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
         for key, value in mods_for_exp.items():
             row = [1 if mod in value else 0 for mod in all_mods]
+            if key not in groups_df['file_name'].values:
+                raise ValueError(f"File {key} not found in groups file")
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
             writer.writerow([key, group] + row)
 
@@ -161,6 +163,8 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         for key, value in cleavages_for_exp.items():
             indexes = [extract_index(cleavage) for cleavage in value]
             row = cleavage_score(ranges, indexes)
+            if key not in groups_df['file_name'].values:
+                raise ValueError(f"File {key} not found in groups file")
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
             writer.writerow([key, group] + row)
 

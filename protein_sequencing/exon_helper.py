@@ -42,9 +42,10 @@ def retrieve_exon(input_file: str | os.PathLike, min_exon_length: int):
         utils.ISOFORM_IDS.append(alignment.id.split('|')[1])
 
     different_possibilities = [-1]*max_sequence_length
-    for i, amino_acid in enumerate(alignments[0].seq):
+    for i in range(max_sequence_length):
         amino_acids = dict(list())
         for alignment in alignments:
+            amino_acid = alignment.seq[i]
             if amino_acid not in amino_acids:
                 amino_acids[amino_acid] = [alignment.id.split('|')[1]]
             else:
