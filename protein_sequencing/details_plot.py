@@ -848,23 +848,32 @@ def calculate_legend_space(ptm: bool):
             title_height = utils.get_label_height() * (PLOT_CONFIG.CLEAVAGE_LEGEND_TITLE.count('<br')+1)
         return utils.get_label_height() + title_height + 10
 
+def get_present_mod_types():
+    """Get the present modification types."""
+    for above in PLOT_CONFIG.INPUT_FILES.values():
+        if above[0] == 'PTM':
+            ptm_df = filter_relevant_modification_sights(above[1], PLOT_CONFIG.MODIFICATION_THRESHOLD)
+            return set(ptm_df.iloc[0:1,2:].values.flatten().tolist())
+    return set()
+
 def create_details_plot(input_file: str | os.PathLike, output_path: str | os.PathLike):
     """Create a detailed sequence plot."""
     legend = None
+    present_mod_types = get_present_mod_types()
     if not 'A' in PLOT_CONFIG.INPUT_FILES.keys():
         if PLOT_CONFIG.INPUT_FILES['B'][0] == 'PTM':
             legend = 'B'
-        fig = sequence_plot.create_plot(input_file, 'A', legend)
+        fig = sequence_plot.create_plot(input_file, present_mod_types, 'A', legend)
     elif not 'B' in PLOT_CONFIG.INPUT_FILES.keys():
         if PLOT_CONFIG.INPUT_FILES['A'][0] == 'PTM':
             legend = 'A'
-        fig = sequence_plot.create_plot(input_file, 'B', legend)
+        fig = sequence_plot.create_plot(input_file, present_mod_types, 'B', legend)
     else:
         if PLOT_CONFIG.INPUT_FILES['A'][0] == 'PTM':
             legend = 'A'
         if PLOT_CONFIG.INPUT_FILES['B'][0] == 'PTM':
             legend = 'B'
-        fig = sequence_plot.create_plot(input_file, None, legend)
+        fig = sequence_plot.create_plot(input_file, present_mod_types, None, legend)
     cleavage_file_path = None
     ptm_file_path = None
     for above in PLOT_CONFIG.INPUT_FILES.keys():
@@ -905,7 +914,7 @@ def create_details_plot(input_file: str | os.PathLike, output_path: str | os.Pat
         pixels_per_ptm = ptm_space // (number_of_ptms + number_of_dividers)
         if (number_of_ptms + number_of_dividers) * utils.get_label_height() > 2*ptm_space:
             raise ValueError('Too many PTMs to fit in plot')
-        elif (number_of_ptms + 2*number_of_dividers) * utils.get_label_height() > ptm_space:
+        if (number_of_ptms + 2*number_of_dividers) * utils.get_label_height() > ptm_space:
             second_row = True
 
         plot_ptms(fig, ptm_df, pixels_per_ptm, label_plot_height, ptm_above, second_row)

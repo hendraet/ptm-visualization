@@ -203,7 +203,7 @@ def add_bar_plot(fig: go.Figure, above: str, modification_sights_all: dict[int, 
             x_group = x_bar + (i * space_per_group + 5) * group_direction
             y_line_start = bar_plot_width
             fig.add_annotation(x=x_group + space_per_group//2 * group_direction,
-                            y=y_line_start+utils.get_label_height()+max_lines*utils.get_label_height(),
+                            y=y_line_start+utils.get_label_height()+max_lines*utils.get_label_height()-5,
                             text=PLOT_CONFIG.BAR_GROUPS[group],
                             font={'size':CONFIG.SEQUENCE_PLOT_FONT_SIZE, 'family':CONFIG.FONT, 'color':"black"},
                             showarrow=False)
@@ -338,6 +338,13 @@ def filter_relevant_modification_sights(helper_file: str):
         relevant_modification_sights[int(df[column][1][1:])].append((df[column][1], column_modification, PLOT_CONFIG.MODIFICATIONS_GROUP[column_modification], isoform))
     return all_modification_sights, relevant_modification_sights, df
 
+def get_relevant_mod_types(relevant_positions: dict[int, list[tuple[int, str, str, str]]]) -> set[str]:
+    """Get relevant modification types."""
+    present_mod_types = set()
+    for aa_position in relevant_positions.keys():
+        for modification_sight in relevant_positions[aa_position]:
+            present_mod_types.add(modification_sight[1])
+    return present_mod_types
 
 def create_bar_plot(input_file: str | os.PathLike, output_path: str | os.PathLike):
     """Main function to create bar plot."""
@@ -345,13 +352,16 @@ def create_bar_plot(input_file: str | os.PathLike, output_path: str | os.PathLik
     all_positions, relevant_positions, df = filter_relevant_modification_sights(PLOT_CONFIG.BAR_INPUT_FILE)
     above_all, below_all = utils.separate_by_group(all_positions)
     above_relevant, below_relevant = utils.separate_by_group(relevant_positions)
+    present_mod_types = get_relevant_mod_types(relevant_positions)
+
 
     if len(above_relevant) == 0:
-        fig = sequence_plot.create_plot(input_file, 'A', 'B')
+        fig = sequence_plot.create_plot(input_file, present_mod_types, 'A', 'A')
     elif len(below_relevant) == 0:
-        fig = sequence_plot.create_plot(input_file, 'B', 'A')
+        fig = sequence_plot.create_plot(input_file, present_mod_types, 'B', 'B')
     else:
-        fig = sequence_plot.create_plot(input_file, None, 'A')
+        legend = 'A' if CONFIG.FIGURE_ORIENTATO == 0 else 'B'
+        fig = sequence_plot.create_plot(input_file, present_mod_types, None, legend)
 
     positions_a, positions_b = get_bar_positions(above_all, below_all)
     group_size_a = len(positions_a)

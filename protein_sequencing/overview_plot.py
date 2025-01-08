@@ -332,11 +332,11 @@ def create_overview_plot(input_file: str | os.PathLike, output_path: str | os.Pa
     present_modifications = get_present_modifications(PLOT_CONFIG.INPUT_FILE)
     groups_present = {PLOT_CONFIG.MODIFICATIONS_GROUP[mod] for mod in present_modifications if mod in PLOT_CONFIG.MODIFICATIONS_GROUP}
     if not 'A' in groups_present:
-        fig = sequence.create_plot(input_file, 'A', 'A')
+        fig = sequence.create_plot(input_file, present_modifications, 'A', 'A')
     elif not 'B' in groups_present:
-        fig = sequence.create_plot(input_file, 'B', 'B')
+        fig = sequence.create_plot(input_file, present_modifications, 'B', 'B')
     else:
-        fig = sequence.create_plot(input_file, None, 'A')
+        fig = sequence.create_plot(input_file, present_modifications, None, 'A')
 
     modifications_by_position = get_modifications_per_position(PLOT_CONFIG.INPUT_FILE)
     fig = plot_labels(fig, modifications_by_position)
