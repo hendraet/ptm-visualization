@@ -1,5 +1,4 @@
 """MaxQuant preprocessor module. Extracts modifications and cleavages from MaxQuant output file."""
-import importlib
 import re
 import pandas as pd
 from protein_sequencing import exon_helper, uniprot_align
