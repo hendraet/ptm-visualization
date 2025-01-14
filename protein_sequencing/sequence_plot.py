@@ -147,14 +147,13 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
         
         labels = [CONFIG.MODIFICATIONS[mod][0] for mod in present_modifications] + [CONFIG.MODIFICATION_LEGEND_TITLE]
         sorted_labels = sorted(labels, key=sort_key)
-        longest_text = sorted_labels[0]
         
         if not groups_missing:
             if legend_positioning == 'A':
                 x_legend = 0 if CONFIG.FIGURE_ORIENTATION == 0 else width//2 + CONFIG.SEQUENCE_PLOT_HEIGHT//2
                 y_legend = height//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2 + (len(present_modifications)+1) * utils.get_label_height() if CONFIG.FIGURE_ORIENTATION == 0 else height
             else:
-                x_legend = 0 if CONFIG.FIGURE_ORIENTATION == 0 else width//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2 - utils.get_label_length(longest_text)
+                x_legend = 0 if CONFIG.FIGURE_ORIENTATION == 0 else width//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2
                 y_legend = height//2 + CONFIG.SEQUENCE_PLOT_HEIGHT//2 if CONFIG.FIGURE_ORIENTATION == 0 else height
         else:
             x_legend = 0
