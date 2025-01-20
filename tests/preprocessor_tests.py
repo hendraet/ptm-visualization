@@ -23,7 +23,7 @@ def test_process_mascot_dir():
     """Test the process_mascot_file function."""
 
     # Process the Mascot files
-    os.system("python3 protein_sequencing/data_preprocessing/preprocessor.py -p ma -pc tests.configs.preprocessor_config -c tests.configs.default_config")
+    os.system("python3 protein_sequencing/data_preprocessing/preprocessor.py -p ma -pc tests.configs.mascot_config -c tests.configs.default_config")
 
     # Check the processed files
     compare_files("tests/output/result_mascot.csv", "tests/results/expected_result_mascot.csv")
@@ -32,7 +32,7 @@ def test_process_ms_fragger_file():
     """Test the process_ms_fragger_file function."""
 
     # Process the MS Fragger files
-    os.system("python3 protein_sequencing/data_preprocessing/preprocessor.py -p ms -pc tests.configs.preprocessor_config -c tests.configs.default_config")
+    os.system("python3 protein_sequencing/data_preprocessing/preprocessor.py -p ms -pc tests.configs.ms_fragger_config -c tests.configs.default_config")
 
     # Check the processed files
     compare_files("tests/output/result_ms_fragger_mods.csv", "tests/results/expected_result_ms_fragger_mods.csv")
@@ -42,7 +42,7 @@ def test_process_protein_pilot_dir():
     """Test the process_protein_pilot_file function."""
 
     # Process the Protein Pilot files
-    os.system("python3 protein_sequencing/data_preprocessing/preprocessor.py -p pp -pc tests.configs.preprocessor_config -c tests.configs.default_config")
+    os.system("python3 protein_sequencing/data_preprocessing/preprocessor.py -p pp -pc tests.configs.protein_pilot_config -c tests.configs.default_config")
 
     # Check the processed files
     compare_files("tests/output/result_protein_pilot_mods.csv", "tests/results/expected_result_protein_pilot_mods.csv")
@@ -52,7 +52,7 @@ def test_max_quant_file():
     """Test the process_max_quant_file function."""
 
     # Process the MaxQuant files
-    os.system("python3 protein_sequencing/data_preprocessing/preprocessor.py -p mq -pc tests.configs.preprocessor_config -c tests.configs.default_config")
+    os.system("python3 protein_sequencing/data_preprocessing/preprocessor.py -p mq -pc tests.configs.max_quant_config -c tests.configs.default_config")
 
     # Check the processed files
     compare_files("tests/output/result_max_quant_mods.csv", "tests/results/expected_result_max_quant_mods.csv")

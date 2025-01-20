@@ -47,6 +47,8 @@ class MSFraggerPreprocessor:
         current_index = 1
         inside_brackets = False
         for i, char in enumerate(mod_sequence):
+            if i == 0 and mod_sequence[i] == '[':
+                indexes.append(0)
             if char == '[':
                 inside_brackets = True
             elif char == ']':
@@ -68,7 +70,10 @@ class MSFraggerPreprocessor:
         aa_offsets = self.get_exact_indexes(mod_sequence)
         for i, match in enumerate(matches):
             if match in self.PREPROCESSOR_CONFIG.MS_FRAGGER_MODS and self.PREPROCESSOR_CONFIG.MS_FRAGGER_MODS[match] in self.CONFIG.INCLUDED_MODIFICATIONS:
-                modified_aa = peptide[aa_offsets[i]-1]
+                if aa_offsets[i] != 0:
+                    modified_aa = peptide[aa_offsets[i]-1]
+                else:
+                    modified_aa = sequence[peptide_offset-1]
                 if self.CONFIG.INCLUDED_MODIFICATIONS.get(match):
                     if modified_aa not in self.CONFIG.INCLUDED_MODIFICATIONS[match]:
                         continue
@@ -165,4 +170,4 @@ class MSFraggerPreprocessor:
         all_cleavages = sorted(set(all_cleavages), key=preprocessor_helper.extract_cleavage_location)
         all_cleavages = preprocessor_helper.sort_by_index_and_exons(all_cleavages)
         cleavages_with_ranges = preprocessor_helper.extract_cleavages_ranges(all_cleavages)
-        preprocessor_helper.write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp, self.CONFIG.OUTPUT_FOLDER, self.groups_df)
+        preprocessor_helper.write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp, f"{self.CONFIG.OUTPUT_FOLDER}/result_ms_fragger", self.groups_df)

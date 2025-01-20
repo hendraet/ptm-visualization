@@ -127,20 +127,21 @@ def count_missing_amino_acids(peptide: str, aligned_sequence: str, peptide_offse
             missing += 1
 
     j = 0
-    for c in aligned_sequence[peptide_offset-1:]:
-        stop_count = exon_start_index-1 <= i < exon_end_index
-        if c == '-':
-            if not stop_count:
-                missing += 1
-        elif peptide[j] == c:
-            j+=1
-        if j == len(peptide):
-            break
+    if len(peptide) > 0:
+        for i in range(peptide_offset, len(aligned_sequence)):
+            stop_count = exon_start_index-1 <= i < exon_end_index
+            if aligned_sequence[i] == '-':
+                if not stop_count:
+                    missing += 1
+            elif peptide[j] == aligned_sequence[i]:
+                j+=1
+            if j == len(peptide):
+                break
     return missing
 
 def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp, output_folder, groups_df):
     """Write modification and cleavage strings to csv files."""
-    with open(f"{output_folder}/result_max_quant_mods.csv", 'w', newline='', encoding="utf-8") as f:
+    with open(f"{output_folder}_mods.csv", 'w', newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Group'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
@@ -153,7 +154,7 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
             writer.writerow([key, group] + row)
 
-    with open(f"{output_folder}/result_max_quant_cleavages.csv", 'w', newline='', encoding="utf-8") as f:
+    with open(f"{output_folder}_cleavages.csv", 'w', newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Group'] + cleavages_with_ranges)
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])

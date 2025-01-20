@@ -62,11 +62,28 @@ class MaxQuantPreprocessor:
         """Reformat the modification string."""
         mod_strings = []
 
-        pattern = r"\(([^()]*)\)"
+        pattern = r"\(([^()]*(\([^()]*\))*)\)"
         matches = re.findall(pattern, modified_peptide)
         indexes = self.get_exact_indexes(modified_peptide)
         counter = 0
-        for mod_position in matches:
+        for mod_position, _ in matches:
+            if ' ' in mod_position:
+                mod_type = mod_position.split(' ')[0]
+                mod_position = mod_position.split('(')[1][:-1]
+            else:
+                mod_type = mod_position.split(' ')[0]
+                if mod_type == 'ph':
+                    mod_type = 'Phospho'
+                elif mod_type == 'ac':
+                    mod_type = 'Acetyl'
+                elif mod_type == 'gg':
+                    mod_type = 'GG'
+                elif mod_type == 'me':
+                    mod_type = 'Methyl'
+                elif mod_type == 'ci':
+                    mod_type = 'Citrullination'
+                elif mod_type == 'de':
+                    mod_type = 'Deamidated'
             if mod_position == "Protein N-term":
                 aa = sequence[peptide_offset-1]
                 aa_offset = 0
@@ -76,20 +93,6 @@ class MaxQuantPreprocessor:
             else:
                 aa = peptide[indexes[counter]-1]
                 aa_offset = indexes[counter]
-            if mod_position == 'ph':
-                mod_type = 'Phospho'
-            elif mod_position == 'ac':
-                mod_type = 'Acetyl'
-            elif mod_position == 'gg':
-                mod_type = 'GG'
-            elif mod_position == 'me':
-                mod_type = 'Methyl'
-            elif mod_position == 'ci':
-                mod_type = 'Citrullination'
-            elif mod_position == 'de':
-                mod_type = 'Deamidated'
-            else:
-                mod_type = mod_position.split(' ')[0]
             if self.CONFIG.INCLUDED_MODIFICATIONS.get(mod_type):
                 if aa not in self.CONFIG.INCLUDED_MODIFICATIONS[mod_type]:
                     continue
@@ -181,4 +184,4 @@ class MaxQuantPreprocessor:
         all_cleavages = sorted(set(all_cleavages), key=preprocessor_helper.extract_cleavage_location)
         all_cleavages = preprocessor_helper.sort_by_index_and_exons(all_cleavages)
         cleavages_with_ranges = preprocessor_helper.extract_cleavages_ranges(all_cleavages)
-        preprocessor_helper.write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp, self.CONFIG.OUTPUT_FOLDER, self.groups_df)
+        preprocessor_helper.write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp, f"{self.CONFIG.OUTPUT_FOLDER}/result_max_quant", self.groups_df)

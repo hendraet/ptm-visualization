@@ -5,9 +5,11 @@ import plotly.graph_objects as go
 from protein_sequencing import utils, sequence_plot as sequence
 
 class OverviewPlot:
+    """Class to generate overview plot for protein sequences."""
+
     def __init__(self, config, plot_config, input_file, output_path):
-        self.CONFIG = importlib.import_module(config, 'configs')
-        self.PLOT_CONFIG = importlib.import_module(plot_config, 'configs')
+        self.config = importlib.import_module(config, 'configs')
+        self.plot_config = importlib.import_module(plot_config, 'configs')
         self.input_file = input_file
         self.output_path = output_path
         self.create_overview_plot()
@@ -22,10 +24,10 @@ class OverviewPlot:
                 if label == '':
                     continue
                 aa = label[0]
-                if modification_types[i] not in self.PLOT_CONFIG.MODIFICATIONS_GROUP:
+                if modification_types[i] not in self.plot_config.MODIFICATIONS_GROUP:
                     continue
-                if self.CONFIG.INCLUDED_MODIFICATIONS.get(modification_types[i]):
-                    if aa not in self.CONFIG.INCLUDED_MODIFICATIONS[modification_types[i]]:
+                if self.config.INCLUDED_MODIFICATIONS.get(modification_types[i]):
+                    if aa not in self.config.INCLUDED_MODIFICATIONS[modification_types[i]]:
                         continue
                     if aa == 'R' and modification_types[i] == 'Deamidated':
                         modification_types[i] = 'Citrullination'
@@ -44,16 +46,16 @@ class OverviewPlot:
                 if label == '':
                     continue
                 aa = label[0]
-                if modification_types[i] not in self.PLOT_CONFIG.MODIFICATIONS_GROUP:
+                if modification_types[i] not in self.plot_config.MODIFICATIONS_GROUP:
                     continue
-                if self.CONFIG.INCLUDED_MODIFICATIONS.get(modification_types[i]):
-                    if aa not in self.CONFIG.INCLUDED_MODIFICATIONS[modification_types[i]]:
+                if self.config.INCLUDED_MODIFICATIONS.get(modification_types[i]):
+                    if aa not in self.config.INCLUDED_MODIFICATIONS[modification_types[i]]:
                         continue
                     if aa == 'R' and modification_types[i] == 'Deamidated':
                         modification_types[i] = 'Citrullination'
                 isoform = isoforms[i]
                 position = utils.get_position_with_offset(int(label[1:]), isoform)
-                modifications_by_position[position].append((label, modification_types[i], self.PLOT_CONFIG.MODIFICATIONS_GROUP[modification_types[i]], isoform))
+                modifications_by_position[position].append((label, modification_types[i], self.plot_config.MODIFICATIONS_GROUP[modification_types[i]], isoform))
             for position, mods in modifications_by_position.items():
                 modifications_by_position[position] = list(set(mods))
         return modifications_by_position
@@ -69,10 +71,10 @@ class OverviewPlot:
         for aa_position in label_offsets_with_orientation.keys():
             line_plotted_a, line_plotted_b = False, False
             for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[aa_position]:
-                if self.CONFIG.FIGURE_ORIENTATION == 0:
+                if self.config.FIGURE_ORIENTATION == 0:
                     x_position_line = (aa_position * utils.PIXELS_PER_AA) + utils.SEQUENCE_OFFSET
-                    x_position_line = utils.offset_line_for_exon(x_position_line, int(label[1:]), self.CONFIG.FIGURE_ORIENTATION)
-                    y_length = self.PLOT_CONFIG.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_height()
+                    x_position_line = utils.offset_line_for_exon(x_position_line, int(label[1:]), self.config.FIGURE_ORIENTATION)
+                    y_length = self.plot_config.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_height()
                     y_beginning_line = y0 if group == 'B' else y1
                     y_end_line = y_beginning_line - y_length if group == 'B' else y_beginning_line + y_length
 
@@ -91,10 +93,10 @@ class OverviewPlot:
 
                     self.plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
                 else:
-                    y_position_line = self.CONFIG.FIGURE_WIDTH - (aa_position * utils.PIXELS_PER_AA) - utils.SEQUENCE_OFFSET
-                    y_position_line = utils.offset_line_for_exon(y_position_line, int(label[1:]), self.CONFIG.FIGURE_ORIENTATION)
+                    y_position_line = self.config.FIGURE_WIDTH - (aa_position * utils.PIXELS_PER_AA) - utils.SEQUENCE_OFFSET
+                    y_position_line = utils.offset_line_for_exon(y_position_line, int(label[1:]), self.config.FIGURE_ORIENTATION)
 
-                    x_length = self.PLOT_CONFIG.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_length(label)
+                    x_length = self.plot_config.SEQUENCE_MIN_LINE_LENGTH + height_offset * utils.get_label_length(label)
                     x_beginning_line = x0 if group == 'B' else x1
                     x_end_line = x_beginning_line - x_length if group == 'B' else x_beginning_line + x_length
 
@@ -275,13 +277,13 @@ class OverviewPlot:
             2 if there is enough space for both labels to be positioned left and right"""
         first_position = int(first_modification['position'])
         second_position = int(second_modification['position'])
-        label_length = utils.get_label_length(first_modification['mod'][0]) if self.CONFIG.FIGURE_ORIENTATION == 0 else utils.get_label_height()
+        label_length = utils.get_label_length(first_modification['mod'][0]) if self.config.FIGURE_ORIENTATION == 0 else utils.get_label_height()
         distance_between_modifications = abs(first_position - second_position) * utils.PIXELS_PER_AA
         if distance_between_modifications < label_length/2:
             return -1
         if distance_between_modifications < label_length:
             return 0
-        second_label_length = utils.get_label_length(second_modification['mod'][0]) if self.CONFIG.FIGURE_ORIENTATION == 0 else utils.get_label_height()
+        second_label_length = utils.get_label_length(second_modification['mod'][0]) if self.config.FIGURE_ORIENTATION == 0 else utils.get_label_height()
         if distance_between_modifications > label_length + second_label_length:
             return 2
         return 1
@@ -293,7 +295,7 @@ class OverviewPlot:
     def plot_label(self, fig, x, y, text, modification_type, position_label):
         """Plots single label for modification."""
         #Label bounding box for highlitghted PTMs
-        if f'{modification_type}({text[0]})@{text[1:]}' in self.CONFIG.PTMS_TO_HIGHLIGHT:
+        if f'{modification_type}({text[0]})@{text[1:]}' in self.config.PTMS_TO_HIGHLIGHT:
             x0 = x+1
             y0 = y-1
             x1 = x-utils.get_label_length(text)+2
@@ -318,7 +320,7 @@ class OverviewPlot:
                     x1=x1,
                     y1=y1,
                     layer='below',
-                    fillcolor=self.CONFIG.PTM_HIGHLIGHT_LABEL_COLOR,
+                    fillcolor=self.config.PTM_HIGHLIGHT_LABEL_COLOR,
                     line=dict(width=0),
                 )
         fig.add_trace(go.Scatter(x=[x], y=[y], mode='text',
@@ -327,14 +329,14 @@ class OverviewPlot:
                                 showlegend=False,
                                 hoverinfo='none',
                                 textfont=dict(
-                                    family=self.CONFIG.FONT,
-                                    size=self.CONFIG.SEQUENCE_PLOT_FONT_SIZE,
-                                    color=self.CONFIG.MODIFICATIONS[modification_type][1])))
+                                    family=self.config.FONT,
+                                    size=self.config.SEQUENCE_PLOT_FONT_SIZE,
+                                    color=self.config.MODIFICATIONS[modification_type][1])))
 
     def create_overview_plot(self):
         """Create overview plot for protein sequences."""
-        present_modifications = self.get_present_modifications(self.PLOT_CONFIG.INPUT_FILE)
-        groups_present = {self.PLOT_CONFIG.MODIFICATIONS_GROUP[mod] for mod in present_modifications if mod in self.PLOT_CONFIG.MODIFICATIONS_GROUP}
+        present_modifications = self.get_present_modifications(self.plot_config.INPUT_FILE)
+        groups_present = {self.plot_config.MODIFICATIONS_GROUP[mod] for mod in present_modifications if mod in self.plot_config.MODIFICATIONS_GROUP}
         if not 'A' in groups_present:
             fig = sequence.create_plot(self.input_file, present_modifications, 'A', 'A')
         elif not 'B' in groups_present:
@@ -342,7 +344,7 @@ class OverviewPlot:
         else:
             fig = sequence.create_plot(self.input_file, present_modifications, None, 'A')
 
-        modifications_by_position = self.get_modifications_per_position(self.PLOT_CONFIG.INPUT_FILE)
+        modifications_by_position = self.get_modifications_per_position(self.plot_config.INPUT_FILE)
         fig = self.plot_labels(fig, modifications_by_position)
 
         utils.show_plot(fig, self.output_path)
