@@ -50,7 +50,7 @@ def extract_mod_location(mod_string):
 
 def extract_cleavage_location(cleavage_string):
     """Extracts the location of the cleavage from the cleavage string."""
-    return cleavage_string.split('@')[1].split('_')[0]
+    return int(cleavage_string.split('@')[1].split('_')[0])
 
 def extract_cleavages_ranges(all_cleavages):
     """Extracts the cleavages ranges from the cleavages list."""
@@ -64,7 +64,7 @@ def extract_cleavages_ranges(all_cleavages):
             i += 1
             cleavage = all_cleavages[i]
         if int(extract_cleavage_location(first_cleavage)) != int(extract_cleavage_location(cleavage)):
-            cleavage_range = extract_cleavage_location(first_cleavage) + '-' + extract_cleavage_location(cleavage)
+            cleavage_range = str(extract_cleavage_location(first_cleavage)) + '-' + str(extract_cleavage_location(cleavage))
             cleavages_with_ranges.append(f'{cleavage_range}_{isoform}')
         else:
             location = extract_cleavage_location(first_cleavage)
@@ -258,5 +258,11 @@ def sort_by_index_and_exons(entries):
             exon = True
         else:
             after.append(entry)
+    def sort_key(x):
+        return int(x.split('@')[1].split('_')[0])
+    before.sort(key=sort_key)
+    exon1.sort(key=sort_key)
+    exon2.sort(key=sort_key)
+    after.sort(key=sort_key)
     result = before + exon1 + exon2 + after
     return result

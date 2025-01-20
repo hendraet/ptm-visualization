@@ -7,4 +7,4 @@ QKLQ		GG (K)	_QK(GG (K))LQ_															P14136	P14136	P14136	P14136			test	cle
 FADLTDAAAR		Unmodified	_FADLTDAAAR_															P14136	P14136	P14136	P14136			test	fail																												0.001																			
 LATVRQKLQ		ci	_LATVR(ci)QKLQ_															P14136	P14136	P14136	P14136			test	old																												0.001																			
 SAARRSY		Phospho (S); Phospho (S)	_S(ph)AARRS(ph)Y_															P14136	P14136	P14136	P14136			test	old																												0.001																			
-SLTIRVIPI		Phospho (S); Phospho (S); Deamidated (R)	_S(Phospho (S))LT(Phospho (T))IR(Deamidated (R))VIPI_															P14136	P14136	P14136	P14136			test	exon																												0.001																			
+SLTIRVIPI		Phospho (S); Phospho (T); Deamidated (R)	_S(Phospho (S))LT(Phospho (T))IR(Deamidated (R))VIPI_															P14136	P14136	P14136	P14136			test	exon																												0.001																			

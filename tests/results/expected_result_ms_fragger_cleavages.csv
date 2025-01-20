@@ -1,13 +1,13 @@
-ID,Group,1_general,14_general,148_general,156_general,35_general,417_exon2,7-9_general
+ID,Group,1_general,7-9_general,14_general,35_general,148_general,156_general,417_exon2
 ,,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic
-,,1,14,148,156,35,417,7-9
-,,general,general,general,general,general,exon2,general
-A 1,A,0,0,0,1,0,0,0.3333333333333333
-A 2,A,0,0,0,1,1,0,0.3333333333333333
-A 3,A,0,0,0,0,1,0,0.6666666666666666
-B 1,B,0,0,1,1,0,1,0
-B 2,B,0,0,1,1,0,1,0
-B 3,B,0,0,1,1,0,1,0
-C 1,C,0,0,0,1,0,1,0.6666666666666666
-C 2,C,0,0,0,1,0,1,0.6666666666666666
-C 3,C,0,0,0,0,0,1,0.6666666666666666
+,,1,7-9,14,35,148,156,417
+,,general,general,general,general,general,general,exon2
+A 1,A,0,0.3333333333333333,0,0,0,1,0
+A 2,A,0,0.3333333333333333,0,1,0,1,0
+A 3,A,0,0.6666666666666666,0,1,0,0,0
+B 1,B,0,0,0,0,1,1,1
+B 2,B,0,0,0,0,1,1,1
+B 3,B,0,0,0,0,1,1,1
+C 1,C,0,0.6666666666666666,0,0,0,1,1
+C 2,C,0,0.6666666666666666,0,0,0,1,1
+C 3,C,0,0.6666666666666666,0,0,0,0,1
