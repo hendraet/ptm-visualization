@@ -50,14 +50,6 @@ def get_top_margin():
     legend_height = (len(CONFIG.MODIFICATIONS)+3) * get_label_height()
     return int((legend_height / get_height() * 1.05) *get_height())
 
-def get_right_margin():
-    """Return the right margin for the sequence plot."""
-    return int(CONFIG.RIGHT_MARGIN * get_width())
-
-def get_bottom_margin():
-    """Return the bottom margin for the sequence plot."""
-    return int(CONFIG.BOTTOM_MARGIN * get_height())
-
 def get_label_length(label):
     """Approximate the length of a label in pixels based on font size and label length."""
     return int(CONFIG.FONT_SIZE/1.5 * len(label))

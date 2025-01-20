@@ -7,7 +7,7 @@ from protein_sequencing import utils, exon_helper
 
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 
-def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_positioning = None) -> go.Figure:
+def create_plot(input_file: str | os.PathLike, present_modifications, groups_missing = None, legend_positioning = None) -> go.Figure:
     """Create the plot with main sequence and all addiational information."""
     exon_found, exon_start_index, _, max_exon_length, _, exon_1_length, _, exon_2_length, _, max_sequence_length = exon_helper.retrieve_exon(input_file, CONFIG.MIN_EXON_LENGTH)
 
@@ -47,11 +47,11 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
 
     # basis for all pixel calculations
     if CONFIG.FIGURE_ORIENTATION == 0:
-        max_sequence_length_pixels = utils.get_width() - utils.get_left_margin() - utils.get_right_margin()
+        max_sequence_length_pixels = utils.get_width() - utils.get_left_margin()
         utils.PIXELS_PER_AA = int((max_sequence_length_pixels - CONFIG.EXONS_GAP * exon_found * 2) // max_sequence_length)
         utils.SEQUENCE_OFFSET = utils.get_left_margin()
     else:
-        max_sequence_length_pixels = utils.get_height() - utils.get_top_margin() - utils.get_bottom_margin()
+        max_sequence_length_pixels = utils.get_height() - utils.get_top_margin()
         utils.PIXELS_PER_AA = int((max_sequence_length_pixels - CONFIG.EXONS_GAP * exon_found * 2) // max_sequence_length)
         utils.SEQUENCE_OFFSET = utils.get_top_margin()
 
@@ -111,18 +111,11 @@ def create_plot(input_file: str | os.PathLike, groups_missing = None, legend_pos
         region_index += 1
         region_plot_type = 0
 
-    fig = create_sequence_plot(region_boundaries, groups_missing, legend_positioning)
+    fig = create_sequence_plot(region_boundaries, present_modifications, groups_missing, legend_positioning)
 
     return fig
 
-def sort_key(mod):
-    """Sort modifications by length and then by number of specific characters."""
-    chars_to_count = ['i', 'l', 't', 'j']
-    primary_key = len(mod[0])
-    secondary_key = -sum(mod[0].count(char) for char in chars_to_count)
-    return (primary_key, secondary_key)
-
-def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, int]], groups_missing: str | None, legend_positioning: str | None) -> go.Figure:
+def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, int]], present_modifications, groups_missing: str | None, legend_positioning: str | None) -> go.Figure:
     """Create the sequence plot."""
     fig = go.Figure()
 
@@ -145,16 +138,22 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
 
     # Legend
     if legend_positioning:
-        longest_text = CONFIG.MODIFICATION_LEGEND_TITLE
-        for mod in CONFIG.MODIFICATIONS:
-            if len(CONFIG.MODIFICATIONS[mod][0]) > len(longest_text):
-                longest_text = CONFIG.MODIFICATIONS[mod][0]
+        def sort_key(mod):
+            """Sort modifications by length and then by number of specific characters."""
+            chars_to_count = ['i', 'l', 't', 'j']
+            primary_key = len(mod[0])
+            secondary_key = -sum(mod[0].count(char) for char in chars_to_count)
+            return (primary_key, secondary_key)
+        
+        labels = [CONFIG.MODIFICATIONS[mod][0] for mod in present_modifications] + [CONFIG.MODIFICATION_LEGEND_TITLE]
+        sorted_labels = sorted(labels, key=sort_key)
+        
         if not groups_missing:
             if legend_positioning == 'A':
                 x_legend = 0 if CONFIG.FIGURE_ORIENTATION == 0 else width//2 + CONFIG.SEQUENCE_PLOT_HEIGHT//2
-                y_legend = height//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2 + (len(CONFIG.MODIFICATIONS.keys())+1) * utils.get_label_height() if CONFIG.FIGURE_ORIENTATION == 0 else height
+                y_legend = height//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2 + (len(present_modifications)+1) * utils.get_label_height() if CONFIG.FIGURE_ORIENTATION == 0 else height
             else:
-                x_legend = 0 if CONFIG.FIGURE_ORIENTATION == 0 else width//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2 - utils.get_label_length(longest_text)
+                x_legend = 0 if CONFIG.FIGURE_ORIENTATION == 0 else width//2 - CONFIG.SEQUENCE_PLOT_HEIGHT//2
                 y_legend = height//2 + CONFIG.SEQUENCE_PLOT_HEIGHT//2 if CONFIG.FIGURE_ORIENTATION == 0 else height
         else:
             x_legend = 0
@@ -169,10 +168,10 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
                 if CONFIG.FIGURE_ORIENTATION == 1:
                     y_legend = height
                 else:
-                    y_legend = (len(CONFIG.MODIFICATIONS.keys())+1) * utils.get_label_height()
+                    y_legend = (len(present_modifications)+1) * utils.get_label_height()
 
         text_position = "bottom right"
-        if legend_positioning == 'B' and CONFIG.FIGURE_ORIENTATION == 1:
+        if legend_positioning == 'A' and CONFIG.FIGURE_ORIENTATION == 1:
             text_position = "bottom left"
         fig.add_trace(go.Scatter(x=[x_legend], y=[y_legend],
                                  mode='text',
@@ -183,9 +182,11 @@ def create_sequence_plot(region_boundaries: list[tuple[str, int, int, str, int, 
                                                color="black")))
         y_legend -= utils.get_label_height()
 
-        labels = [mod for mod in CONFIG.MODIFICATIONS.values()]
+        
+        
+        labels = [CONFIG.MODIFICATIONS[mod] for mod in present_modifications]
         sorted_labels = sorted(labels, key=sort_key)
-        if legend_positioning == 'A' or CONFIG.FIGURE_ORIENTATION == 1:
+        if groups_missing == 'A' or CONFIG.FIGURE_ORIENTATION == 1:
             sorted_labels = sorted_labels[::-1]
         for i, mod in enumerate(sorted_labels):
             fig.add_trace(

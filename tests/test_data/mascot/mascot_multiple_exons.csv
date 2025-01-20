@@ -1,0 +1,37 @@
+
+"Header","--------------------------------------------------------"
+
+test-header
+
+"Fixed modifications","--------------------------------------------------------"
+
+fixed-modifications
+
+"Variable modifications","--------------------------------------------------------"
+
+"Identifier","Name","Delta","Neutral loss(es)"
+1,"Acetyl (K)",42.010565
+2,"GG (K)",114.042927
+3,"Oxidation (M)",15.994915,0,63.998285
+4,"Phospho (ST)",79.966331,0,97.976896
+7,"Methyl (K)",14.015650,0,14.015650
+8,"Citrullination (R)",0.984016,0,43.005814
+9,"Deamidated (R)",0.984016,0,17.026549
+
+"Search Parameters","--------------------------------------------------------"
+
+search-params
+
+"Format parameters","--------------------------------------------------------"
+
+format-params
+
+"Protein hits","--------------------------------------------------------"
+
+prot_hit_num,prot_family_member,prot_acc,prot_desc,prot_score,prot_mass,prot_matches,prot_matches_sig,prot_sequences,prot_sequences_sig,pep_query,pep_rank,pep_isbold,pep_isunique,pep_exp_mz,pep_exp_mr,pep_exp_z,pep_calc_mr,pep_delta,pep_start,pep_end,pep_miss,pep_score,pep_homol,pep_ident,pep_expect,pep_res_before,pep_seq,pep_res_after,pep_var_mod,pep_var_mod_pos,pep_summed_mod_pos,pep_local_mod_pos,pep_num_match,pep_scan_title
+5,,P14136,test,20782,36809,785,785,40,40,137480,1,0,0,561.9467,1682.8182,3,1682.8158,0.0024,168,182,2,44.82,18,38,0.00013,D,LATVRQKLQ,D,GG (K),0.000000200.0,,,9,Cmpd 41029
+5,,P14136,test,20782,36809,785,785,40,40,137480,1,0,0,561.9467,1682.8182,3,1682.8158,0.0024,168,182,2,44.82,18,38,0.00013,D,LATVRQKLQ,D,Citrullination (R),0.000080000.0,,,9,Cmpd 41029
+5,,P14136,test,20782,36809,785,785,40,40,137480,1,0,0,561.9467,1682.8182,3,1682.8158,0.0024,168,182,2,44.82,18,38,0.00013,D,LATVRQKLQ,D,Deamidated (R),0.000090000.0,,,9,Cmpd 41029
+5,,P14136-3,test,20782,36809,785,785,40,40,137480,1,0,0,561.9467,1682.8182,3,1682.8158,0.0024,168,182,2,44.82,18,38,0.00013,K,SLTIRVIPI,Q,Phospho (ST),0.400000000.0,,,9,Cmpd 41029
+5,,P14136-3,test,20782,36809,785,785,40,40,137480,1,0,0,561.9467,1682.8182,3,1682.8158,0.0024,168,182,2,44.82,18,38,0.00013,K,SLTIRVIPI,Q,Phospho (ST),0.004000000.0,,,9,Cmpd 41029
+5,,P14136-3,test,20782,36809,785,785,40,40,137480,1,0,0,561.9467,1682.8182,3,1682.8158,0.0024,168,182,2,44.82,18,38,0.00013,K,SLTIRVIPI,Q,Deamidated (R),0.000080000.0,,,9,Cmpd 41029

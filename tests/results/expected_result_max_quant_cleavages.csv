@@ -1,0 +1,7 @@
+ID,Group,1_general,7-9_general,14_general,35_general,148_general,156_general,417_exon2
+,,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic
+,,1,7-9,14,35,148,156,417
+,,general,general,general,general,general,general,exon2
+clean,Clean,1,0.6666666666666666,1,1,0,1,0
+old,Old,0,0.3333333333333333,1,0,1,1,0
+exon,Exon,0,0,0,0,0,0,1

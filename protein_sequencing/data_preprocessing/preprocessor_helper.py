@@ -50,7 +50,7 @@ def extract_mod_location(mod_string):
 
 def extract_cleavage_location(cleavage_string):
     """Extracts the location of the cleavage from the cleavage string."""
-    return cleavage_string.split('@')[1].split('_')[0]
+    return int(cleavage_string.split('@')[1].split('_')[0])
 
 def extract_cleavages_ranges(all_cleavages):
     """Extracts the cleavages ranges from the cleavages list."""
@@ -64,7 +64,7 @@ def extract_cleavages_ranges(all_cleavages):
             i += 1
             cleavage = all_cleavages[i]
         if int(extract_cleavage_location(first_cleavage)) != int(extract_cleavage_location(cleavage)):
-            cleavage_range = extract_cleavage_location(first_cleavage) + '-' + extract_cleavage_location(cleavage)
+            cleavage_range = str(extract_cleavage_location(first_cleavage)) + '-' + str(extract_cleavage_location(cleavage))
             cleavages_with_ranges.append(f'{cleavage_range}_{isoform}')
         else:
             location = extract_cleavage_location(first_cleavage)
@@ -127,20 +127,21 @@ def count_missing_amino_acids(peptide: str, aligned_sequence: str, peptide_offse
             missing += 1
 
     j = 0
-    for i in range(peptide_offset, len(aligned_sequence)):
-        stop_count = exon_start_index-1 <= i < exon_end_index
-        if aligned_sequence[i] == '-':
-            if not stop_count:
-                missing += 1
-        elif peptide[j] == aligned_sequence[i]:
-            j+=1
-        if j == len(peptide):
-            break
+    if len(peptide) > 0:
+        for i in range(peptide_offset, len(aligned_sequence)):
+            stop_count = exon_start_index-1 <= i < exon_end_index
+            if aligned_sequence[i] == '-':
+                if not stop_count:
+                    missing += 1
+            elif peptide[j] == aligned_sequence[i]:
+                j+=1
+            if j == len(peptide):
+                break
     return missing
 
 def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp, output_folder, groups_df):
     """Write modification and cleavage strings to csv files."""
-    with open(f"{output_folder}/result_max_quant_mods.csv", 'w', newline='', encoding="utf-8") as f:
+    with open(f"{output_folder}_mods.csv", 'w', newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Group'] + all_mods)
         writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
@@ -148,10 +149,12 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
         for key, value in mods_for_exp.items():
             row = [1 if mod in value else 0 for mod in all_mods]
+            if key not in groups_df['file_name'].values:
+                raise ValueError(f"File {key} not found in groups file")
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
             writer.writerow([key, group] + row)
 
-    with open(f"{output_folder}/result_max_quant_cleavages.csv", 'w', newline='', encoding="utf-8") as f:
+    with open(f"{output_folder}_cleavages.csv", 'w', newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(['ID', 'Group'] + cleavages_with_ranges)
         writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
@@ -161,6 +164,8 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         for key, value in cleavages_for_exp.items():
             indexes = [extract_index(cleavage) for cleavage in value]
             row = cleavage_score(ranges, indexes)
+            if key not in groups_df['file_name'].values:
+                raise ValueError(f"File {key} not found in groups file")
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
             writer.writerow([key, group] + row)
 
@@ -253,5 +258,11 @@ def sort_by_index_and_exons(entries):
             exon = True
         else:
             after.append(entry)
+    def sort_key(x):
+        return int(x.split('@')[1].split('_')[0])
+    before.sort(key=sort_key)
+    exon1.sort(key=sort_key)
+    exon2.sort(key=sort_key)
+    after.sort(key=sort_key)
     result = before + exon1 + exon2 + after
     return result

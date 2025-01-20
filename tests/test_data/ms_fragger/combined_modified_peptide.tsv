@@ -1,0 +1,10 @@
+Peptide Sequence	Modified Sequence	Prev AA	Next AA	Start	End	Peptide Length	Charges	Assigned Modifications	Protein	Protein ID	Entry Name	Gene	Protein Description	Mapped Genes	Mapped Proteins	Fail MaxLFQ Intensity	A 1 Intensity	A 2 Intensity	A 3 Intensity	B 1 Intensity	B 2 Intensity	B 3 Intensity	C 1 Intensity	C 2 Intensity	C 3 Intensity
+RLGPGT	RLGPGT[79.9663]									P14136						1.0	0.0	1.0	1.0	0.0	0.0	0.0	0.0	0.0	0.0
+AARRSY	[79.9663]AARRS[79.9663]Y									P14136						1.0	1.0	0.0	1.0	0.0	0.0	0.0	1.0	1.0	1.0
+MERRRIT	[16.1234]MERRRIT									P14136						1.0	1.0	1.0	1.0	1.0	0.0	1.0	1.0	1.0	1.0
+QKLQ	QK[114.0429]LQ									P14136						1.0	1.0	1.0	0.0	1.0	1.0	1.0	1.0	1.0	0.0
+QKLQ	QK[42.0106]LQ									P14136						1.0	0.0	0.0	0.0	1.0	1.0	1.0	0.0	0.0	0.0
+FADLTDAAAR	FADLTDAAAR									P14136						1.0	0.0	0.0	0.0	1.0	1.0	1.0	0.0	0.0	0.0
+LATVRQKLQ	LATVR[0.9840]QKLQ									P14136						1.0	0.0	0.0	0.0	1.0	1.0	1.0	0.0	0.0	0.0
+SAARRSY	S[79.9663]AARRS[79.9663]Y									P14136						1.0	0.0	1.0	1.0	0.0	0.0	0.0	1.0	1.0	1.0
+SLTIRVIPI	S[79.9663]LT[79.9663]IR[0.9840]VIPI									P14136						1.0	0.0	0.0	0.0	1.0	1.0	1.0	1.0	1.0	1.0

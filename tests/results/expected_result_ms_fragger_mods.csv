@@ -1,0 +1,13 @@
+ID,Group,Phospho(S)@8_general,Phospho(S)@13_general,Phospho(T)@35_general,Citrullination(R)@152_general,GG(K)@154_general,Acetyl(K)@154_general,Phospho(S)@409_exon2,Phospho(T)@411_exon2,Citrullination(R)@413_exon2
+,,Phospho,Phospho,Phospho,Citrullination,GG,Acetyl,Phospho,Phospho,Citrullination
+,,S8,S13,T35,R152,K154,K154,S409,T411,R413
+,,general,general,general,general,general,general,exon2,exon2,exon2
+A 1,A,1,1,0,0,1,0,0,0,0
+A 2,A,1,1,1,0,1,0,0,0,0
+A 3,A,1,1,1,0,0,0,0,0,0
+B 1,B,0,0,0,1,1,1,1,1,1
+B 2,B,0,0,0,1,1,1,1,1,1
+B 3,B,0,0,0,1,1,1,1,1,1
+C 1,C,1,1,0,0,1,0,1,1,1
+C 2,C,1,1,0,0,1,0,1,1,1
+C 3,C,1,1,0,0,0,0,1,1,1
