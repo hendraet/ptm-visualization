@@ -19,16 +19,18 @@ class MaxQuantPreprocessor:
         self.sorted_isoform_headers = preprocessor_helper.process_tau_file(self.fasta_file, self.aligned_fasta_file)
 
         self.groups_df = pd.read_csv(self.PREPROCESSOR_CONFIG.GROUPS_CSV)
-        self.exon_found, \
-		self.exon_start_index, \
-		self.exon_end_index, \
-		self.exon_length, \
-		self.exon_1_isoforms, \
-		self.exon_1_length, \
-		self.exon_2_isoforms, \
-		self.exon_2_length, \
-		self.exon_none_isoforms, \
-		self.max_sequence_length = exon_helper.retrieve_exon(self.fasta_file, self.CONFIG.MIN_EXON_LENGTH)
+        (
+            self.exon_found,
+            self.exon_start_index,
+            self.exon_end_index,
+            self.exon_length,
+            self.exon_1_isoforms,
+            self.exon_1_length,
+            self.exon_2_isoforms,
+            self.exon_2_length,
+            self.exon_none_isoforms,
+            self.max_sequence_leng
+        ) = exon_helper.retrieve_exon(self.fasta_file, self.CONFIG.MIN_EXON_LENGTH)
 
         self.process_max_quant_file(self.input_file)
 
@@ -184,4 +186,11 @@ class MaxQuantPreprocessor:
         all_cleavages = sorted(set(all_cleavages), key=preprocessor_helper.extract_cleavage_location)
         all_cleavages = preprocessor_helper.sort_by_index_and_exons(all_cleavages)
         cleavages_with_ranges = preprocessor_helper.extract_cleavages_ranges(all_cleavages)
-        preprocessor_helper.write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp, f"{self.CONFIG.OUTPUT_FOLDER}/result_max_quant", self.groups_df)
+        preprocessor_helper.write_results(
+            all_mods,
+            mods_for_exp,
+            cleavages_with_ranges,
+            cleavages_for_exp,
+            f"{self.CONFIG.OUTPUT_FOLDER}/result_max_quant",
+            self.groups_df
+        )

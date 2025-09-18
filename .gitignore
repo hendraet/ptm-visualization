@@ -1,6 +1,9 @@
 .venv
 .vscode
+.idea
 
 data
 output
+plot_outputs
 *__pycache__
+

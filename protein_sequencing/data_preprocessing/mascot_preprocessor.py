@@ -2,6 +2,8 @@
 import os
 import csv
 import re
+from pathlib import Path
+
 import pandas as pd
 from protein_sequencing import exon_helper, uniprot_align
 from protein_sequencing.data_preprocessing import preprocessor_helper
@@ -17,21 +19,22 @@ class MascotPreprocessor:
         self.aligned_fasta_file = self.PREPROCESSOR_CONFIG.ALIGNED_FASTA_FILE
         self.input_dir = self.PREPROCESSOR_CONFIG.MASCOT_INPUT_DIR
 
-
         uniprot_align.get_alignment(self.fasta_file)
         self.fasta_headers = preprocessor_helper.process_tau_file(self.fasta_file, self.aligned_fasta_file)
 
         self.groups_df = pd.read_csv(self.PREPROCESSOR_CONFIG.GROUPS_CSV)
-        self.exon_found, \
-        self.exon_start_index, \
-        self.exon_end_index, \
-        self.exon_length, \
-		self.exon_1_isoforms, \
-		self.exon_1_length, \
-		self.exon_2_isoforms, \
-		self.exon_2_length, \
-		self.exon_none_isoforms, \
-		self.max_sequence_length = exon_helper.retrieve_exon(self.fasta_file, self.CONFIG.MIN_EXON_LENGTH)
+        (
+            self.exon_found,
+            self.exon_start_index,
+            self.exon_end_index,
+            self.exon_length,
+            self.exon_1_isoforms,
+            self.exon_1_length,
+            self.exon_2_isoforms,
+            self.exon_2_length,
+            self.exon_none_isoforms,
+            self.max_sequence_length
+        ) = exon_helper.retrieve_exon(self.fasta_file, self.CONFIG.MIN_EXON_LENGTH)
 
         self.process_mascot_dir()
 
@@ -165,7 +168,10 @@ class MascotPreprocessor:
         """Process the results and write it to a CSV file."""
         all_mod_strings = sorted(set(all_mod_strings), key=preprocessor_helper.extract_index)
         all_mods = preprocessor_helper.sort_by_index_and_exons(all_mod_strings)
-        with open(f"{self.CONFIG.OUTPUT_FOLDER}/result_mascot.csv", 'w', newline='', encoding="utf-8") as f:
+        out_dir = Path(self.CONFIG.OUTPUT_FOLDER)
+        if not out_dir.exists():
+            out_dir.mkdir(parents=True, exist_ok=True)
+        with (out_dir / "result_mascot.csv").open('w', newline='', encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(['ID', 'Group'] + all_mods)
             writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])

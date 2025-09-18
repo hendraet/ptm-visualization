@@ -13,17 +13,20 @@ from protein_sequencing.bar_plot import BarPlot
 from protein_sequencing.details_plot import DetailsPlot
 from protein_sequencing.overview_plot import OverviewPlot
 
+
 def generate_bar_plot(config, plot_config, fasta, output):
     """Generate bar plot."""
     BarPlot(importlib.import_module(config, 'configs'),
             importlib.import_module(plot_config, 'configs'),
             fasta, output)
 
+
 def generate_details_plot(config, plot_config, fasta, output):
     """Generate details plot."""
     DetailsPlot(importlib.import_module(config, 'configs'),
                 importlib.import_module(plot_config, 'configs'),
                 fasta, output)
+
 
 def generate_overview_plot(config, plot_config, fasta, output):
     """Generate overview plot."""
@@ -39,14 +42,15 @@ DEFAULT_CONFIGS = {
     'config': 'configs.default_config',
 }
 
+
 def main():
     """Main function to generate protein sequencing plots."""
     parser = argparse.ArgumentParser(description='Generate protein sequencing plots.')
 
     parser.add_argument(
-        '-p', '--plot', 
+        '-p', '--plot',
         required=True,
-        choices=DEFAULT_CONFIGS.keys(),
+        choices=DEFAULT_CONFIGS.keys(),  # TODO: so 'config' would apparently also be a valid plot type
         help='Type of plot to generate (bar, details, overview).'
     )
     parser.add_argument(
@@ -60,9 +64,9 @@ def main():
                         default=DEFAULT_CONFIGS['config'],
                         help='Path to configuration file. Default=configs.default_config')
     parser.add_argument('-f',
-                         '--fasta',
-                         required=True,
-                         help='Path to Fasta file (e.g., data/uniprot_data/tau_isoforms2N4R.fasta)')
+                        '--fasta',
+                        required=True,
+                        help='Path to Fasta file (e.g., data/uniprot_data/tau_isoforms2N4R.fasta)')
     parser.add_argument('-o', '--output',
                         required=False,
                         default='output',
@@ -85,6 +89,7 @@ def main():
         generate_overview_plot(args.config, plot_config, args.fasta, args.output)
     else:
         print(f"Unknown plot type: {args.plot}. Please choose from 'bar', 'details', 'overview'.")
+
 
 if __name__ == '__main__':
     main()

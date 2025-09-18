@@ -8,8 +8,8 @@ class OverviewPlot:
     """Class to generate overview plot for protein sequences."""
 
     def __init__(self, config, plot_config, input_file, output_path):
-        self.config = importlib.import_module(config, 'configs')
-        self.plot_config = importlib.import_module(plot_config, 'configs')
+        self.config = config
+        self.plot_config = plot_config
         self.input_file = input_file
         self.output_path = output_path
         self.create_overview_plot()
@@ -348,4 +348,3 @@ class OverviewPlot:
         fig = self.plot_labels(fig, modifications_by_position)
 
         utils.show_plot(fig, self.output_path)
-        

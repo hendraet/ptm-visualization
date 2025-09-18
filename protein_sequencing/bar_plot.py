@@ -42,7 +42,17 @@ class BarPlot:
             bar_plot_width = bar_width * max(group_size_a, group_size_b)
         return bar_plot_width
 
-    def add_bar_plot(self, fig: go.Figure, above: str, modification_sights_all: dict[int, list[tuple[int, str, str, str]]], modification_sights_relevant: dict[int, list[tuple[int, str, str, str]]], df, group_positions: list, bar_plot_width: int, label_plot_height: int) -> go.Figure:
+    def add_bar_plot(
+            self,
+            fig: go.Figure,
+            above: str,
+            modification_sites_all: dict[int, list[tuple[int, str, str, str]]],
+            modification_sites_relevant: dict[int, list[tuple[int, str, str, str]]],
+            df,
+            group_positions: list,
+            bar_plot_width: int,
+            label_plot_height: int
+    ) -> go.Figure:
         """Add bar plot to sequence plot."""
         group_direction = 1 if above == 'A' else -1
         bar_width = bar_plot_width // len(group_positions)
@@ -54,9 +64,9 @@ class BarPlot:
         positions_visited = 0
         bar_percentages = {group: [] for group in self.plot_config.BAR_GROUPS.keys()}
 
-        for aa_position in sorted(modification_sights_all.keys(), reverse=True):
-            for modification_sight in modification_sights_all[aa_position]:
-                if modification_sight not in modification_sights_relevant[aa_position]:
+        for aa_position in sorted(modification_sites_all.keys(), reverse=True):
+            for modification_sight in modification_sites_all[aa_position]:
+                if modification_sight not in modification_sites_relevant[aa_position]:
                     for group in self.plot_config.BAR_GROUPS.keys():
                         bar_percentages[group].append(0)
                     modifications_visited += 1
@@ -164,7 +174,7 @@ class BarPlot:
 
                 modifications_visited += 1
             positions_visited += 1
-            if positions_visited >= len(modification_sights_relevant)//2:
+            if positions_visited >= len(modification_sites_relevant)//2:
                 height_offset -= 2
             else:
                 height_offset += 2
@@ -286,9 +296,8 @@ class BarPlot:
                                 showlegend=False)
         return fig
 
-    def filter_relevant_modification_sights(self, helper_file: str):
-        """Filter relevant modification sights from input file based on user defined filters."""
-        # read csv into df
+    def filter_relevant_modification_sites(self, helper_file: str):
+        """Filter relevant modification sites from input file based on user defined filters."""
         df = pd.read_csv(helper_file)
 
         # only keep first two columns and columns that are in MODIFICATIONS
@@ -296,7 +305,7 @@ class BarPlot:
         df = df[[col for col in df.columns if df[col][0] in columns_to_keep or col in ['ID', 'Group']]]
 
         # create dict for all modification sights
-        all_modification_sights = defaultdict(list)
+        all_modification_sites = defaultdict(list)
         for column in df.columns:
             if column in ['ID', 'Group']:
                 continue
@@ -310,7 +319,7 @@ class BarPlot:
                 if column_label == 'R' and column_modification == 'Deamidated':
                     column_modification = 'Citrullination'
             isoform = df[column][2]
-            all_modification_sights[int(df[column][1][1:])].append((df[column][1], column_modification, self.plot_config.MODIFICATIONS_GROUP[column_modification], isoform))
+            all_modification_sites[int(df[column][1][1:])].append((df[column][1], column_modification, self.plot_config.MODIFICATIONS_GROUP[column_modification], isoform))
 
         # remove rows where groups is not in self.plot_config.BAR_GROUPS
         header_rows = df.iloc[:4, :]
@@ -326,7 +335,7 @@ class BarPlot:
         df = pd.concat([header_columns, df], axis=1)
 
         # create new dict for modification sights
-        relevant_modification_sights = defaultdict(list)
+        relevant_modification_sites = defaultdict(list)
         for column in df.columns:
             if column in ['ID', 'Group']:
                 continue
@@ -340,8 +349,13 @@ class BarPlot:
                 if column_label == 'R' and column_modification == 'Deamidated':
                     column_modification = 'Citrullination'
             isoform = df[column][2]
-            relevant_modification_sights[int(df[column][1][1:])].append((df[column][1], column_modification, self.plot_config.MODIFICATIONS_GROUP[column_modification], isoform))
-        return all_modification_sights, relevant_modification_sights, df
+            relevant_modification_sites[int(df[column][1][1:])].append((
+                    df[column][1],
+                    column_modification,
+                    self.plot_config.MODIFICATIONS_GROUP[column_modification],
+                    isoform
+            ))
+        return all_modification_sites, relevant_modification_sites, df
 
     def get_relevant_mod_types(self, relevant_positions: dict[int, list[tuple[int, str, str, str]]]) -> set[str]:
         """Get relevant modification types."""
@@ -353,7 +367,7 @@ class BarPlot:
 
     def create_bar_plot(self):
         """Main function to create bar plot."""
-        all_positions, relevant_positions, df = self.filter_relevant_modification_sights(self.plot_config.BAR_INPUT_FILE)
+        all_positions, relevant_positions, df = self.filter_relevant_modification_sites(self.plot_config.BAR_INPUT_FILE)
         above_all, below_all = utils.separate_by_group(all_positions)
         above_relevant, below_relevant = utils.separate_by_group(relevant_positions)
         present_mod_types = self.get_relevant_mod_types(relevant_positions)
@@ -374,9 +388,22 @@ class BarPlot:
         highest_position = positions_a[-1] if group_size_a > group_size_b else positions_b[-1]
         label_plot_height = max(group_size_a, group_size_b) + utils.get_label_length(f'X{highest_position}') + 30
 
-        for (group_label, group_all, group_relevant, group_positions) in [('A', above_all, above_relevant, positions_a), ('B', below_all, below_relevant, positions_b)]:
+        for (group_label, group_all, group_relevant, group_positions) in [
+            # TODO: is this 'A' and 'B' hard_coded and should this be controlled from the outside?
+            ('A', above_all, above_relevant, positions_a),
+            ('B', below_all, below_relevant, positions_b)
+        ]:
             if len(group_positions) == 0:
                 continue
-            fig = self.add_bar_plot(fig, group_label, group_all, group_relevant, df, group_positions, bar_plot_width, label_plot_height)
+            fig = self.add_bar_plot(
+                fig,
+                above=group_label,
+                modification_sites_all=group_all,
+                modification_sites_relevant=group_relevant,
+                df=df,
+                group_positions=group_positions,
+                bar_plot_width=bar_plot_width,
+                label_plot_height= label_plot_height
+            )
 
         utils.show_plot(fig, self.output_path)

@@ -1,5 +1,7 @@
 """Module for plotting cleavages and PTMs on the sequence plot."""
 import math
+from pathlib import Path
+
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
@@ -14,6 +16,8 @@ class DetailsPlot:
         self.plot_config = plot_config
         self.input_file = input_file
         self.output_path = output_path
+        if not Path(self.output_path).exists():
+            Path(self.output_path).mkdir(parents=True, exist_ok=True)
         self.create_details_plot()
 
     def get_present_regions(self, positions, isoforms):

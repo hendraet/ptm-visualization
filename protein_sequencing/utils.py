@@ -93,6 +93,7 @@ def clean_up():
 
 def show_plot(fig, output_path):
     """Show the plot and save it as a .png and .svg file."""
+    # TODO: hardcoded paths -.-
     output_svg = f"{output_path}/figure1.svg"
     output_png = f"{output_path}/figure1.png"
     fig.show()

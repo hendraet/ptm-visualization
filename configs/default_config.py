@@ -33,9 +33,9 @@ REGIONS = [
 MODIFICATION_LEGEND_TITLE = 'PTMs'
 MODIFICATIONS = {
     'Phospho': ('Phosphorylation', '#000000'),
-    #'Acetyl': ('Acetylation', '#93478F'),
-    #'Methyl': ('Methylation', '#C35728'),
-    #'GG': ('Ubiquitination', '#548056'),
+    'Acetyl': ('Acetylation', '#93478F'),
+    'Methyl': ('Methylation', '#C35728'),
+    'GG': ('Ubiquitination', '#548056'),
     'Citrullination': ('Citrullination', '#FF17E3'),
     'Deamidated': ('Deamidation', '#34AEEB'),
 }

@@ -2,6 +2,8 @@
 
 import os
 import subprocess
+from pathlib import Path
+
 from Bio import AlignIO, SeqIO
 
 
@@ -11,6 +13,8 @@ def get_alignment(input_file: str | os.PathLike):
 
     # write to temporary file and do alignment
     padded_sequences_path = f'data/tmp/{os.path.splitext(os.path.basename(input_file))[0]}_padded'
+    if not os.path.exists('data/tmp'):
+        os.makedirs('data/tmp')
     with open(f"{padded_sequences_path}.fasta", 'w', encoding="utf-8") as f:
         SeqIO.write(records, f, 'fasta')
 
@@ -26,7 +30,10 @@ def get_alignment(input_file: str | os.PathLike):
         subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, text=True, check=False)
         align = AlignIO.read(f"{padded_sequences_path}_aligned.fasta", "fasta")
 
-    with open('data/uniprot_data/aligned.fasta', 'w', encoding="utf-8") as f:
+    out_dir = Path('data/uniprot_data')
+    if not out_dir.exists():
+        out_dir.mkdir(parents=True, exist_ok=True)
+    with (out_dir / 'aligned.fasta').open('w', encoding="utf-8") as f:
         SeqIO.write(align, f, 'fasta')
 
     return align
