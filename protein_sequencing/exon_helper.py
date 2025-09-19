@@ -1,6 +1,9 @@
 """Helper functions for exon retrieval"""
 import os
+from pathlib import Path
+
 from protein_sequencing import uniprot_align, utils
+
 
 def levenshtein_distance(str1: str, str2: str, min_exon_length: int) -> bool:
     """Calculate the Levenshtein distance between two strings.
@@ -23,16 +26,17 @@ def levenshtein_distance(str1: str, str2: str, min_exon_length: int) -> bool:
                 matrix[i][j] = matrix[i - 1][j - 1]
             else:
                 matrix[i][j] = 1 + min(
-                    matrix[i - 1][j],       # Deletion
-                    matrix[i][j - 1],       # Insertion
-                    matrix[i - 1][j - 1]    # Substitution
+                    matrix[i - 1][j],  # Deletion
+                    matrix[i][j - 1],  # Insertion
+                    matrix[i - 1][j - 1]  # Substitution
                 )
 
     return matrix[-1][-1] <= min_exon_length
 
-def retrieve_exon(input_file: str | os.PathLike, min_exon_length: int):
+
+def retrieve_exon(input_file: Path, min_exon_length: int, out_dir: Path) -> tuple:
     """Retrieve exon from protein sequence."""
-    alignments = list(uniprot_align.get_alignment(input_file))
+    alignments = list(uniprot_align.get_alignment(input_file, out_dir))
     max_sequence_length = 0
     for alignment in alignments:
         max_sequence_length = max(max_sequence_length, len(alignment.seq))
@@ -41,7 +45,7 @@ def retrieve_exon(input_file: str | os.PathLike, min_exon_length: int):
     for alignment in alignments:
         utils.ISOFORM_IDS.append(alignment.id.split('|')[1])
 
-    different_possibilities = [-1]*max_sequence_length
+    different_possibilities = [-1] * max_sequence_length
     for i in range(max_sequence_length):
         amino_acids = dict(list())
         for alignment in alignments:
@@ -55,7 +59,7 @@ def retrieve_exon(input_file: str | os.PathLike, min_exon_length: int):
             if len(amino_acids) == 2:
                 different_possibilities[i] = -1
             if len(amino_acids) > 2:
-                different_possibilities[i] = len(amino_acids)-1
+                different_possibilities[i] = len(amino_acids) - 1
         else:
             if len(amino_acids) > 1:
                 different_possibilities[i] = len(amino_acids)
@@ -69,7 +73,8 @@ def retrieve_exon(input_file: str | os.PathLike, min_exon_length: int):
     while i < len(different_possibilities):
         if different_possibilities[i] == 2:
             if exon_found:
-                raise ValueError("There are multiple exons in the sequence, currently the tool just supports 1 different exon.")
+                raise ValueError(
+                    "There are multiple exons in the sequence, currently the tool just supports 1 different exon.")
             current_position = i
             exon_start_index = i
             while i > 0:
@@ -130,6 +135,7 @@ def retrieve_exon(input_file: str | os.PathLike, min_exon_length: int):
 
     if exon_found:
         # exon_start_index starts with 0 (so the first amino acid in the exon is +1)
-        return True, exon_start_index+1, exon_end_index+1, max_exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length
+        return True, exon_start_index + 1, exon_end_index + 1, max_exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length
 
-    return False, -1, -1, -1, [], -1, [], -1, [alignment.id.split('|')[1] for alignment in alignments], max_sequence_length
+    return False, -1, -1, -1, [], -1, [], -1, [alignment.id.split('|')[1] for alignment in
+                                               alignments], max_sequence_length

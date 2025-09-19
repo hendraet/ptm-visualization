@@ -4,7 +4,7 @@ from collections import defaultdict
 import plotly.graph_objects as go
 from protein_sequencing import utils, sequence_plot as sequence
 
-class OverviewPlot:
+class OverviewPlotter:
     """Class to generate overview plot for protein sequences."""
 
     def __init__(self, config, plot_config, input_file, output_path):
@@ -12,7 +12,6 @@ class OverviewPlot:
         self.plot_config = plot_config
         self.input_file = input_file
         self.output_path = output_path
-        self.create_overview_plot()
 
     def get_present_modifications(self, mod_file):
         """Get present modifications"""
@@ -338,13 +337,19 @@ class OverviewPlot:
         present_modifications = self.get_present_modifications(self.plot_config.INPUT_FILE)
         groups_present = {self.plot_config.MODIFICATIONS_GROUP[mod] for mod in present_modifications if mod in self.plot_config.MODIFICATIONS_GROUP}
         if not 'A' in groups_present:
-            fig = sequence.create_plot(self.input_file, present_modifications, 'A', 'A')
+            fig = sequence.create_plot(self.input_file, present_modifications, 'A', 'A', out_dir=self.output_path)
         elif not 'B' in groups_present:
-            fig = sequence.create_plot(self.input_file, present_modifications, 'B', 'B')
+            fig = sequence.create_plot(self.input_file, present_modifications, 'B', 'B', out_dir=self.output_path)
         else:
-            fig = sequence.create_plot(self.input_file, present_modifications, None, 'A')
+            fig = sequence.create_plot(self.input_file, present_modifications, None, 'A', out_dir=self.output_path)
 
         modifications_by_position = self.get_modifications_per_position(self.plot_config.INPUT_FILE)
         fig = self.plot_labels(fig, modifications_by_position)
 
-        utils.show_plot(fig, self.output_path)
+        utils.finalize_plotting(
+            fig,
+            self.output_path,
+            save_plot=self.plot_config.SAVE_PLOT,
+            show_plot=self.plot_config.SHOW_PLOT
+        )
+        return fig

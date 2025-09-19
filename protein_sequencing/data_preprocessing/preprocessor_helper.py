@@ -3,6 +3,7 @@ from typing import Tuple
 import csv
 
 def process_tau_file(fasta_file, aligned_fasta_file):
+    # TODO: naming sucks or does it really only work for tau?
     """Extracts the sequences from the fasta file and the aligned fasta file
     and returns them as a list of tuples sorted by the sequence length."""
     headers = []

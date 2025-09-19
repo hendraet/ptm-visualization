@@ -9,30 +9,30 @@ Optional arguments:
 import argparse
 import importlib
 from protein_sequencing import utils, sequence_plot
-from protein_sequencing.bar_plot import BarPlot
-from protein_sequencing.details_plot import DetailsPlot
-from protein_sequencing.overview_plot import OverviewPlot
+from protein_sequencing.bar_plot import BarPlotter
+from protein_sequencing.details_plot import DetailsPlotter
+from protein_sequencing.overview_plot import OverviewPlotter
 
 
 def generate_bar_plot(config, plot_config, fasta, output):
     """Generate bar plot."""
-    BarPlot(importlib.import_module(config, 'configs'),
-            importlib.import_module(plot_config, 'configs'),
-            fasta, output)
+    BarPlotter(importlib.import_module(config, 'configs'),
+               importlib.import_module(plot_config, 'configs'),
+               fasta, output)
 
 
 def generate_details_plot(config, plot_config, fasta, output):
     """Generate details plot."""
-    DetailsPlot(importlib.import_module(config, 'configs'),
-                importlib.import_module(plot_config, 'configs'),
-                fasta, output)
+    DetailsPlotter(importlib.import_module(config, 'configs'),
+                   importlib.import_module(plot_config, 'configs'),
+                   fasta, output)
 
 
 def generate_overview_plot(config, plot_config, fasta, output):
     """Generate overview plot."""
-    OverviewPlot(importlib.import_module(config, 'configs'),
-                 importlib.import_module(plot_config, 'configs'),
-                 fasta, output)
+    OverviewPlotter(importlib.import_module(config, 'configs'),
+                    importlib.import_module(plot_config, 'configs'),
+                    fasta, output)
 
 
 DEFAULT_CONFIGS = {

@@ -1,8 +1,11 @@
 """MaxQuant preprocessor module. Extracts modifications and cleavages from MaxQuant output file."""
 import re
+from pathlib import Path
+
 import pandas as pd
 from protein_sequencing import exon_helper, uniprot_align
 from protein_sequencing.data_preprocessing import preprocessor_helper
+
 
 class MaxQuantPreprocessor:
     """MaxQuant Preprocessor."""
@@ -14,8 +17,9 @@ class MaxQuantPreprocessor:
         self.fasta_file = self.PREPROCESSOR_CONFIG.FASTA_FILE
         self.aligned_fasta_file = self.PREPROCESSOR_CONFIG.ALIGNED_FASTA_FILE
         self.input_file = self.PREPROCESSOR_CONFIG.MAX_QUANT_FILE
+        self.out_dir = config.OUTPUT_FOLDER
 
-        uniprot_align.get_alignment(self.fasta_file)
+        uniprot_align.get_alignment(Path(self.fasta_file), Path(self.out_dir))
         self.sorted_isoform_headers = preprocessor_helper.process_tau_file(self.fasta_file, self.aligned_fasta_file)
 
         self.groups_df = pd.read_csv(self.PREPROCESSOR_CONFIG.GROUPS_CSV)
@@ -30,7 +34,7 @@ class MaxQuantPreprocessor:
             self.exon_2_length,
             self.exon_none_isoforms,
             self.max_sequence_leng
-        ) = exon_helper.retrieve_exon(self.fasta_file, self.CONFIG.MIN_EXON_LENGTH)
+        ) = exon_helper.retrieve_exon(Path(self.fasta_file), self.CONFIG.MIN_EXON_LENGTH, Path(self.out_dir))
 
         self.process_max_quant_file(self.input_file)
 

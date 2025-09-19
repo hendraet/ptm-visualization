@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from protein_sequencing import utils, sequence_plot
 
-class DetailsPlot:
+class DetailsPlotter:
     """Class to plot cleavages and PTMs on the sequence plot."""
 
     def __init__(self, config, plot_config, input_file, output_path):
@@ -18,7 +18,6 @@ class DetailsPlot:
         self.output_path = output_path
         if not Path(self.output_path).exists():
             Path(self.output_path).mkdir(parents=True, exist_ok=True)
-        self.create_details_plot()
 
     def get_present_regions(self, positions, isoforms):
         """Get the regions present in the cleavages or PTMs."""
@@ -873,17 +872,17 @@ class DetailsPlot:
         if not 'A' in self.plot_config.INPUT_FILES.keys():
             if self.plot_config.INPUT_FILES['B'][0] == 'PTM':
                 legend = 'B'
-            fig = sequence_plot.create_plot(self.input_file, present_mod_types, 'A', legend)
+            fig = sequence_plot.create_plot(self.input_file, present_mod_types, 'A', legend, out_dir=self.output_path)
         elif not 'B' in self.plot_config.INPUT_FILES.keys():
             if self.plot_config.INPUT_FILES['A'][0] == 'PTM':
                 legend = 'A'
-            fig = sequence_plot.create_plot(self.input_file, present_mod_types, 'B', legend)
+            fig = sequence_plot.create_plot(self.input_file, present_mod_types, 'B', legend, out_dir=self.output_path)
         else:
             if self.plot_config.INPUT_FILES['A'][0] == 'PTM':
                 legend = 'A'
             if self.plot_config.INPUT_FILES['B'][0] == 'PTM':
                 legend = 'B'
-            fig = sequence_plot.create_plot(self.input_file, present_mod_types, None, legend)
+            fig = sequence_plot.create_plot(self.input_file, present_mod_types, None, legend, out_dir=self.output_path)
         cleavage_file_path = None
         ptm_file_path = None
         for above in self.plot_config.INPUT_FILES.keys():
@@ -929,4 +928,10 @@ class DetailsPlot:
 
             self.plot_ptms(fig, ptm_df, pixels_per_ptm, label_plot_height, ptm_above, second_row)
 
-        utils.show_plot(fig, self.output_path)
+        utils.finalize_plotting(
+            fig,
+            self.output_path,
+            save_plot=self.plot_config.SAVE_PLOT,
+            show_plot=self.plot_config.SHOW_PLOT
+        )
+        return fig
