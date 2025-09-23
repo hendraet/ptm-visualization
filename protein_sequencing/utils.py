@@ -7,7 +7,8 @@ from pathlib import Path
 import numpy as np
 import plotly.graph_objects as go
 
-CONFIG = importlib.import_module('configs.default_config', 'configs')
+# TODO: remove this file
+# CONFIG = importlib.import_module('configs.default_config', 'configs')
 
 # x0, x1, y0, y1
 SEQUENCE_BOUNDARIES = {'x0': 0, 'x1': 0, 'y0': 0, 'y1': 0}

@@ -10,6 +10,7 @@ from protein_sequencing import utils, exon_helper
 CONFIG = importlib.import_module('configs.default_config', 'configs')
 
 
+# TODO:: remove this file
 def create_plot(
         input_file: str | os.PathLike,
         present_modifications,

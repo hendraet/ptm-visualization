@@ -2,19 +2,27 @@
 from collections import defaultdict
 import plotly.graph_objects as go
 import pandas as pd
-from protein_sequencing import utils, sequence_plot
+
+from protein_sequencing.plotter import Plotter
 
 
-class BarPlotter:
+class BarPlotter(Plotter):
     """Class to create bar plots for protein sequences."""
 
     def __init__(self, config, plot_config, input_file, output_path):
+        super().__init__(config)
+
         self.config = config
         self.plot_config = plot_config
         self.input_file = input_file
         self.output_path = output_path
         # calculate exons and central sequence boundaries
-        sequence_plot.create_plot(self.input_file, None, 'A', out_dir=output_path)
+        self._create_plot(
+            input_file=self.input_file,
+            present_modifications=None,
+            groups_missing='A',
+            out_dir=self.output_path
+        )
 
     def get_bar_positions(self, modification_sights_all_a: dict[int, list[tuple[int, str, str]]],
                           modification_sights_all_b: dict[int, list[tuple[int, str, str]]]):
@@ -32,15 +40,15 @@ class BarPlotter:
 
     def get_bar_plot_width(self, group_size_a: int, group_size_b: int) -> int:
         """Get width of bar plot."""
-        legend_height = utils.get_label_height() * (
+        legend_height = self.get_label_height() * (
             max(value.count('<br>') + 1 for value in self.plot_config.BAR_GROUPS.values()))
         if self.config.FIGURE_ORIENTATION == 0:
-            legend_height += utils.get_label_length('100%')
-            bar_width = (utils.get_width() - legend_height) // max(group_size_a, group_size_b)
+            legend_height += self.get_label_length('100%')
+            bar_width = (self.get_width() - legend_height) // max(group_size_a, group_size_b)
             bar_plot_width = bar_width * max(group_size_a, group_size_b)
         else:
-            legend_height += utils.get_label_height()
-            bar_width = (utils.get_height() - legend_height) // max(group_size_a, group_size_b)
+            legend_height += self.get_label_height()
+            bar_width = (self.get_height() - legend_height) // max(group_size_a, group_size_b)
             bar_plot_width = bar_width * max(group_size_a, group_size_b)
         return bar_plot_width
 
@@ -76,18 +84,18 @@ class BarPlotter:
                 label, modification_type, _, isoform = modification_sight
                 if self.config.FIGURE_ORIENTATION == 0:
                     # x position for protein sequence
-                    position = utils.get_position_with_offset(aa_position, isoform)
-                    x_0_line = position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET
-                    x_0_line = utils.offset_line_for_exon(x_0_line, aa_position, self.config.FIGURE_ORIENTATION)
+                    position = self.get_position_with_offset(aa_position, isoform)
+                    x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
+                    x_0_line = self.offset_line_for_exon(x_0_line, aa_position, self.config.FIGURE_ORIENTATION)
                     # x position for bar plot
-                    x_1_line = utils.get_width() - (modifications_visited * bar_width + bar_width // 2)
-                    y_0_line = utils.SEQUENCE_BOUNDARIES['y1'] if above == 'A' else utils.SEQUENCE_BOUNDARIES['y0']
+                    x_1_line = self.get_width() - (modifications_visited * bar_width + bar_width // 2)
+                    y_0_line = self.SEQUENCE_BOUNDARIES['y1'] if above == 'A' else self.SEQUENCE_BOUNDARIES['y0']
                     y_1_line = y_0_line + group_direction * height_offset
                     y_3_line = y_0_line + label_plot_height * group_direction - (
-                                utils.get_label_length(label) + 10) * group_direction
+                                self.get_label_length(label) + 10) * group_direction
                     y_2_line = y_3_line - 10 * group_direction
-                    y_label = y_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
-                    y_bar = y_3_line + (utils.get_label_length(label) + 5) * group_direction
+                    y_label = y_3_line + (self.get_label_length(label) // 2 + 5) * group_direction
+                    y_bar = y_3_line + (self.get_label_length(label) + 5) * group_direction
 
                     # plot line with label
                     self.plot_line_with_label_horizontal(fig,
@@ -97,7 +105,7 @@ class BarPlotter:
                                                          self.config.MODIFICATIONS[modification_type][1],
                                                          label, modification_type)
 
-                    space_above_sequence = utils.get_height() - y_0_line if above == 'A' else y_0_line
+                    space_above_sequence = self.get_height() - y_0_line if above == 'A' else y_0_line
                     space_per_group = (space_above_sequence - label_plot_height) // (len(df["Group"].unique()) - 1)
                     max_bar_height = space_per_group - 2 * bar_plot_margin
                     # plot bars
@@ -128,17 +136,17 @@ class BarPlotter:
                             fillcolor=self.config.MODIFICATIONS[modification_type][1]
                         )
                 else:
-                    position = utils.get_position_with_offset(aa_position, isoform)
-                    y_0_line = utils.get_height() - (position * utils.PIXELS_PER_AA + utils.SEQUENCE_OFFSET)
-                    y_0_line = utils.offset_line_for_exon(y_0_line, aa_position, self.config.FIGURE_ORIENTATION)
+                    position = self.get_position_with_offset(aa_position, isoform)
+                    y_0_line = self.get_height() - (position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET)
+                    y_0_line = self.offset_line_for_exon(y_0_line, aa_position, self.config.FIGURE_ORIENTATION)
                     y_1_line = modifications_visited * bar_width + bar_width // 2
-                    x_0_line = utils.SEQUENCE_BOUNDARIES['x1'] if above == 'A' else utils.SEQUENCE_BOUNDARIES['x0']
+                    x_0_line = self.SEQUENCE_BOUNDARIES['x1'] if above == 'A' else self.SEQUENCE_BOUNDARIES['x0']
                     x_1_line = x_0_line + group_direction * height_offset
                     x_3_line = x_0_line + label_plot_height * group_direction - (
-                                utils.get_label_length(label) + 10) * group_direction
+                            self.get_label_length(label) + 10) * group_direction
                     x_2_line = x_3_line - 10 * group_direction
-                    x_label = x_3_line + (utils.get_label_length(label) // 2 + 5) * group_direction
-                    x_bar = x_3_line + (utils.get_label_length(label) + 5) * group_direction
+                    x_label = x_3_line + (self.get_label_length(label) // 2 + 5) * group_direction
+                    x_bar = x_3_line + (self.get_label_length(label) + 5) * group_direction
 
                     # plot line with label
                     self.plot_line_with_label_vertical(fig,
@@ -147,7 +155,7 @@ class BarPlotter:
                                                        self.config.MODIFICATIONS[modification_type][1],
                                                        label, modification_type)
 
-                    space_above_sequence = utils.get_width() - x_0_line if above == 'A' else x_0_line
+                    space_above_sequence = self.get_width() - x_0_line if above == 'A' else x_0_line
                     space_per_group = (space_above_sequence - label_plot_height) // (len(df["Group"].unique()) - 1)
                     max_bar_height = space_per_group - 2 * bar_plot_margin
                     # plot bars
@@ -189,9 +197,9 @@ class BarPlotter:
         if self.config.FIGURE_ORIENTATION == 0:
             for i, group in enumerate(self.plot_config.BAR_GROUPS.keys()):
                 y_group = y_bar + (i * space_per_group + 5) * group_direction
-                x_line_start = utils.get_width() - bar_plot_width
+                x_line_start = self.get_width() - bar_plot_width
                 fig.add_annotation(
-                    x=x_line_start - utils.get_label_length('100%') - max_lines * utils.get_label_height() + 3,
+                    x=x_line_start - self.get_label_length('100%', ) - max_lines * self.get_label_height() + 3,
                     y=y_group + space_per_group // 2 * group_direction,
                     width=space_per_group,
                     text=self.plot_config.BAR_GROUPS[group],
@@ -215,7 +223,7 @@ class BarPlotter:
                     text = str(j * 25) + '%'
                     if self.plot_config.INVERT_AXIS_GROUP_B and above == 'B':
                         text = str(100 - j * 25) + '%'
-                    fig.add_annotation(x=x_line_start - utils.get_label_length(text) // 2 - 5,
+                    fig.add_annotation(x=x_line_start - self.get_label_length(text) // 2 - 5,
                                        y=y_trace,
                                        text=text,
                                        font={'size': self.config.SEQUENCE_PLOT_FONT_SIZE, 'family': self.config.FONT,
@@ -226,7 +234,7 @@ class BarPlotter:
                 x_group = x_bar + (i * space_per_group + 5) * group_direction
                 y_line_start = bar_plot_width
                 fig.add_annotation(x=x_group + space_per_group // 2 * group_direction,
-                                   y=y_line_start + utils.get_label_height() + max_lines * utils.get_label_height() - 5,
+                                   y=y_line_start + self.get_label_height() + max_lines * self.get_label_height() - 5,
                                    text=self.plot_config.BAR_GROUPS[group],
                                    font={'size': self.config.SEQUENCE_PLOT_FONT_SIZE, 'family': self.config.FONT,
                                          'color': "black"},
@@ -249,11 +257,11 @@ class BarPlotter:
                         if self.plot_config.INVERT_AXIS_GROUP_B and above == 'B':
                             text = str(100 - j * 25) + '%'
                         if j == 0:
-                            x_pos = x_trace - utils.get_label_length(
-                                text) // 2 if above == 'B' else x_trace + utils.get_label_length(text) // 2
+                            x_pos = x_trace - self.get_label_length(
+                                text) // 2 if above == 'B' else x_trace + self.get_label_length(text) // 2
                         elif j == 4:
-                            x_pos = x_trace + utils.get_label_length(
-                                text) // 2 if above == 'B' else x_trace - utils.get_label_length(text) // 2
+                            x_pos = x_trace + self.get_label_length(
+                                text) // 2 if above == 'B' else x_trace - self.get_label_length(text) // 2
                         else:
                             x_pos = x_trace
                         fig.add_annotation(x=x_pos,
@@ -280,10 +288,10 @@ class BarPlotter:
                                  'color': color})
         if f'{modification_type}({label[0]})@{label[1:]}' in self.config.PTMS_TO_HIGHLIGHT:
             fig.add_shape(type='rect',
-                          x0=x_1 - utils.get_label_height() // 2 - 1,
-                          x1=x_1 + utils.get_label_height() // 2 + 1,
-                          y0=y_label - utils.get_label_length(label) // 2 - 3,
-                          y1=y_label + utils.get_label_length(label) // 2 + 3,
+                          x0=x_1 - self.get_label_height() // 2 - 1,
+                          x1=x_1 + self.get_label_height() // 2 + 1,
+                          y0=y_label - self.get_label_length(label) // 2 - 3,
+                          y1=y_label + self.get_label_length(label) // 2 + 3,
                           line={'width': 0},
                           fillcolor=self.config.PTM_HIGHLIGHT_LABEL_COLOR,
                           showlegend=False)
@@ -303,10 +311,10 @@ class BarPlotter:
                                  'color': color})
         if f'{modification_type}({label[0]})@{label[1:]}' in self.config.PTMS_TO_HIGHLIGHT:
             fig.add_shape(type='rect',
-                          x0=x_label - utils.get_label_length(label) // 2 - 3,
-                          x1=x_label + utils.get_label_length(label) // 2 + 3,
-                          y0=y_1 - utils.get_label_height() // 2 - 1,
-                          y1=y_1 + utils.get_label_height() // 2 + 1,
+                          x0=x_label - self.get_label_length(label) // 2 - 3,
+                          x1=x_label + self.get_label_length(label) // 2 + 3,
+                          y0=y_1 - self.get_label_height() // 2 - 1,
+                          y1=y_1 + self.get_label_height() // 2 + 1,
                           line={'width': 0},
                           fillcolor=self.config.PTM_HIGHLIGHT_LABEL_COLOR,
                           showlegend=False)
@@ -386,24 +394,43 @@ class BarPlotter:
     def create_bar_plot(self):
         """Main function to create bar plot."""
         all_positions, relevant_positions, df = self.filter_relevant_modification_sites(self.plot_config.BAR_INPUT_FILE)
-        above_all, below_all = utils.separate_by_group(all_positions)
-        above_relevant, below_relevant = utils.separate_by_group(relevant_positions)
+        above_all, below_all = self.separate_by_group(all_positions)
+        above_relevant, below_relevant = self.separate_by_group(relevant_positions)
         present_mod_types = self.get_relevant_mod_types(relevant_positions)
 
         if len(above_relevant) == 0:
-            fig = sequence_plot.create_plot(self.input_file, present_mod_types, 'A', 'A', out_dir=self.output_path)
+            groups_missing = 'A',
+            legend_positioning = 'A',
         elif len(below_relevant) == 0:
-            fig = sequence_plot.create_plot(self.input_file, present_mod_types, 'B', 'B', out_dir=self.output_path)
+            groups_missing = 'B',
+            legend_positioning = 'B',
         else:
-            legend = 'A' if self.config.FIGURE_ORIENTATION == 0 else 'B'
-            fig = sequence_plot.create_plot(self.input_file, present_mod_types, None, legend, out_dir=self.output_path)
+            groups_missing = None
+            legend_positioning = 'A' if self.config.FIGURE_ORIENTATION == 0 else 'B'
+
+        # TODO: remove
+        # if len(above_relevant) == 0:
+        #     fig = self._create_plot(self.input_file, present_mod_types, 'A', 'A', out_dir=self.output_path)
+        # elif len(below_relevant) == 0:
+        #     fig = self._create_plot(self.input_file, present_mod_types, 'B', 'B', out_dir=self.output_path)
+        # else:
+        #     legend = 'A' if self.config.FIGURE_ORIENTATION == 0 else 'B'
+        #     fig = self._create_plot(self.input_file, present_mod_types, None, legend, out_dir=self.output_path)
+
+        fig = self._create_plot(
+            input_file=self.input_file,
+            present_modifications=present_mod_types,
+            groups_missing=groups_missing,
+            legend_positioning=legend_positioning,
+            out_dir=self.output_path
+        )
 
         positions_a, positions_b = self.get_bar_positions(above_all, below_all)
         group_size_a = len(positions_a)
         group_size_b = len(positions_b)
         bar_plot_width = self.get_bar_plot_width(group_size_a, group_size_b)
         highest_position = positions_a[-1] if group_size_a > group_size_b else positions_b[-1]
-        label_plot_height = max(group_size_a, group_size_b) + utils.get_label_length(f'X{highest_position}') + 30
+        label_plot_height = max(group_size_a, group_size_b) + self.get_label_length(f'X{highest_position}') + 30
 
         for (group_label, group_all, group_relevant, group_positions) in [
             # TODO: is this 'A' and 'B' hard_coded and should this be controlled from the outside?
@@ -423,7 +450,7 @@ class BarPlotter:
                 label_plot_height=label_plot_height
             )
 
-        utils.finalize_plotting(
+        self.finalize_plotting(
             fig,
             self.output_path,
             save_plot=self.plot_config.SAVE_PLOT,
