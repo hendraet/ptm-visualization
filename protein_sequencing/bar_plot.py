@@ -399,11 +399,11 @@ class BarPlotter(Plotter):
         present_mod_types = self.get_relevant_mod_types(relevant_positions)
 
         if len(above_relevant) == 0:
-            groups_missing = 'A',
-            legend_positioning = 'A',
+            groups_missing = 'A'
+            legend_positioning = 'A'
         elif len(below_relevant) == 0:
-            groups_missing = 'B',
-            legend_positioning = 'B',
+            groups_missing = 'B'
+            legend_positioning = 'B'
         else:
             groups_missing = None
             legend_positioning = 'A' if self.config.FIGURE_ORIENTATION == 0 else 'B'

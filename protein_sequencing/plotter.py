@@ -22,8 +22,6 @@ class Plotter:
                               'pixel_start': -1,
                               'pixel_end': -1}
 
-        self.ISOFORM_IDS = []
-
         # TODO: maybe lower case these
         self.MODIFICATIONS = config.MODIFICATIONS
         self.MODIFICATION_LEGEND_TITLE = config.MODIFICATION_LEGEND_TITLE

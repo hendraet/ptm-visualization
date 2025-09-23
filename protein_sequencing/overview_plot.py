@@ -368,11 +368,11 @@ class OverviewPlotter(Plotter):
         groups_present = {self.plot_config.MODIFICATIONS_GROUP[mod] for mod in present_modifications if
                           mod in self.plot_config.MODIFICATIONS_GROUP}
         if 'A' not in groups_present:
-            groups_missing = 'A',
-            legend_positioning = 'A',
+            groups_missing = 'A'
+            legend_positioning = 'A'
         elif 'B' not in groups_present:
-            groups_missing = 'B',
-            legend_positioning = 'B',
+            groups_missing = 'B'
+            legend_positioning = 'B'
         else:
             groups_missing = None
             legend_positioning = 'A'

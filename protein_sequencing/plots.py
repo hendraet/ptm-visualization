@@ -8,7 +8,7 @@ Optional arguments:
 
 import argparse
 import importlib
-from protein_sequencing import utils, sequence_plot
+
 from protein_sequencing.bar_plot import BarPlotter
 from protein_sequencing.details_plot import DetailsPlotter
 from protein_sequencing.overview_plot import OverviewPlotter
@@ -77,9 +77,6 @@ def main():
         plot_config = args.plot_config
     else:
         plot_config = DEFAULT_CONFIGS[args.plot]
-
-    sequence_plot.CONFIG = importlib.import_module(args.config, 'configs')
-    utils.CONFIG = importlib.import_module(args.config, 'configs')
 
     if args.plot == 'bar':
         generate_bar_plot(args.config, plot_config, args.fasta, args.output)

@@ -1,8 +1,7 @@
 """Helper functions for exon retrieval"""
-import os
 from pathlib import Path
 
-from protein_sequencing import uniprot_align, utils
+from protein_sequencing import uniprot_align
 
 
 def levenshtein_distance(str1: str, str2: str, min_exon_length: int) -> bool:
@@ -42,8 +41,6 @@ def retrieve_exon(input_file: Path, min_exon_length: int, out_dir: Path) -> tupl
         max_sequence_length = max(max_sequence_length, len(alignment.seq))
 
     assert all(len(alignment.seq) == max_sequence_length for alignment in alignments)
-    for alignment in alignments:
-        utils.ISOFORM_IDS.append(alignment.id.split('|')[1])
 
     different_possibilities = [-1] * max_sequence_length
     for i in range(max_sequence_length):
