@@ -1,12 +1,6 @@
 # General
 #FASTA_FILE = 'data/uniprot_data/P14136_a_e.fasta'
 FASTA_FILE = '/home/talnawa/Desktop/protein_sequencing/data/experiment/test.fasta'
-ISOFORM_HELPER_DICT = { "0N3R": "P10636-2",
-                        "1N3R": "P10636-4",
-                        "2N3R": "P10636-5",
-                        "0N4R": "P10636-6",
-                        "1N4R": "P10636-7",
-                        "2N4R": "P10636-8",}
 #GROUPS_CSV = 'data/groups.csv'
 GROUPS_CSV = '/home/talnawa/Desktop/protein_sequencing/data/experiment/groups.csv'
 # this is the default path where the tool will safe the alignment

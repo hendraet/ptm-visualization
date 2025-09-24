@@ -80,9 +80,6 @@ class ProteinPilotPreprocessor:
         isoform_found = False
         for search in search_headers:
             search_header = search.split('|')[1]
-            if search_header in self.PREPROCESSOR_CONFIG.ISOFORM_HELPER_DICT:
-                search_header = self.PREPROCESSOR_CONFIG.ISOFORM_HELPER_DICT[search_header]
-
             if search_header in [header[0] for header in self.sorted_isoform_headers]:
                 isoform_found = True
                 break

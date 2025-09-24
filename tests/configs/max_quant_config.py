@@ -1,7 +1,6 @@
 # General
 FASTA_FILE = 'tests/test_data/input.fasta'
 
-ISOFORM_HELPER_DICT = {}
 GROUPS_CSV = 'tests/test_data/groups_max_quant.csv'
 
 # this is the default path where the tool will save the alignment

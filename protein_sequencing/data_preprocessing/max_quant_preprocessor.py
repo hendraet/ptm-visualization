@@ -22,7 +22,9 @@ class MaxQuantPreprocessor:
         uniprot_align.get_alignment(Path(self.fasta_file), Path(self.out_dir))
         self.sorted_isoform_headers = preprocessor_helper.process_tau_file(self.fasta_file, self.aligned_fasta_file)
 
-        self.groups_df = pd.read_csv(self.PREPROCESSOR_CONFIG.GROUPS_CSV)
+        self.groups_df = pd.read_csv(gf) if (gf := self.PREPROCESSOR_CONFIG.GROUPS_CSV) is not None else pd.DataFrame(
+            {'file_name': [], 'group_name': [], 'replicate': []}
+        )
         (
             self.exon_found,
             self.exon_start_index,
@@ -154,8 +156,6 @@ class MaxQuantPreprocessor:
                             exp_idx = i
                 else:
                     fields = line.split("\t")
-                    if fields[prot_accession_idx] in self.PREPROCESSOR_CONFIG.ISOFORM_HELPER_DICT:
-                        fields[prot_accession_idx] = self.PREPROCESSOR_CONFIG.ISOFORM_HELPER_DICT[fields[prot_accession_idx]]
                     try:
                         isoform, sequence, peptide_offset, aligned_sequence = preprocessor_helper.get_accession(fields[prot_accession_idx], fields[pep_seq_idx], self.sorted_isoform_headers)
                     except ValueError:
@@ -164,15 +164,17 @@ class MaxQuantPreprocessor:
                     cleavage = preprocessor_helper.check_N_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx], self.sorted_isoform_headers, self.exon_found, self.exon_start_index, self.exon_end_index, self.exon_1_isoforms, self.exon_2_isoforms, self.exon_1_length, self.exon_2_length, self.exon_length)
                     if cleavage != "":
                         all_cleavages.append(cleavage)
-                        if fields[exp_idx] not in cleavages_for_exp:
-                            cleavages_for_exp[fields[exp_idx]] = []
-                        cleavages_for_exp[fields[exp_idx]].append(cleavage)
+                        if len(self.groups_df) > 0:
+                            if fields[exp_idx] not in cleavages_for_exp:
+                                cleavages_for_exp[fields[exp_idx]] = []
+                            cleavages_for_exp[fields[exp_idx]].append(cleavage)
                     cleavage = preprocessor_helper.check_C_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx], self.sorted_isoform_headers, self.exon_found, self.exon_start_index, self.exon_end_index, self.exon_1_isoforms, self.exon_2_isoforms, self.exon_1_length, self.exon_2_length, self.exon_length)
                     if cleavage != "":
                         all_cleavages.append(cleavage)
-                        if fields[exp_idx] not in cleavages_for_exp:
-                            cleavages_for_exp[fields[exp_idx]] = []
-                        cleavages_for_exp[fields[exp_idx]].append(cleavage)
+                        if len(self.groups_df) > 0:
+                            if fields[exp_idx] not in cleavages_for_exp:
+                                cleavages_for_exp[fields[exp_idx]] = []
+                            cleavages_for_exp[fields[exp_idx]].append(cleavage)
 
                     if float(fields[pep_score_idx]) < self.PREPROCESSOR_CONFIG.THRESHOLD:
                         if fields[mods_idx] != "Unmodified":

@@ -124,8 +124,6 @@ class MascotPreprocessor:
                         row = line.split(',')
                         header_found = False
                         search_header = row[pep_accession_idx].strip('"\'')
-                        if search_header in self.PREPROCESSOR_CONFIG.ISOFORM_HELPER_DICT:
-                            search_header = self.PREPROCESSOR_CONFIG.ISOFORM_HELPER_DICT[search_header]
                         for fasta_header in fasta_dict:
                             if search_header in fasta_header[0]:
                                 header_found = True
