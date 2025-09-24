@@ -1,8 +1,10 @@
 """MaxQuant preprocessor module. Extracts modifications and cleavages from MaxQuant output file."""
 import re
+from collections import defaultdict
 from pathlib import Path
 
 import pandas as pd
+
 from protein_sequencing import exon_helper, uniprot_align
 from protein_sequencing.data_preprocessing import preprocessor_helper
 
@@ -10,13 +12,12 @@ from protein_sequencing.data_preprocessing import preprocessor_helper
 class MaxQuantPreprocessor:
     """MaxQuant Preprocessor."""
 
-    def __init__(self, config, preprocessor_config) -> None:
+    def __init__(self, config, preprocessor_config, evidence_df: pd.DataFrame) -> None:
         self.CONFIG = config
         self.PREPROCESSOR_CONFIG = preprocessor_config
 
         self.fasta_file = self.PREPROCESSOR_CONFIG.FASTA_FILE
         self.aligned_fasta_file = self.PREPROCESSOR_CONFIG.ALIGNED_FASTA_FILE
-        self.input_file = self.PREPROCESSOR_CONFIG.MAX_QUANT_FILE
         self.out_dir = config.OUTPUT_FOLDER
 
         uniprot_align.get_alignment(Path(self.fasta_file), Path(self.out_dir))
@@ -38,7 +39,7 @@ class MaxQuantPreprocessor:
             self.max_sequence_leng
         ) = exon_helper.retrieve_exon(Path(self.fasta_file), self.CONFIG.MIN_EXON_LENGTH, Path(self.out_dir))
 
-        self.process_max_quant_file(self.input_file)
+        self.process_max_quant_file(evidence_df)
 
     def get_exact_indexes(self, mod_sequence: str) -> list:
         """Get exact indexes of the modifications in the sequence."""
@@ -119,69 +120,69 @@ class MaxQuantPreprocessor:
             counter += 1
         return mod_strings
 
-    def process_max_quant_file(self, evidence_file: str):
+    def process_max_quant_file(self, evidence_df: pd.DataFrame):
         """Process MaxQuant file."""
-        pep_seq_idx = -1
-        pep_mod_seq_idx = -1
-        prot_accession_idx = -1
-        mods_idx = -1
-        exp_idx = -1
-        pep_score_idx = -1
 
         all_mods = []
-        mods_for_exp = {}
+        mods_for_exp = defaultdict(list)
         all_cleavages = []
-        cleavages_for_exp = {}
+        cleavages_for_exp = defaultdict(list)
 
-        for key in self.groups_df['file_name']:
-            mods_for_exp[key] = []
-            cleavages_for_exp[key] = []
+        # TODO: will evidence file already be filtered by Protein ID? - might need a form field for protein ID
+        #  - maybe use one of these Proteins,Leading proteins,Leading razor protein for filtering based on fasta
 
-        with open(evidence_file, 'r', encoding="utf-8") as f:
-            while line := f.readline():
-                if line.startswith("Sequence"):
-                    header = line.split("\t")
-                    for i, field in enumerate(header):
-                        if field == "Sequence":
-                            pep_seq_idx = i
-                        elif field == "Modified sequence":
-                            pep_mod_seq_idx = i
-                        elif field == "Modifications":
-                            mods_idx = i
-                        elif field == "Proteins":
-                            prot_accession_idx = i
-                        elif field == "PEP":
-                            pep_score_idx = i
-                        elif field.startswith("Experiment"):
-                            exp_idx = i
-                else:
-                    fields = line.split("\t")
-                    try:
-                        isoform, sequence, peptide_offset, aligned_sequence = preprocessor_helper.get_accession(fields[prot_accession_idx], fields[pep_seq_idx], self.sorted_isoform_headers)
-                    except ValueError:
-                        continue
+        for _, row in evidence_df.iterrows():
+            try:
+                isoform, sequence, peptide_offset, aligned_sequence = preprocessor_helper.get_accession(
+                    row['Protein ID'],
+                    row['Sequence'],
+                    self.sorted_isoform_headers
+                )  # Should be enough for now
+            except ValueError:
+                continue
 
-                    cleavage = preprocessor_helper.check_N_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx], self.sorted_isoform_headers, self.exon_found, self.exon_start_index, self.exon_end_index, self.exon_1_isoforms, self.exon_2_isoforms, self.exon_1_length, self.exon_2_length, self.exon_length)
-                    if cleavage != "":
-                        all_cleavages.append(cleavage)
-                        if len(self.groups_df) > 0:
-                            if fields[exp_idx] not in cleavages_for_exp:
-                                cleavages_for_exp[fields[exp_idx]] = []
-                            cleavages_for_exp[fields[exp_idx]].append(cleavage)
-                    cleavage = preprocessor_helper.check_C_term_cleavage(fields[pep_seq_idx], fields[prot_accession_idx], self.sorted_isoform_headers, self.exon_found, self.exon_start_index, self.exon_end_index, self.exon_1_isoforms, self.exon_2_isoforms, self.exon_1_length, self.exon_2_length, self.exon_length)
-                    if cleavage != "":
-                        all_cleavages.append(cleavage)
-                        if len(self.groups_df) > 0:
-                            if fields[exp_idx] not in cleavages_for_exp:
-                                cleavages_for_exp[fields[exp_idx]] = []
-                            cleavages_for_exp[fields[exp_idx]].append(cleavage)
+            cleavage = preprocessor_helper.check_N_term_cleavage(
+                row['Sequence'],
+                row['Protein ID'],
+                self.sorted_isoform_headers,
+                self.exon_found,
+                self.exon_start_index,
+                self.exon_end_index,
+                self.exon_1_isoforms,
+                self.exon_2_isoforms,
+                self.exon_1_length,
+                self.exon_2_length,
+                self.exon_length
+            )
+            if cleavage != "":
+                all_cleavages.append(cleavage)
+                if len(self.groups_df) > 0:
+                    cleavages_for_exp[row['Sample']].append(cleavage)
 
-                    if float(fields[pep_score_idx]) < self.PREPROCESSOR_CONFIG.THRESHOLD:
-                        if fields[mods_idx] != "Unmodified":
-                            mods = self.reformat_mod(fields[pep_mod_seq_idx], fields[pep_seq_idx], peptide_offset, sequence, isoform, aligned_sequence)
-                            all_mods.extend(mods)
-                            if fields[exp_idx] in mods_for_exp:
-                                mods_for_exp[fields[exp_idx]].extend(mods)
+            cleavage = preprocessor_helper.check_C_term_cleavage(row['Sequence'], row['Protein ID'],
+                                                                 self.sorted_isoform_headers, self.exon_found,
+                                                                 self.exon_start_index, self.exon_end_index,
+                                                                 self.exon_1_isoforms, self.exon_2_isoforms,
+                                                                 self.exon_1_length, self.exon_2_length,
+                                                                 self.exon_length)
+            if cleavage != "":
+                all_cleavages.append(cleavage)
+                if len(self.groups_df) > 0:
+                    cleavages_for_exp[row['Sample']].append(cleavage)
+
+            if float(row['PEP']) < self.PREPROCESSOR_CONFIG.THRESHOLD:
+                if row['Modifications'] != "Unmodified":
+                    mods = self.reformat_mod(
+                        row['Modified sequence'],
+                        row['Sequence'],
+                        peptide_offset,
+                        sequence,
+                        isoform,
+                        aligned_sequence
+                    )
+                    all_mods.extend(mods)
+                    if row['Sample'] in mods_for_exp:
+                        mods_for_exp[row['Sample']].extend(mods)
 
         all_mods = sorted(set(all_mods), key=preprocessor_helper.extract_index)
         all_mods = preprocessor_helper.sort_by_index_and_exons(all_mods)
