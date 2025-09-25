@@ -1,4 +1,5 @@
 """Module for plotting cleavages and PTMs on the sequence plot."""
+import logging
 import math
 from pathlib import Path
 
@@ -578,6 +579,9 @@ class DetailsPlotter(Plotter):
         """Plot the PTMs."""
         group_direction = 1 if above == 'A' else -1
         mean_values, ptms = self.preprocess_groups(ptm_df)
+        if len(ptms) == 0:
+            logging.warning('No PTMs to plot - will be omitted.')
+            return
         isoforms = ptm_df.iloc[2:3, 2:].values.flatten().tolist()
         # For debugging purposes
         # new_row = pd.DataFrame([ptms], columns=mean_values.columns, index=['ptm_position'])
@@ -840,7 +844,7 @@ class DetailsPlotter(Plotter):
                                color='black',
                            ))
 
-    def filter_relevant_modification_sights(self, ptm_file: str, threshold: int):
+    def filter_relevant_modification_sites(self, ptm_file: str, threshold: int):
         """Filter the relevant modification sights."""
         df = pd.read_csv(ptm_file)
         columns_to_keep = []
@@ -857,8 +861,6 @@ class DetailsPlotter(Plotter):
         df_values = df_filtered.iloc[3:].astype(int)
         sums = df_values.sum()
         filtered_columns = sums[sums >= threshold].index
-        # all filter options result in an empty dataframe, check relevant modifications and threshold to keep more columns
-        assert len(filtered_columns) > 0
         filtered_df = df[filtered_columns]
 
         result_df = pd.concat([df.iloc[:, :2], filtered_df], axis=1)
@@ -901,7 +903,7 @@ class DetailsPlotter(Plotter):
         """Get the present modification types."""
         for above in self.plot_config.INPUT_FILES.values():
             if above[0] == 'PTM':
-                ptm_df = self.filter_relevant_modification_sights(above[1], self.plot_config.MODIFICATION_THRESHOLD)
+                ptm_df = self.filter_relevant_modification_sites(above[1], self.plot_config.MODIFICATION_THRESHOLD)
                 return set(ptm_df.iloc[0:1, 2:].values.flatten().tolist())
         return set()
 
@@ -963,7 +965,7 @@ class DetailsPlotter(Plotter):
             self.plot_cleavages(fig, cleavage_df, pixels_per_cleavage, label_plot_height, cleavage_above)
 
         if ptm_file_path:
-            ptm_df = self.filter_relevant_modification_sights(ptm_file_path, self.plot_config.MODIFICATION_THRESHOLD)
+            ptm_df = self.filter_relevant_modification_sites(ptm_file_path, self.plot_config.MODIFICATION_THRESHOLD)
             present_regions = self.get_present_regions_ptm(ptm_df)
             number_of_ptms = len(ptm_df.columns)
             number_of_dividers = present_regions.count(True) - 1

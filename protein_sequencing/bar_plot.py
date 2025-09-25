@@ -1,4 +1,5 @@
 """Module to create bar plots for protein sequences"""
+import logging
 from collections import defaultdict
 import plotly.graph_objects as go
 import pandas as pd
@@ -357,6 +358,8 @@ class BarPlotter(Plotter):
         header_columns = df.iloc[:, :2]
         for col in data_to_filter.columns:
             data_to_filter[col] = data_to_filter[col].astype(int)
+        if len(data_to_filter) == 0:
+            logging.warning('No modifications found for the specified groups and modification filters!')
         df = df[[col for col in data_to_filter if data_to_filter[col].sum(axis=0) > 0]]
         df = pd.concat([header_columns, df], axis=1)
 
@@ -437,8 +440,13 @@ class BarPlotter(Plotter):
             ('A', above_all, above_relevant, positions_a),
             ('B', below_all, below_relevant, positions_b)
         ]:
-            if len(group_positions) == 0:
+            if len(group_positions) == 0 or all([len(mods) == 0 for site, mods in group_relevant.items()]):
+                logging.warning(
+                    'No relevant modifications found. Plotting no bar plot %s',
+                    'above' if group_label == 'A' else 'below'
+                )
                 continue
+
             fig = self.add_bar_plot(
                 fig,
                 above=group_label,

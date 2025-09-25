@@ -19,7 +19,7 @@ class ProteinPilotPreprocessor:
         self.input_dir = self.PREPROCESSOR_CONFIG.PROTEIN_PILOT_INPUT_DIR
 
         uniprot_align.get_alignment(self.fasta_file)
-        self.sorted_isoform_headers = preprocessor_helper.process_tau_file(self.fasta_file, self.aligned_fasta_file)
+        self.sorted_isoform_headers = preprocessor_helper.process_fasta_files(self.fasta_file, self.aligned_fasta_file)
 
         self.groups_df = pd.read_csv(self.PREPROCESSOR_CONFIG.GROUPS_CSV)
         self.exon_found, \

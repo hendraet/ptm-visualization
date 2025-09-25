@@ -21,7 +21,7 @@ class MaxQuantPreprocessor:
         self.out_dir = config.OUTPUT_FOLDER
 
         uniprot_align.get_alignment(Path(self.fasta_file), Path(self.out_dir))
-        self.sorted_isoform_headers = preprocessor_helper.process_tau_file(self.fasta_file, self.aligned_fasta_file)
+        self.sorted_isoform_headers = preprocessor_helper.process_fasta_files(self.fasta_file, self.aligned_fasta_file)
 
         self.groups_df = pd.read_csv(gf) if (gf := self.PREPROCESSOR_CONFIG.GROUPS_CSV) is not None else pd.DataFrame(
             {'file_name': [], 'group_name': [], 'replicate': []}
@@ -127,11 +127,18 @@ class MaxQuantPreprocessor:
         mods_for_exp = defaultdict(list)
         all_cleavages = []
         cleavages_for_exp = defaultdict(list)
+        group_names = self.groups_df['file_name'].values
 
-        # TODO: will evidence file already be filtered by Protein ID? - might need a form field for protein ID
-        #  - maybe use one of these Proteins,Leading proteins,Leading razor protein for filtering based on fasta
+        #############################################################
+        # TODO: double-checken, dass isoformen zusammenpassen
+        #############################################################
 
-        for _, row in evidence_df.iterrows():
+        isoforms_from_fasta = [i for (i, _, _) in self.sorted_isoform_headers]
+        filtered_evidence_df = evidence_df[evidence_df['Protein ID'].apply(lambda x: any(
+            isoform in x.split(';') for isoform in isoforms_from_fasta
+        ))]
+
+        for _, row in filtered_evidence_df.iterrows():
             try:
                 isoform, sequence, peptide_offset, aligned_sequence = preprocessor_helper.get_accession(
                     row['Protein ID'],
@@ -181,7 +188,7 @@ class MaxQuantPreprocessor:
                         aligned_sequence
                     )
                     all_mods.extend(mods)
-                    if row['Sample'] in mods_for_exp:
+                    if row['Sample'] in group_names:
                         mods_for_exp[row['Sample']].extend(mods)
 
         all_mods = sorted(set(all_mods), key=preprocessor_helper.extract_index)

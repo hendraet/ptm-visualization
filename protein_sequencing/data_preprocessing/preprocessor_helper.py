@@ -1,43 +1,34 @@
 """Helper functions for the preprocessor module"""
-from typing import Tuple
 import csv
+from collections import defaultdict
+from typing import Tuple
 
-def process_tau_file(fasta_file, aligned_fasta_file):
-    # TODO: naming sucks or does it really only work for tau?
+from pyteomics import fasta
+from pyteomics.auxiliary import PyteomicsError
+
+
+def process_fasta_files(fasta_file, aligned_fasta_file):
     """Extracts the sequences from the fasta file and the aligned fasta file
     and returns them as a list of tuples sorted by the sequence length."""
-    headers = []
-    aligned_sequences = {}
-    with open(aligned_fasta_file, 'r', encoding="utf-8") as file:
-        lines = file.readlines()
-        header = ''
-        aligned_seq = ''
-        for line in lines:
-            if line.startswith('>'):
-                if header != '':
-                    aligned_sequences[header] = aligned_seq
-                header = line.split('|')[1]
-                aligned_seq = ''
-            else:
-                aligned_seq += line.strip()
-        if header:
-            aligned_sequences[header] = aligned_seq
 
-    with open(fasta_file, 'r', encoding="utf-8") as file:
-        lines = file.readlines()
-        seq = ''
-        header = ''
-        for line in lines:
-            if line[0] == '>':
-                if header != '':
-                    headers.append((header, seq, aligned_sequences[header]))
-                    seq = ''
-                    header = ''
-                header = line.split('|')[1]
-            else:
-                seq += line.strip()
-        headers.append((header, seq, aligned_sequences[header]))
+    # TODO: add pyteomics to requirements and upgrade setuptools
+    headers = defaultdict(list)
+    for f in (fasta_file, aligned_fasta_file):
+        try:
+            with fasta.read(str(f), parser=fasta.parse) as reader:
+                for item in reader:
+                    protein_id = (
+                        item.description['id'][:-2]  # reduce to canonical form without isoform number
+                        if item.description['id'].endswith('-1') or item.description['id'].endswith('.1')
+                        else item.description['id']
+                    )
+                    headers[protein_id].append(item.sequence)
+        except PyteomicsError:
+            raise ValueError('Error parsing fasta file. Please check the format of the fasta file. Uniprot style is '
+                             'recommended.')
+    headers = {(k, *v) for k, v in headers.items() if len(v) == 2}
     sorted_headers = sorted(headers, key=lambda x: -len(x[1]))
+
     return sorted_headers
 
 

@@ -20,7 +20,7 @@ class MascotPreprocessor:
         self.input_dir = self.PREPROCESSOR_CONFIG.MASCOT_INPUT_DIR
 
         uniprot_align.get_alignment(self.fasta_file)
-        self.fasta_headers = preprocessor_helper.process_tau_file(self.fasta_file, self.aligned_fasta_file)
+        self.fasta_headers = preprocessor_helper.process_fasta_files(self.fasta_file, self.aligned_fasta_file)
 
         self.groups_df = pd.read_csv(self.PREPROCESSOR_CONFIG.GROUPS_CSV)
         (
