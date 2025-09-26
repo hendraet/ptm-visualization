@@ -11,7 +11,6 @@ def process_fasta_files(fasta_file, aligned_fasta_file):
     """Extracts the sequences from the fasta file and the aligned fasta file
     and returns them as a list of tuples sorted by the sequence length."""
 
-    # TODO: add pyteomics to requirements and upgrade setuptools
     headers = defaultdict(list)
     for f in (fasta_file, aligned_fasta_file):
         try:
@@ -28,6 +27,11 @@ def process_fasta_files(fasta_file, aligned_fasta_file):
                              'recommended.')
     headers = {(k, *v) for k, v in headers.items() if len(v) == 2}
     sorted_headers = sorted(headers, key=lambda x: -len(x[1]))
+
+    canonical_form = sorted(headers, key=lambda x: len(x[0]))[0][0]
+    if not all([canonical_form in isoform for isoform, _, _ in headers]):
+        raise ValueError("There seem to be isoforms of different proteins in the fasta file. Not all isoforms are "
+                         f"related to {canonical_form}. Please check the fasta file.")
 
     return sorted_headers
 

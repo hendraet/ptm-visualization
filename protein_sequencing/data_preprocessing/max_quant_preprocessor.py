@@ -129,10 +129,6 @@ class MaxQuantPreprocessor:
         cleavages_for_exp = defaultdict(list)
         group_names = self.groups_df['file_name'].values
 
-        #############################################################
-        # TODO: double-checken, dass isoformen zusammenpassen
-        #############################################################
-
         isoforms_from_fasta = [i for (i, _, _) in self.sorted_isoform_headers]
         filtered_evidence_df = evidence_df[evidence_df['Protein ID'].apply(lambda x: any(
             isoform in x.split(';') for isoform in isoforms_from_fasta
