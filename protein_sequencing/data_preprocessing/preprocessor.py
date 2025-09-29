@@ -22,9 +22,13 @@ def ms_fragger(config, pre_config):
     MSFraggerPreprocessor(importlib.import_module(config, 'configs'), importlib.import_module(pre_config, 'configs'))
 
 
-def max_quant(config, pre_config):
+def max_quant(config, pre_config, evidence_df=None):
     """MaxQuant preprocessor."""
-    MaxQuantPreprocessor(importlib.import_module(config, 'configs'), importlib.import_module(pre_config, 'configs'))
+    MaxQuantPreprocessor(
+        importlib.import_module(config, 'configs'),
+        importlib.import_module(pre_config, 'configs'),
+        evidence_df=evidence_df
+    )
 
 
 DEFAULT_CONFIGS = {

@@ -1,5 +1,5 @@
 # General
-FASTA_FILE = 'tests/test_data/input.fasta'
+FASTA_FILE = 'tests/test_data/uniprotkb.fasta'
 
 GROUPS_CSV = 'tests/test_data/groups_max_quant.csv'
 

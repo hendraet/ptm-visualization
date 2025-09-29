@@ -69,7 +69,15 @@ def test_max_quant_file():
     # Process the MaxQuant files
     config = 'tests.configs.default_config'
     preprocessor_config = 'tests.configs.max_quant_config'
-    max_quant(config, preprocessor_config)
+    evidence_df = pd.read_csv('tests/test_data/evidence.txt', sep='\t')
+    evidence_df.rename(
+        columns={
+            'Proteins': 'Protein ID',
+            'Experiment': 'Sample'
+        },
+        inplace=True
+    )
+    max_quant(config, preprocessor_config, evidence_df)
 
     # Check the processed files
     compare_files("tests/output/result_max_quant_mods.csv", "tests/results/expected_result_max_quant_mods.csv")
