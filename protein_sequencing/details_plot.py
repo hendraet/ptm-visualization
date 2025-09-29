@@ -371,6 +371,10 @@ class DetailsPlotter(Plotter):
                        label_plot_height: int, above: str):
         """Plot the cleavages on the sequence plot."""
         mean_values, cleavages = self.preprocess_groups(cleavage_df)
+        if len(mean_values) == 0:
+            logging.warning("No groups found in cleavage data, skipping cleavage plot.")
+            return
+
         isoforms = cleavage_df.iloc[2:3, 2:].values.flatten().tolist()
         if above == 'B':
             mean_values = mean_values.iloc[::-1]
@@ -579,6 +583,9 @@ class DetailsPlotter(Plotter):
         """Plot the PTMs."""
         group_direction = 1 if above == 'A' else -1
         mean_values, ptms = self.preprocess_groups(ptm_df)
+        if len(mean_values) == 0:
+            logging.warning("No groups found in PTM data, skipping PTM plot.")
+            return
         if len(ptms) == 0:
             logging.warning('No PTMs to plot - will be omitted.')
             return

@@ -151,7 +151,6 @@ class Plotter:
             legend_positioning=None,
             out_dir=None,
     ) -> go.Figure:
-        # TODO: adapt all these function calls
         """Create the plot with main sequence and all additional information."""
         (
             exon_found,
@@ -183,15 +182,16 @@ class Plotter:
                 if region[1] + 1 == exon_start_index:
                     region_end_matches_exon = True
                     if len(self.regions) < i + 2:
-                        raise ValueError(f"Exon start {exon_start_index} matches a region end for region {region}, \
-                                         but there are not enough regions after it, please check your supplied region list.")
+                        raise ValueError(f"Exon start {exon_start_index} matches a region end for region {region}, but "
+                                         "there are not enough regions after it, please check your supplied region "
+                                         "list.")
 
                     exon_1_region = self.regions[i + 1]
                     exon_2_region = self.regions[i + 2]
                     if exon_1_region[1] - region[1] != exon_1_length:
                         if exon_1_region[1] - region[1] != exon_2_length:
-                            raise ValueError(
-                                f"Exon 1 length {exon_1_length} does not match with end for region {exon_1_region}.")
+                            raise ValueError(f"Exon 1 length {exon_1_length} does not match with end for "
+                                             f"region {exon_1_region}.")
 
                         # Swap regions in case they are in the wrong order
                         exon_1_region, exon_2_region = exon_2_region, exon_1_region
@@ -201,7 +201,8 @@ class Plotter:
                             f"Exon 2 length {exon_2_length} does not match with end for region {exon_2_region}.")
             if not region_end_matches_exon:
                 raise ValueError(
-                    f"Exon start {exon_start_index} does not match any region end, please check your supplied region list.")
+                    f"Exon start {exon_start_index} does not match any region end, please check your supplied region "
+                    "list - maybe it is missing some regions or it doesn't match the provided fasta sequence.")
 
         # basis for all pixel calculations
         if self.FIGURE_ORIENTATION == 0:

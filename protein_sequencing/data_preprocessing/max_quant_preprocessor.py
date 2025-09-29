@@ -23,9 +23,12 @@ class MaxQuantPreprocessor:
         uniprot_align.get_alignment(Path(self.fasta_file), Path(self.out_dir))
         self.sorted_isoform_headers = preprocessor_helper.process_fasta_files(self.fasta_file, self.aligned_fasta_file)
 
+        group_file_keys = {'file_name', 'group_name', 'replicate'}
         self.groups_df = pd.read_csv(gf) if (gf := self.PREPROCESSOR_CONFIG.GROUPS_CSV) is not None else pd.DataFrame(
-            {'file_name': [], 'group_name': [], 'replicate': []}
+            {k: [] for k in group_file_keys}
         )
+        assert group_file_keys.issubset(set(self.groups_df.columns)), (f"Groups file must contain the columns: "
+                                                                       f"{group_file_keys}")
         (
             self.exon_found,
             self.exon_start_index,
@@ -122,7 +125,6 @@ class MaxQuantPreprocessor:
 
     def process_max_quant_file(self, evidence_df: pd.DataFrame):
         """Process MaxQuant file."""
-
         all_mods = []
         mods_for_exp = defaultdict(list)
         all_cleavages = []
@@ -133,6 +135,9 @@ class MaxQuantPreprocessor:
         filtered_evidence_df = evidence_df[evidence_df['Protein ID'].apply(lambda x: any(
             isoform in x.split(';') for isoform in isoforms_from_fasta
         ))]
+
+        if len(filtered_evidence_df) == 0:
+            raise ValueError("No matching isoform IDs found between the uploaded evidence file and the fasta file.")
 
         for _, row in filtered_evidence_df.iterrows():
             try:
