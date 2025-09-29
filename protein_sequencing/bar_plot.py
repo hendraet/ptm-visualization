@@ -411,15 +411,6 @@ class BarPlotter(Plotter):
             groups_missing = None
             legend_positioning = 'A' if self.config.FIGURE_ORIENTATION == 0 else 'B'
 
-        # TODO: remove
-        # if len(above_relevant) == 0:
-        #     fig = self._create_plot(self.input_file, present_mod_types, 'A', 'A', out_dir=self.output_path)
-        # elif len(below_relevant) == 0:
-        #     fig = self._create_plot(self.input_file, present_mod_types, 'B', 'B', out_dir=self.output_path)
-        # else:
-        #     legend = 'A' if self.config.FIGURE_ORIENTATION == 0 else 'B'
-        #     fig = self._create_plot(self.input_file, present_mod_types, None, legend, out_dir=self.output_path)
-
         fig = self._create_plot(
             input_file=self.input_file,
             present_modifications=present_mod_types,

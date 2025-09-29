@@ -361,9 +361,6 @@ class OverviewPlotter(Plotter):
 
     def create_overview_plot(self):
         """Create overview plot for protein sequences."""
-        # TODO: somehow legend is missing and plot is centered
-        #   - seems like legend might be in the correct place but shifted out to the bottom of the figure. Is there
-        #     actually sth. wrong with top margins?
         present_modifications = self.get_present_modifications(self.plot_config.INPUT_FILE)
         groups_present = {self.plot_config.MODIFICATIONS_GROUP[mod] for mod in present_modifications if
                           mod in self.plot_config.MODIFICATIONS_GROUP}
