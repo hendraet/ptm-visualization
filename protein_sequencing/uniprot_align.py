@@ -34,9 +34,12 @@ def get_alignment(input_file: Path | str, out_dir: Path | str) -> AlignIO.Multip
         elif platform == "darwin":
             clustal_omega_path = Path(__file__).parent.parent / 'clustal-omega' / 'clustal-omega-1.2.3-macosx'
         elif platform == "win32":
-            clustal_omega_path = Path(__file__).parent.parent / 'clustal-omega' / 'clustalo.exe'
+            clustal_omega_path = (
+                    Path(__file__).parent.parent / 'clustal-omega' / 'clustal-omega-1.2.2-win64' / 'clustalo.exe'
+            )
         else:
             raise OSError(f"Unsupported operating system: {platform}")
+        assert clustal_omega_path.exists()
 
         cmd = f"{clustal_omega_path} \
                 --infile={padded_sequences_path} \
