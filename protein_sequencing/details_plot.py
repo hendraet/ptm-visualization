@@ -14,10 +14,8 @@ class DetailsPlotter(Plotter):
 
     def __init__(self, config, plot_config, input_file, output_path):
         """Initialize the DetailsPlot class."""
-        super().__init__(config)
+        super().__init__(config, plot_config)
 
-        self.config = config
-        self.plot_config = plot_config
         self.input_file = input_file
         self.output_path = output_path
         if not Path(self.output_path).exists():
@@ -36,7 +34,7 @@ class DetailsPlotter(Plotter):
 
         region_ranges = []
         region_start = 1
-        for _, region_end, _, _ in self.config.REGIONS:
+        for _, region_end, _, _ in self.REGIONS:
             region_ranges.append((region_start, region_end))
             region_start = region_end + 1
 
@@ -44,12 +42,12 @@ class DetailsPlotter(Plotter):
         region_index = 0
         for i, position_range in enumerate(ranges):
             if isoforms[i] == 'exon1':
-                index = next((index for index, region in enumerate(self.config.REGIONS) if
+                index = next((index for index, region in enumerate(self.REGIONS) if
                               region[1] == self.EXON_1_OFFSET["index_end"]), None)
                 if index:
                     regions_present[index] = True
             elif isoforms[i] == 'exon2':
-                index = next((index for index, region in enumerate(self.config.REGIONS) if
+                index = next((index for index, region in enumerate(self.REGIONS) if
                               region[1] == self.EXON_2_OFFSET["index_end"]), None)
                 if index:
                     regions_present[index] = True
@@ -84,14 +82,14 @@ class DetailsPlotter(Plotter):
                                  line={"color": line_color, "width": 1}, showlegend=False, hoverinfo='none'))
         if ptm:
             color = ptm_color
-            if f'{ptm_modification}({label[0]})@{label[1:]}' in self.config.PTMS_TO_HIGHLIGHT:
+            if f'{ptm_modification}({label[0]})@{label[1:]}' in self.PTMS_TO_HIGHLIGHT:
                 fig.add_shape(type='rect',
                               x0=x_1 - self.get_label_height() // 2 - 1,
                               x1=x_1 + self.get_label_height() // 2 + 1,
                               y0=y_label - self.get_label_length(label) // 2 - 3,
                               y1=y_label + self.get_label_length(label) // 2 + 3,
                               line={"width": 0},
-                              fillcolor=self.config.PTM_HIGHLIGHT_LABEL_COLOR,
+                              fillcolor=self.PTM_HIGHLIGHT_LABEL_COLOR,
                               showlegend=False, )
         else:
             color = self.plot_config.CLEAVAGE_LABEL_COLOR
@@ -102,8 +100,8 @@ class DetailsPlotter(Plotter):
                            showarrow=False,
                            textangle=-90,
                            font=dict(
-                               family=self.config.FONT,
-                               size=self.config.SEQUENCE_PLOT_FONT_SIZE,
+                               family=self.FONT,
+                               size=self.sequence_plot_font_size,
                                color=color,
                            ))
         return fig
@@ -121,14 +119,14 @@ class DetailsPlotter(Plotter):
                                  line={"color": line_color, "width": 1}, showlegend=False, hoverinfo='none'))
         if ptm:
             color = ptm_color
-            if f'{ptm_modification}({label[0]})@{label[1:]}' in self.config.PTMS_TO_HIGHLIGHT:
+            if f'{ptm_modification}({label[0]})@{label[1:]}' in self.PTMS_TO_HIGHLIGHT:
                 fig.add_shape(type='rect',
                               x0=x_label - self.get_label_length(label) // 2 - 3,
                               x1=x_label + self.get_label_length(label) // 2 + 3,
                               y0=y_1 - self.get_label_height() // 2 - 1,
                               y1=y_1 + self.get_label_height() // 2 + 1,
                               line={"width": 0},
-                              fillcolor=self.config.PTM_HIGHLIGHT_LABEL_COLOR,
+                              fillcolor=self.PTM_HIGHLIGHT_LABEL_COLOR,
                               showlegend=False, )
         else:
             color = self.plot_config.CLEAVAGE_LABEL_COLOR
@@ -137,8 +135,8 @@ class DetailsPlotter(Plotter):
         fig.add_annotation(x=x_label, y=y_1,
                            text=label,
                            showarrow=False,
-                           font={'family': self.config.FONT,
-                                 'size': self.config.SEQUENCE_PLOT_FONT_SIZE,
+                           font={'family': self.FONT,
+                                 'size': self.sequence_plot_font_size,
                                  'color': color})
         return fig
 
@@ -158,8 +156,8 @@ class DetailsPlotter(Plotter):
                            text=label,
                            showarrow=False,
                            textangle=-90,
-                           font={'family': self.config.FONT,
-                                 'size': self.config.SEQUENCE_PLOT_FONT_SIZE,
+                           font={'family': self.FONT,
+                                 'size': self.sequence_plot_font_size,
                                  'color': color})
         return fig
 
@@ -177,8 +175,8 @@ class DetailsPlotter(Plotter):
         fig.add_annotation(x=x_label, y=y_1,
                            text=label,
                            showarrow=False,
-                           font={'family': self.config.FONT,
-                                 'size': self.config.SEQUENCE_PLOT_FONT_SIZE,
+                           font={'family': self.FONT,
+                                 'size': self.sequence_plot_font_size,
                                  'color': color})
         return fig
 
@@ -221,13 +219,13 @@ class DetailsPlotter(Plotter):
             xanchor = 'right'
         fig.add_annotation(x=x_label - self.get_label_height() * group_dircetion,
                            y=y_label - int((8 / self.offset_region_label_from_angle()) * group_dircetion),
-                           text=self.config.REGIONS[last_region][3],
+                           text=self.REGIONS[last_region][3],
                            showarrow=False,
                            textangle=-self.plot_config.REGION_LABEL_ANGLE_GROUPS,
                            xanchor=xanchor,
                            yanchor=yanchor,
-                           font={'family': self.config.FONT,
-                                 'size': self.config.SEQUENCE_PLOT_FONT_SIZE,
+                           font={'family': self.FONT,
+                                 'size': self.sequence_plot_font_size,
                                  'color': 'black'})
         return fig
 
@@ -268,12 +266,12 @@ class DetailsPlotter(Plotter):
         if group_dircetion == -1:
             xanchor = 'right'
         fig.add_annotation(x=x_label, y=y_label,
-                           text=self.config.REGIONS[last_region][3],
+                           text=self.REGIONS[last_region][3],
                            showarrow=False,
                            textangle=-self.plot_config.REGION_LABEL_ANGLE_GROUPS + 90,
                            xanchor=xanchor,
-                           font={'family': self.config.FONT,
-                                 'size': self.config.SEQUENCE_PLOT_FONT_SIZE,
+                           font={'family': self.FONT,
+                                 'size': self.sequence_plot_font_size,
                                  'color': 'black'})
         return fig
 
@@ -297,8 +295,8 @@ class DetailsPlotter(Plotter):
                                text=group,
                                showarrow=False,
                                align='center',
-                               font={'family': self.config.FONT,
-                                     'size': self.config.SEQUENCE_PLOT_FONT_SIZE,
+                               font={'family': self.FONT,
+                                     'size': self.sequence_plot_font_size,
                                      'color': color})
 
     def get_label_color(self, group: str):
@@ -331,8 +329,8 @@ class DetailsPlotter(Plotter):
                                align='center',
                                textangle=90,
                                font=dict(
-                                   family=self.config.FONT,
-                                   size=self.config.SEQUENCE_PLOT_FONT_SIZE,
+                                   family=self.FONT,
+                                   size=self.sequence_plot_font_size,
                                    color=color))
 
     def preprocess_groups(self, df: pd.DataFrame):
@@ -355,7 +353,7 @@ class DetailsPlotter(Plotter):
     def offset_region_label_from_angle(self):
         """Calculate the offset for the region label based on the angle."""
         longest_label = ''
-        for (_, _, _, region_label_short) in self.config.REGIONS:
+        for (_, _, _, region_label_short) in self.REGIONS:
             if self.get_label_length(region_label_short) > self.get_label_length(longest_label):
                 longest_label = region_label_short
 
@@ -387,10 +385,10 @@ class DetailsPlotter(Plotter):
         group_direction = 1 if above == 'A' else -1
         first_cleavage_in_region = 0
         cleavage_idx = 0
-        last_end = self.config.REGIONS[0][1]
+        last_end = self.REGIONS[0][1]
         last_region = 0
 
-        if self.config.FIGURE_ORIENTATION == 0:
+        if self.FIGURE_ORIENTATION == 0:
             y_0_line = self.SEQUENCE_BOUNDARIES['y1'] if above == 'A' else self.SEQUENCE_BOUNDARIES['y0']
             y_1_line = y_0_line + 10 * group_direction
             y_2_line = y_0_line + (label_plot_height - self.get_label_length(longest_label) - 10) * group_direction
@@ -431,7 +429,7 @@ class DetailsPlotter(Plotter):
             else:
                 start = end = int(cleavage)
             if start > last_end or start < previous_index:
-                if self.config.FIGURE_ORIENTATION == 0:
+                if self.FIGURE_ORIENTATION == 0:
                     start_idx = cleavage_idx - (i - first_cleavage_in_region)
                     x_0_groups = start_idx * pixels_per_cleavage + self.get_horizontal_offset(dx)
                     x_divider = cleavage_idx * pixels_per_cleavage + self.get_horizontal_offset(dx)
@@ -464,19 +462,19 @@ class DetailsPlotter(Plotter):
                                              line=dict(color="black", width=3), showlegend=False, hoverinfo='none'))
                 if start < previous_index:
                     last_region += 1
-                    last_end = self.config.REGIONS[last_region][1]
+                    last_end = self.REGIONS[last_region][1]
                 else:
                     while start > last_end:
                         last_region += 1
-                        last_end = self.config.REGIONS[last_region][1]
+                        last_end = self.REGIONS[last_region][1]
                 cleavage_idx += 1
                 first_cleavage_in_region = i
-            if self.config.FIGURE_ORIENTATION == 0:
+            if self.FIGURE_ORIENTATION == 0:
                 if start == end:
                     label = str(start)
                     position = self.get_position_with_offset(start, isoforms[i])
                     x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
-                    x_0_line = self.offset_line_for_exon(x_0_line, start, self.config.FIGURE_ORIENTATION)
+                    x_0_line = self.offset_line_for_exon(x_0_line, start, self.FIGURE_ORIENTATION)
                     x_1_line = cleavage_idx * pixels_per_cleavage + self.get_horizontal_offset(dx)
                     y_3_line = y_0_line + (label_plot_height - self.get_label_length(label)) * group_direction
                     y_label = y_3_line + (self.get_label_length(label) // 2 + 5) * group_direction
@@ -492,8 +490,8 @@ class DetailsPlotter(Plotter):
                     end_position = self.get_position_with_offset(end, isoforms[i])
                     x_0_start_line = start_position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
                     x_0_end_line = end_position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
-                    x_0_start_line = self.offset_line_for_exon(x_0_start_line, start, self.config.FIGURE_ORIENTATION)
-                    x_0_end_line = self.offset_line_for_exon(x_0_end_line, end, self.config.FIGURE_ORIENTATION)
+                    x_0_start_line = self.offset_line_for_exon(x_0_start_line, start, self.FIGURE_ORIENTATION)
+                    x_0_end_line = self.offset_line_for_exon(x_0_end_line, end, self.FIGURE_ORIENTATION)
                     x_1_line = cleavage_idx * pixels_per_cleavage + self.get_horizontal_offset(dx)
                     y_3_line = y_0_line + (label_plot_height - self.get_label_length(label)) * group_direction
                     y_label = y_3_line + (self.get_label_length(label) // 2 + 5) * group_direction
@@ -508,7 +506,7 @@ class DetailsPlotter(Plotter):
                     label = str(start)
                     position = self.get_position_with_offset(start, isoforms[i])
                     y_0_line = self.get_height() - position * self.PIXELS_PER_AA - self.SEQUENCE_OFFSET
-                    y_0_line = self.offset_line_for_exon(y_0_line, start, self.config.FIGURE_ORIENTATION)
+                    y_0_line = self.offset_line_for_exon(y_0_line, start, self.FIGURE_ORIENTATION)
                     y_1_line = self.get_height() - cleavage_idx * pixels_per_cleavage - self.get_vertical_offset(dy)
                     x_3_line = x_0_line + (label_plot_height - self.get_label_length(label)) * group_direction
                     x_label = x_3_line + (self.get_label_length(label) // 2 + 5) * group_direction
@@ -524,8 +522,8 @@ class DetailsPlotter(Plotter):
                     end_position = self.get_position_with_offset(end, isoforms[i])
                     y_0_start_line = self.get_height() - start_position * self.PIXELS_PER_AA - self.SEQUENCE_OFFSET
                     y_0_end_line = self.get_height() - end_position * self.PIXELS_PER_AA - self.SEQUENCE_OFFSET
-                    y_0_start_line = self.offset_line_for_exon(y_0_start_line, start, self.config.FIGURE_ORIENTATION)
-                    y_0_end_line = self.offset_line_for_exon(y_0_end_line, end, self.config.FIGURE_ORIENTATION)
+                    y_0_start_line = self.offset_line_for_exon(y_0_start_line, start, self.FIGURE_ORIENTATION)
+                    y_0_end_line = self.offset_line_for_exon(y_0_end_line, end, self.FIGURE_ORIENTATION)
                     y_1_line = self.get_height() - cleavage_idx * pixels_per_cleavage - self.get_vertical_offset(dy)
                     x_3_line = x_0_line + (label_plot_height - self.get_label_length(label)) * group_direction
                     x_label = x_3_line + (self.get_label_length(label) // 2 + 5) * group_direction
@@ -541,13 +539,13 @@ class DetailsPlotter(Plotter):
             last_i = i
         while start > last_end:
             last_region += 1
-            last_end = self.config.REGIONS[last_region][1]
+            last_end = self.REGIONS[last_region][1]
 
         if isoforms[first_cleavage_in_region] == 'exon2' and isoforms[first_cleavage_in_region - 1] != 'exon1':
             last_region += 1
 
         # plot groups for last region
-        if self.config.FIGURE_ORIENTATION == 0:
+        if self.FIGURE_ORIENTATION == 0:
             start_idx = cleavage_idx - (last_i - first_cleavage_in_region) - 1
             x_0_groups = start_idx * pixels_per_cleavage + self.get_horizontal_offset(dx)
             region_length = len(mean_values.iloc[0:1, first_cleavage_in_region:].columns)
@@ -600,7 +598,7 @@ class DetailsPlotter(Plotter):
         if above == 'B':
             mean_values = mean_values.iloc[::-1]
 
-        if self.config.FIGURE_ORIENTATION == 0:
+        if self.FIGURE_ORIENTATION == 0:
             y_0_line = self.SEQUENCE_BOUNDARIES['y1'] if above == 'A' else self.SEQUENCE_BOUNDARIES['y0']
             y_1_line = y_0_line + 10 * group_direction
             y_2_line = y_0_line + (
@@ -617,12 +615,12 @@ class DetailsPlotter(Plotter):
                 x_2_line = x_0_line + (label_plot_height - 2 * (
                             label_length + 10) - self.plot_config.PTM_RECT_LENGTH - 5) * group_direction
 
-        last_end = self.config.REGIONS[0][1]
+        last_end = self.REGIONS[0][1]
         first_ptm_in_region = 0
         ptm_idx = 0
         last_region = 0
 
-        if self.config.FIGURE_ORIENTATION == 0:
+        if self.FIGURE_ORIENTATION == 0:
             dx = pixels_per_ptm
             y_0_groups = y_0_line + (label_plot_height + 10) * group_direction
             vertical_space_left = self.get_height() - y_0_groups if above == 'A' else y_0_groups
@@ -648,7 +646,7 @@ class DetailsPlotter(Plotter):
         for i, ptm in enumerate(ptms):
             ptm_position = int(ptm[1:])
             if ptm_position > last_end or ptm_position < previous_ptm:
-                if self.config.FIGURE_ORIENTATION == 0:
+                if self.FIGURE_ORIENTATION == 0:
                     start_idx = ptm_idx - (i - first_ptm_in_region)
                     x_0_groups = start_idx * pixels_per_ptm + self.get_horizontal_offset(dx)
                     x_divider = ptm_idx * pixels_per_ptm + self.get_horizontal_offset(dx)
@@ -680,24 +678,24 @@ class DetailsPlotter(Plotter):
                                              line=dict(color="black", width=3), showlegend=False, hoverinfo='none'))
                 if ptm_position < previous_ptm:
                     last_region += 1
-                    last_end = self.config.REGIONS[last_region][1]
+                    last_end = self.REGIONS[last_region][1]
                 else:
                     while ptm_position > last_end:
                         last_region += 1
-                        last_end = self.config.REGIONS[last_region][1]
+                        last_end = self.REGIONS[last_region][1]
                 ptm_idx += 1
                 first_ptm_in_region = i
-            if self.config.FIGURE_ORIENTATION == 0:
+            if self.FIGURE_ORIENTATION == 0:
                 position = self.get_position_with_offset(ptm_position, isoforms[i])
                 x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
-                x_0_line = self.offset_line_for_exon(x_0_line, ptm_position, self.config.FIGURE_ORIENTATION)
+                x_0_line = self.offset_line_for_exon(x_0_line, ptm_position, self.FIGURE_ORIENTATION)
                 x_1_line = ptm_idx * pixels_per_ptm + self.get_horizontal_offset(dx)
                 y_3_line = y_2_line + 10 * group_direction
                 if second_row and i % 2 == 1:
                     x_1_line = ptm_idx * pixels_per_ptm + self.get_horizontal_offset(dx)
                     y_3_line = y_2_line + (label_length + 10 + 5) * group_direction
                 y_label = y_3_line + (self.get_label_length(ptm) + 10) // 2 * group_direction
-                text_color = self.config.MODIFICATIONS[str(ptm_df.iloc[0, i + 2])][1]
+                text_color = self.MODIFICATIONS[str(ptm_df.iloc[0, i + 2])][1]
                 self.plot_line_with_label_horizontal(fig, x_0_line, x_1_line, y_0_line, y_1_line, y_2_line, y_3_line,
                                                      y_label, ptm, True, text_color, str(ptm_df.iloc[0, i + 2]))
                 x_0_rect = x_1_line - dx // 2
@@ -712,14 +710,14 @@ class DetailsPlotter(Plotter):
             else:
                 position = self.get_position_with_offset(ptm_position, isoforms[i])
                 y_0_line = self.get_height() - position * self.PIXELS_PER_AA - self.SEQUENCE_OFFSET
-                y_0_line = self.offset_line_for_exon(y_0_line, ptm_position, self.config.FIGURE_ORIENTATION)
+                y_0_line = self.offset_line_for_exon(y_0_line, ptm_position, self.FIGURE_ORIENTATION)
                 y_1_line = self.get_height() - ptm_idx * pixels_per_ptm - self.get_vertical_offset(dy)
                 x_3_line = x_2_line + 10 * group_direction
                 if second_row and i % 2 == 1:
                     y_1_line = self.get_height() - ptm_idx * pixels_per_ptm - self.get_vertical_offset(dy)
                     x_3_line = x_2_line + (label_length + 10 + 5) * group_direction
                 x_label = x_3_line + (self.get_label_length(ptm) + 10) // 2 * group_direction
-                text_color = self.config.MODIFICATIONS[str(ptm_df.iloc[0, i + 2])][1]
+                text_color = self.MODIFICATIONS[str(ptm_df.iloc[0, i + 2])][1]
                 self.plot_line_with_label_vertical(fig, x_0_line, x_1_line, x_2_line, x_3_line, y_0_line, y_1_line,
                                                    x_label, ptm, True, text_color, str(ptm_df.iloc[0, i + 2]))
                 y_0_rect = y_1_line - dy // 2
@@ -737,13 +735,13 @@ class DetailsPlotter(Plotter):
 
         while ptm_position > last_end:
             last_region += 1
-            last_end = self.config.REGIONS[last_region][1]
+            last_end = self.REGIONS[last_region][1]
 
         if isoforms[first_ptm_in_region] == 'exon2' and isoforms[first_ptm_in_region - 1] != 'exon1':
             last_region += 1
 
         # plot groups for last region
-        if self.config.FIGURE_ORIENTATION == 0:
+        if self.FIGURE_ORIENTATION == 0:
             start_idx = ptm_idx - (last_i - first_ptm_in_region) - 1
             x_0_groups = start_idx * pixels_per_ptm + self.get_horizontal_offset(dx)
             region_length = len(mean_values.iloc[0:1, first_ptm_in_region:].columns)
@@ -787,7 +785,7 @@ class DetailsPlotter(Plotter):
         # Create a heatmap
         z = np.linspace(0, 1, 100).reshape(100, 1)
 
-        if self.config.FIGURE_ORIENTATION == 0:
+        if self.FIGURE_ORIENTATION == 0:
             dx = 15
             dy = 1
             scale_height = dy * 100 + 10 + self.get_label_height() * label.count('<br>')
@@ -816,7 +814,7 @@ class DetailsPlotter(Plotter):
         ))
         for i in range(3):
             percentage_label = f'{i * 50}%'
-            if self.config.FIGURE_ORIENTATION == 0:
+            if self.FIGURE_ORIENTATION == 0:
                 x_scale = x_bar + 15 + self.get_label_length(percentage_label) // 2
                 y_scale = y_bar + i * 100 * dy / 2
             else:
@@ -827,15 +825,15 @@ class DetailsPlotter(Plotter):
                                text=percentage_label,
                                showarrow=False,
                                font=dict(
-                                   family=self.config.FONT,
-                                   size=self.config.SEQUENCE_PLOT_FONT_SIZE,
+                                   family=self.FONT,
+                                   size=self.sequence_plot_font_size,
                                    color='black',
                                ))
         longest_label = ''
         for string in label.split('<br>'):
             if self.get_label_length(string) > self.get_label_length(longest_label):
                 longest_label = string
-        if self.config.FIGURE_ORIENTATION == 0:
+        if self.FIGURE_ORIENTATION == 0:
             x_legend_title = x_bar + self.get_label_length(longest_label) // 2 - 15
             y_legend_title = y_bar + scale_height
         else:
@@ -846,8 +844,8 @@ class DetailsPlotter(Plotter):
                            text=label,
                            showarrow=False,
                            font=dict(
-                               family=self.config.FONT,
-                               size=self.config.SEQUENCE_PLOT_FONT_SIZE,
+                               family=self.FONT,
+                               size=self.sequence_plot_font_size,
                                color='black',
                            ))
 
@@ -856,10 +854,10 @@ class DetailsPlotter(Plotter):
         df = pd.read_csv(ptm_file)
         columns_to_keep = []
         for col in df.columns:
-            if self.config.INCLUDED_MODIFICATIONS.get(df[col].iloc[0]):
-                if df[col].iloc[1][:1] not in self.config.INCLUDED_MODIFICATIONS.get(df[col].iloc[0]):
+            if self.INCLUDED_MODIFICATIONS.get(df[col].iloc[0]):
+                if df[col].iloc[1][:1] not in self.INCLUDED_MODIFICATIONS.get(df[col].iloc[0]):
                     continue
-                if df[col].iloc[0] not in self.config.MODIFICATIONS:
+                if df[col].iloc[0] not in self.MODIFICATIONS:
                     continue
                 if df[col].iloc[1][:1] == 'R' and df[col].iloc[0] == 'Deamidation':
                     df[col].iloc[0] = 'Citrullination'
@@ -884,7 +882,7 @@ class DetailsPlotter(Plotter):
 
     def calculate_legend_space(self, ptm: bool):
         """Calculate the space needed for the legend."""
-        if self.config.FIGURE_ORIENTATION == 0:
+        if self.FIGURE_ORIENTATION == 0:
             longest_label = ''
             if ptm:
                 for string in self.plot_config.PTM_LEGEND_TITLE.split('<br>'):
@@ -917,7 +915,19 @@ class DetailsPlotter(Plotter):
     def create_details_plot(self):
         """Create a detailed sequence plot."""
         legend = None
+        messages = []
+
         present_mod_types = self.get_present_mod_types()
+        mod_file = [f[1] for f in self.plot_config.INPUT_FILES.values() if f[0] == 'PTM'][0]
+        detected_modifications = self.get_modifications_from_file(mod_file)
+        if detected_modifications > present_mod_types:
+            messages.append({
+                'level': logging.WARNING,
+                'msg': 'More modifications were detected than are present in the settings. Only the modifications '
+                       'present in the modification settings are shown in the plot. You can see the additional '
+                       'modifications in the "Tables" section.'
+            })
+
         if not 'A' in self.plot_config.INPUT_FILES.keys():
             if self.plot_config.INPUT_FILES['B'][0] == 'PTM':
                 legend = 'B'
@@ -952,7 +962,7 @@ class DetailsPlotter(Plotter):
                     ptm_file_path = self.plot_config.INPUT_FILES[above][1]
                     ptm_above = above
 
-        if self.config.FIGURE_ORIENTATION == 0:
+        if self.FIGURE_ORIENTATION == 0:
             plot_space = self.get_width() - self.SEQUENCE_BOUNDARIES['x0']
         else:
             # first we calculate the missing space above the sequence and then subtract it from the total height
@@ -967,7 +977,7 @@ class DetailsPlotter(Plotter):
             number_of_dividers = present_regions.count(True) - 1
             cleavage_space = plot_space - self.calculate_legend_space(False) - self.calculate_group_space()
             pixels_per_cleavage = cleavage_space // (number_of_cleavages + number_of_dividers)
-            assert pixels_per_cleavage >= self.config.FONT_SIZE
+            assert pixels_per_cleavage >= self.FONT_SIZE
 
             self.plot_cleavages(fig, cleavage_df, pixels_per_cleavage, label_plot_height, cleavage_above)
 
@@ -992,4 +1002,4 @@ class DetailsPlotter(Plotter):
             save_plot=self.plot_config.SAVE_PLOT,
             show_plot=self.plot_config.SHOW_PLOT
         )
-        return fig
+        return fig, messages

@@ -1,6 +1,8 @@
 """Module to generate overview plot for protein sequences."""
+import logging
 from collections import defaultdict
 
+import pandas as pd
 import plotly.graph_objects as go
 
 from protein_sequencing.plotter import Plotter
@@ -10,10 +12,8 @@ class OverviewPlotter(Plotter):
     """Class to generate overview plot for protein sequences."""
 
     def __init__(self, config, plot_config, input_file, output_path):
-        super().__init__(config)
+        super().__init__(config, plot_config)
 
-        self.config = config
-        self.plot_config = plot_config
         self.input_file = input_file
         self.output_path = output_path
 
@@ -29,40 +29,63 @@ class OverviewPlotter(Plotter):
                 aa = label[0]
                 if modification_types[i] not in self.plot_config.MODIFICATIONS_GROUP:
                     continue
-                if self.config.INCLUDED_MODIFICATIONS.get(modification_types[i]):
-                    if aa not in self.config.INCLUDED_MODIFICATIONS[modification_types[i]]:
+                if self.INCLUDED_MODIFICATIONS.get(modification_types[i]):
+                    if aa not in self.INCLUDED_MODIFICATIONS[modification_types[i]]:
                         continue
                     if aa == 'R' and modification_types[i] == 'Deamidated':
                         modification_types[i] = 'Citrullination'
                 present_modifications.add(modification_types[i])
         return present_modifications
 
-    def get_modifications_per_position(self, mod_file):
+    def get_modifications_per_position(
+            self,
+            mod_file,
+            modifications_to_filter: set | None = None,
+            filter_based_on_modifications_group: bool = True
+    ) -> dict:
         """Get modifications per amino acid position"""
-        with open(mod_file, 'r', encoding='utf-8') as f:
-            rows = f.readlines()[1:4]
-            modification_types = rows[0].strip().split(',')
-            labels = rows[1].strip().split(',')
-            isoforms = rows[2].strip().split(',')
-            modifications_by_position = defaultdict(list)
-            for i, (label) in enumerate(labels):
-                if label == '':
+        mod_df = (
+            pd.read_csv(mod_file)
+            .transpose()
+            .fillna('')
+            .rename(columns={0: 'modification_type', 1: 'label', 2: 'isoform'})
+        )
+        if modifications_to_filter is not None:
+            mod_df = mod_df[mod_df['modification_type'].isin(modifications_to_filter)]
+        modification_types = mod_df['modification_type'].tolist()
+        labels = mod_df['label'].tolist()
+        isoforms = mod_df['isoform'].tolist()
+
+        modifications_by_position = defaultdict(list)
+        for i, (label) in enumerate(labels):
+            if label == '':
+                continue
+            aa = label[0]
+            if (
+                    filter_based_on_modifications_group
+                    and modification_types[i] not in self.plot_config.MODIFICATIONS_GROUP
+            ):
+                continue
+            if self.INCLUDED_MODIFICATIONS.get(modification_types[i]):
+                if aa not in self.INCLUDED_MODIFICATIONS[modification_types[i]]:
                     continue
-                aa = label[0]
-                if modification_types[i] not in self.plot_config.MODIFICATIONS_GROUP:
-                    continue
-                if self.config.INCLUDED_MODIFICATIONS.get(modification_types[i]):
-                    if aa not in self.config.INCLUDED_MODIFICATIONS[modification_types[i]]:
-                        continue
-                    if aa == 'R' and modification_types[i] == 'Deamidated':
-                        modification_types[i] = 'Citrullination'
-                isoform = isoforms[i]
-                position = self.get_position_with_offset(int(label[1:]), isoform)
-                modifications_by_position[position].append(
-                    (label, modification_types[i], self.plot_config.MODIFICATIONS_GROUP[modification_types[i]],
-                     isoform))
-            for position, mods in modifications_by_position.items():
-                modifications_by_position[position] = list(set(mods))
+                if aa == 'R' and modification_types[i] == 'Deamidated':
+                    modification_types[i] = 'Citrullination'
+            isoform = isoforms[i]
+            position = self.get_position_with_offset(int(label[1:]), isoform)
+            modifications_by_position[position].append((
+                label,
+                modification_types[i],
+                (
+                    self.plot_config.MODIFICATIONS_GROUP[modification_types[i]]
+                    if modification_types[i] in self.plot_config.MODIFICATIONS_GROUP
+                    else 'B'
+                ),
+                isoform
+            ))
+        for position, mods in modifications_by_position.items():
+            modifications_by_position[position] = list(set(mods))
+
         return modifications_by_position
 
     def plot_labels(self, fig, modifications_by_position):
@@ -77,10 +100,10 @@ class OverviewPlotter(Plotter):
             line_plotted_a, line_plotted_b = False, False
             for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[
                 aa_position]:
-                if self.config.FIGURE_ORIENTATION == 0:
+                if self.FIGURE_ORIENTATION == 0:
                     x_position_line = (aa_position * self.PIXELS_PER_AA) + self.SEQUENCE_OFFSET
                     x_position_line = self.offset_line_for_exon(x_position_line, int(label[1:]),
-                                                                 self.config.FIGURE_ORIENTATION)
+                                                                 self.FIGURE_ORIENTATION)
                     y_length = self.plot_config.SEQUENCE_MIN_LINE_LENGTH + height_offset * self.get_label_height()
                     y_beginning_line = y0 if group == 'B' else y1
                     y_end_line = y_beginning_line - y_length if group == 'B' else y_beginning_line + y_length
@@ -100,10 +123,10 @@ class OverviewPlotter(Plotter):
 
                     self.plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
                 else:
-                    y_position_line = self.config.FIGURE_WIDTH - (
+                    y_position_line = self.FIGURE_WIDTH - (
                                 aa_position * self.PIXELS_PER_AA) - self.SEQUENCE_OFFSET
                     y_position_line = self.offset_line_for_exon(y_position_line, int(label[1:]),
-                                                                 self.config.FIGURE_ORIENTATION)
+                                                                 self.FIGURE_ORIENTATION)
                     x_length = self.plot_config.SEQUENCE_MIN_LINE_LENGTH + height_offset * self.get_label_length(
                         label,
                     )
@@ -298,7 +321,7 @@ class OverviewPlotter(Plotter):
         second_position = int(second_modification['position'])
         label_length = self.get_label_length(
             first_modification['mod'][0]
-        ) if self.config.FIGURE_ORIENTATION == 0 else self.get_label_height()
+        ) if self.FIGURE_ORIENTATION == 0 else self.get_label_height()
         distance_between_modifications = abs(first_position - second_position) * self.PIXELS_PER_AA
         if distance_between_modifications < label_length / 2:
             return -1
@@ -306,7 +329,7 @@ class OverviewPlotter(Plotter):
             return 0
         second_label_length = (
             self.get_label_length(second_modification['mod'][0])
-            if self.config.FIGURE_ORIENTATION == 0 else self.get_label_height()
+            if self.FIGURE_ORIENTATION == 0 else self.get_label_height()
         )
         if distance_between_modifications > label_length + second_label_length:
             return 2
@@ -321,7 +344,7 @@ class OverviewPlotter(Plotter):
     def plot_label(self, fig, x, y, text, modification_type, position_label):
         """Plots single label for modification."""
         # Label bounding box for highlitghted PTMs
-        if f'{modification_type}({text[0]})@{text[1:]}' in self.config.PTMS_TO_HIGHLIGHT:
+        if f'{modification_type}({text[0]})@{text[1:]}' in self.PTMS_TO_HIGHLIGHT:
             x0 = x + 1
             y0 = y - 1
             x1 = x - self.get_label_length(text) + 2
@@ -346,7 +369,7 @@ class OverviewPlotter(Plotter):
                 x1=x1,
                 y1=y1,
                 layer='below',
-                fillcolor=self.config.PTM_HIGHLIGHT_LABEL_COLOR,
+                fillcolor=self.PTM_HIGHLIGHT_LABEL_COLOR,
                 line=dict(width=0),
             )
         fig.add_trace(go.Scatter(x=[x], y=[y], mode='text',
@@ -355,13 +378,28 @@ class OverviewPlotter(Plotter):
                                  showlegend=False,
                                  hoverinfo='none',
                                  textfont=dict(
-                                     family=self.config.FONT,
-                                     size=self.config.SEQUENCE_PLOT_FONT_SIZE,
-                                     color=self.config.MODIFICATIONS[modification_type][1])))
+                                     family=self.FONT,
+                                     size=self.sequence_plot_font_size,
+                                     color=self.MODIFICATIONS[modification_type][1])))
 
-    def create_overview_plot(self):
+    def create_overview_plot(self) -> tuple[go.Figure, list]:
         """Create overview plot for protein sequences."""
+        messages = []
+
         present_modifications = self.get_present_modifications(self.plot_config.INPUT_FILE)
+        if (
+                present_modifications is not None
+                and not set(present_modifications).issubset(set(self.MODIFICATIONS.keys()))
+        ):
+            self.MODIFICATIONS = {k: v for k, v in self.MODIFICATIONS.items() if k in self.INCLUDED_MODIFICATIONS}
+            present_modifications = {mod for mod in present_modifications if mod in self.INCLUDED_MODIFICATIONS}
+            messages.append({
+                'level': logging.WARNING,
+                'msg': 'More modifications were detected than are present in the settings. Only the modifications '
+                       'present in the modification settings are shown in the plot. You can see the additional '
+                       'modifications in the "Tables" section.'
+            })
+
         groups_present = {self.plot_config.MODIFICATIONS_GROUP[mod] for mod in present_modifications if
                           mod in self.plot_config.MODIFICATIONS_GROUP}
         if 'A' not in groups_present:
@@ -382,7 +420,10 @@ class OverviewPlotter(Plotter):
             out_dir=self.output_path
         )
 
-        modifications_by_position = self.get_modifications_per_position(self.plot_config.INPUT_FILE)
+        modifications_by_position = self.get_modifications_per_position(
+            self.plot_config.INPUT_FILE,
+            modifications_to_filter=present_modifications
+        )
         fig = self.plot_labels(fig, modifications_by_position)
 
         self.finalize_plotting(
@@ -391,4 +432,4 @@ class OverviewPlotter(Plotter):
             save_plot=self.plot_config.SAVE_PLOT,
             show_plot=self.plot_config.SHOW_PLOT
         )
-        return fig
+        return fig, messages

@@ -27,8 +27,6 @@ def get_alignment(input_file: Path | str, out_dir: Path | str) -> AlignIO.Multip
     if len(records) == 1:
         align = records
     else:
-        # TODO: link to appropriate binary for OS during installation - would be cool to have them permanently attached
-        #  to the project, but since it's a couple MB big, maybe not as part of the repo (but git-lfs?)
         if platform == "linux" or platform == "linux2":
             clustal_omega_path = Path(__file__).parent.parent / 'clustal-omega' / 'clustalo-1.2.4-Ubuntu-x86_64'
         elif platform == "darwin":
