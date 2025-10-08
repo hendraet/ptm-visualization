@@ -40,6 +40,8 @@ class DetailsPlotter(Plotter):
 
         regions_present = [False] * len(region_ranges)
         region_index = 0
+        # TODO: add a check somehwere the verfies that self.REGIONS is longer than positions
+        #   - is there an absolute length somewhere?
         for i, position_range in enumerate(ranges):
             if isoforms[i] == 'exon1':
                 index = next((index for index, region in enumerate(self.REGIONS) if
@@ -369,7 +371,7 @@ class DetailsPlotter(Plotter):
                        label_plot_height: int, above: str):
         """Plot the cleavages on the sequence plot."""
         mean_values, cleavages = self.preprocess_groups(cleavage_df)
-        if len(mean_values) == 0:
+        if len(cleavages) == 0 or len(mean_values.columns) == 0:
             logging.warning("No groups found in cleavage data, skipping cleavage plot.")
             return
 
@@ -916,6 +918,10 @@ class DetailsPlotter(Plotter):
         """Create a detailed sequence plot."""
         legend = None
         messages = []
+
+        ##################################
+        # TODO: PTM plotting throws an error because we have PTMs outside of the specified regions (somehow the other
+        #  plots don't have this problem). Maybe we need a check that asserts, that the whoel sequence is covered
 
         present_mod_types = self.get_present_mod_types()
         mod_file = [f[1] for f in self.plot_config.INPUT_FILES.values() if f[0] == 'PTM'][0]

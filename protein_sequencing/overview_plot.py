@@ -386,10 +386,13 @@ class OverviewPlotter(Plotter):
         """Create overview plot for protein sequences."""
         messages = []
 
+        # naming might be a bit confusing, but present_modifications are the modifications that are the detected
+        # modifications that are also specified in the settings, whereas detected_modifications are all modifications
         present_modifications = self.get_present_modifications(self.plot_config.INPUT_FILE)
+        detected_modifications = self.get_modifications_from_file(self.plot_config.INPUT_FILE)
         if (
                 present_modifications is not None
-                and not set(present_modifications).issubset(set(self.MODIFICATIONS.keys()))
+                and not set(detected_modifications).issubset(set(self.MODIFICATIONS.keys()))
         ):
             self.MODIFICATIONS = {k: v for k, v in self.MODIFICATIONS.items() if k in self.INCLUDED_MODIFICATIONS}
             present_modifications = {mod for mod in present_modifications if mod in self.INCLUDED_MODIFICATIONS}
