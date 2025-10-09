@@ -25,7 +25,7 @@ def get_alignment(input_file: Path | str, out_dir: Path | str) -> AlignIO.Multip
         SeqIO.write(records, f, 'fasta')
 
     if len(records) == 1:
-        align = records
+        aligned_sequence = records
     else:
         if platform == "linux" or platform == "linux2":
             clustal_omega_path = Path(__file__).parent.parent / 'clustal-omega' / 'clustalo-1.2.4-Ubuntu-x86_64'
@@ -46,12 +46,12 @@ def get_alignment(input_file: Path | str, out_dir: Path | str) -> AlignIO.Multip
                 --iter=0 \
                 --force"
         subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, text=True, check=True)
-        align = AlignIO.read(f"{aligned_fasta_path}", "fasta")
+        aligned_sequence = AlignIO.read(f"{aligned_fasta_path}", "fasta")
 
     if not out_dir.exists():
         out_dir.mkdir(parents=True, exist_ok=True)
     with (out_dir / 'aligned.fasta').open('w', encoding="utf-8") as f:
-        SeqIO.write(align, f, 'fasta')
+        SeqIO.write(aligned_sequence, f, 'fasta')
 
     # clean up temporary files
     if padded_sequences_path.exists():
@@ -59,4 +59,4 @@ def get_alignment(input_file: Path | str, out_dir: Path | str) -> AlignIO.Multip
     if aligned_fasta_path.exists():
         aligned_fasta_path.unlink()
 
-    return align
+    return aligned_sequence

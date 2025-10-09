@@ -20,7 +20,15 @@ class MaxQuantPreprocessor:
         self.aligned_fasta_file = self.PREPROCESSOR_CONFIG.ALIGNED_FASTA_FILE
         self.out_dir = config.OUTPUT_FOLDER
 
-        uniprot_align.get_alignment(Path(self.fasta_file), Path(self.out_dir))
+        aligned_sequence = uniprot_align.get_alignment(Path(self.fasta_file), Path(self.out_dir))
+        longest_original_sequence = max([len(i) for i in aligned_sequence.alignment.inverse_indices])
+        max_configured_region = max(region[1] for region in config.REGIONS)
+        if longest_original_sequence != max_configured_region:
+            raise ValueError(
+                f"The longest original sequence has a length of {longest_original_sequence}, but the regions file only "
+                f"contains regions up to position {max_configured_region}. Please adjust the regions in the "
+                "corresponding CSV file to match the sequence length."
+            )
         self.sorted_isoform_headers = preprocessor_helper.process_fasta_files(self.fasta_file, self.aligned_fasta_file)
 
         group_file_keys = {'file_name', 'group_name', 'replicate'}

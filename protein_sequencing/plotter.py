@@ -201,7 +201,7 @@ class Plotter:
             for i, region in enumerate(self.regions):
                 if region[1] + 1 == exon_start_index:
                     region_end_matches_exon = True
-                    if len(self.regions) < i + 2:
+                    if len(self.regions) <= i + 2:
                         raise ValueError(f"Exon start {exon_start_index} matches a region end for region {region}, but "
                                          "there are not enough regions after it, please check your supplied region "
                                          "list.")
