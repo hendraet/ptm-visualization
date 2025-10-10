@@ -225,14 +225,20 @@ class Plotter:
                     "list - maybe it is missing some regions or it doesn't match the provided fasta sequence.")
 
         # basis for all pixel calculations
+        max_sequence_length_with_exons = (
+            (max_sequence_length + max((exon_1_length, exon_2_length))) if exon_found else max_sequence_length
+        )
         if self.FIGURE_ORIENTATION == 0:
             max_sequence_length_pixels = (self.get_width() - self.get_left_margin())
-            self.PIXELS_PER_AA = int((max_sequence_length_pixels - self.EXONS_GAP * exon_found * 2) // max_sequence_length)
+            self.PIXELS_PER_AA = int(
+                (max_sequence_length_pixels - self.EXONS_GAP * exon_found * 2) // max_sequence_length_with_exons
+            )
             self.SEQUENCE_OFFSET = self.get_left_margin()
         else:
             max_sequence_length_pixels = self.get_height() - self.get_top_margin()
             self.PIXELS_PER_AA = int(
-                (max_sequence_length_pixels - self.EXONS_GAP * exon_found * 2) // max_sequence_length)
+                (max_sequence_length_pixels - self.EXONS_GAP * exon_found * 2) // max_sequence_length_with_exons
+            )
             self.SEQUENCE_OFFSET = self.get_top_margin()
 
         # calculate region boundaries in pixels
@@ -525,6 +531,7 @@ class Plotter:
             y = y_label
         else:
             x = x_label
+            y = y1 - self.get_label_length(str(last_region_end))
         fig.add_annotation(
             x=x,
             y=y,
