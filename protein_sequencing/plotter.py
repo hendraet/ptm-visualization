@@ -9,7 +9,9 @@ from protein_sequencing import exon_helper
 
 
 class Plotter:
-    def __init__(self, config):
+    def __init__(self, config, plot_config):
+        self.plot_config = plot_config
+
         self.SEQUENCE_BOUNDARIES = {'x0': 0, 'x1': 0, 'y0': 0, 'y1': 0}
         self.PIXELS_PER_AA = 0
         self.SEQUENCE_OFFSET = 0
@@ -23,13 +25,18 @@ class Plotter:
                               'pixel_end': -1}
 
         # TODO: maybe lower case these
+        self.REGIONS = config.REGIONS
         self.MODIFICATIONS = config.MODIFICATIONS
         self.MODIFICATION_LEGEND_TITLE = config.MODIFICATION_LEGEND_TITLE
         self.FIGURE_ORIENTATION = config.FIGURE_ORIENTATION
         self.FIGURE_WIDTH = config.FIGURE_WIDTH
         self.FIGURE_HEIGHT = config.FIGURE_HEIGHT
         self.FONT_SIZE = config.FONT_SIZE
+        self.FONT = config.FONT
         self.EXONS_GAP = config.EXONS_GAP
+        self.PTMS_TO_HIGHLIGHT = config.PTMS_TO_HIGHLIGHT
+        self.PTM_HIGHLIGHT_LABEL_COLOR = config.PTM_HIGHLIGHT_LABEL_COLOR
+        self.INCLUDED_MODIFICATIONS = config.INCLUDED_MODIFICATIONS
 
         self.regions = config.REGIONS
         self.sequence_region_colors = config.SEQUENCE_REGION_COLORS
@@ -143,15 +150,28 @@ class Plotter:
 
         return line_position
 
+    @staticmethod
+    def get_modifications_from_file(mod_file: str) -> set:
+        with open(mod_file, 'r', encoding="utf-8") as f:
+            rows = f.readlines()[1:4]
+            modification_types = rows[0].strip().split(',')
+            present_modifications = set()
+            for i, (label) in enumerate(rows[1].strip().split(',')):
+                if label == '':
+                    continue
+                present_modifications.add(modification_types[i])
+        return present_modifications
+
     def _create_plot(
             self,
             input_file: str | os.PathLike,
-            present_modifications,
+            present_modifications: list[str] | None,
             groups_missing=None,
             legend_positioning=None,
             out_dir=None,
     ) -> go.Figure:
         """Create the plot with main sequence and all additional information."""
+
         (
             exon_found,
             exon_start_index,
@@ -181,7 +201,7 @@ class Plotter:
             for i, region in enumerate(self.regions):
                 if region[1] + 1 == exon_start_index:
                     region_end_matches_exon = True
-                    if len(self.regions) < i + 2:
+                    if len(self.regions) <= i + 2:
                         raise ValueError(f"Exon start {exon_start_index} matches a region end for region {region}, but "
                                          "there are not enough regions after it, please check your supplied region "
                                          "list.")
@@ -205,14 +225,20 @@ class Plotter:
                     "list - maybe it is missing some regions or it doesn't match the provided fasta sequence.")
 
         # basis for all pixel calculations
+        max_sequence_length_with_exons = (
+            (max_sequence_length + max((exon_1_length, exon_2_length))) if exon_found else max_sequence_length
+        )
         if self.FIGURE_ORIENTATION == 0:
             max_sequence_length_pixels = (self.get_width() - self.get_left_margin())
-            self.PIXELS_PER_AA = int((max_sequence_length_pixels - self.EXONS_GAP * exon_found * 2) // max_sequence_length)
+            self.PIXELS_PER_AA = int(
+                (max_sequence_length_pixels - self.EXONS_GAP * exon_found * 2) // max_sequence_length_with_exons
+            )
             self.SEQUENCE_OFFSET = self.get_left_margin()
         else:
             max_sequence_length_pixels = self.get_height() - self.get_top_margin()
             self.PIXELS_PER_AA = int(
-                (max_sequence_length_pixels - self.EXONS_GAP * exon_found * 2) // max_sequence_length)
+                (max_sequence_length_pixels - self.EXONS_GAP * exon_found * 2) // max_sequence_length_with_exons
+            )
             self.SEQUENCE_OFFSET = self.get_top_margin()
 
         # calculate region boundaries in pixels
@@ -505,6 +531,7 @@ class Plotter:
             y = y_label
         else:
             x = x_label
+            y = y1 - self.get_label_length(str(last_region_end))
         fig.add_annotation(
             x=x,
             y=y,

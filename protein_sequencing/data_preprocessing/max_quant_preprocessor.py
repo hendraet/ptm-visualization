@@ -20,7 +20,15 @@ class MaxQuantPreprocessor:
         self.aligned_fasta_file = self.PREPROCESSOR_CONFIG.ALIGNED_FASTA_FILE
         self.out_dir = config.OUTPUT_FOLDER
 
-        uniprot_align.get_alignment(Path(self.fasta_file), Path(self.out_dir))
+        aligned_sequence = uniprot_align.get_alignment(Path(self.fasta_file), Path(self.out_dir))
+        longest_original_sequence = max([len(i) for i in aligned_sequence.alignment.inverse_indices])
+        max_configured_region = max(region[1] for region in config.REGIONS)
+        if longest_original_sequence != max_configured_region:
+            raise ValueError(
+                f"The longest original sequence has a length of {longest_original_sequence}, but the regions file only "
+                f"contains regions up to position {max_configured_region}. Please adjust the regions in the "
+                "corresponding CSV file to match the sequence length."
+            )
         self.sorted_isoform_headers = preprocessor_helper.process_fasta_files(self.fasta_file, self.aligned_fasta_file)
 
         group_file_keys = {'file_name', 'group_name', 'replicate'}
@@ -105,20 +113,36 @@ class MaxQuantPreprocessor:
             else:
                 aa = peptide[indexes[counter]-1]
                 aa_offset = indexes[counter]
-            if self.CONFIG.INCLUDED_MODIFICATIONS.get(mod_type):
-                if aa not in self.CONFIG.INCLUDED_MODIFICATIONS[mod_type]:
-                    continue
-                if aa == 'R' and mod_type == 'Deamidated':
-                    mod_type = 'Citrullination'
-            else:
-                continue
+
+            if aa == 'R' and mod_type == 'Deamidated':
+                mod_type = 'Citrullination'
+
             missing_aa = 0
             if len(sequence) != len(aligned_sequence):
-                missing_aa = preprocessor_helper.count_missing_amino_acids(peptide[:aa_offset], aligned_sequence, peptide_offset, self.exon_start_index, self.exon_end_index)
-            offset = preprocessor_helper.calculate_exon_offset(aa_offset+peptide_offset+missing_aa, isoform, self.exon_found, self.exon_end_index, self.exon_1_isoforms, self.exon_2_isoforms, self.exon_1_length, self.exon_2_length, self.exon_length)
+                missing_aa = preprocessor_helper.count_missing_amino_acids(
+                    peptide[:aa_offset], aligned_sequence, peptide_offset, self.exon_start_index, self.exon_end_index
+                )
+            offset = preprocessor_helper.calculate_exon_offset(
+                aa_offset+peptide_offset+missing_aa,
+                isoform,
+                self.exon_found,
+                self.exon_end_index,
+                self.exon_1_isoforms,
+                self.exon_2_isoforms,
+                self.exon_1_length,
+                self.exon_2_length,
+                self.exon_length
+            )
             if aligned_sequence[offset-1] != aa:
                 raise ValueError(f"AA don't match for {aa} for peptide {peptide} in sequence {sequence} with offset {offset}")
-            iso = preprocessor_helper.get_isoform_for_offset(isoform, offset, self.exon_start_index, self.exon_1_isoforms, self.exon_1_length, self.exon_2_isoforms, self.exon_2_length)
+            iso = preprocessor_helper.get_isoform_for_offset(
+                isoform, offset,
+                self.exon_start_index,
+                self.exon_1_isoforms,
+                self.exon_1_length,
+                self.exon_2_isoforms,
+                self.exon_2_length
+            )
             mod_strings.append(f"{mod_type}({aa})@{offset}_{iso}")
             counter += 1
         return mod_strings
