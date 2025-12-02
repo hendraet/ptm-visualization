@@ -202,6 +202,7 @@ class DetailsPlotter(Plotter):
                       line={'color': 'grey', 'width': 1},
                       showlegend=False,
                       layer='below', )
+        df.columns = np.arange(len(df.columns))  # Otherwise Heatmap will complain
         fig.add_trace(go.Heatmap(z=df,
                                  x0=x_0_groups,
                                  y0=y_0_groups + dy // 2,
