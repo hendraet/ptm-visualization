@@ -28,12 +28,12 @@ def get_alignment(input_file: Path | str, out_dir: Path | str) -> AlignIO.Multip
         aligned_sequence = records
     else:
         if platform == "linux" or platform == "linux2":
-            clustal_omega_path = Path(__file__).parent.parent / 'clustal-omega' / 'clustalo-1.2.4-Ubuntu-x86_64'
+            clustal_omega_path = Path(__file__).parent / 'clustal-omega' / 'clustalo-1.2.4-Ubuntu-x86_64'
         elif platform == "darwin":
-            clustal_omega_path = Path(__file__).parent.parent / 'clustal-omega' / 'clustal-omega-1.2.3-macosx'
+            clustal_omega_path = Path(__file__).parent / 'clustal-omega' / 'clustal-omega-1.2.3-macosx'
         elif platform == "win32":
             clustal_omega_path = (
-                    Path(__file__).parent.parent / 'clustal-omega' / 'clustal-omega-1.2.2-win64' / 'clustalo.exe'
+                    Path(__file__).parent / 'clustal-omega' / 'clustal-omega-1.2.2-win64' / 'clustalo.exe'
             )
         else:
             raise OSError(f"Unsupported operating system: {platform}")
