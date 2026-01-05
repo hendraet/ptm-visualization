@@ -28,10 +28,10 @@ def process_fasta_files(fasta_file, aligned_fasta_file):
     headers = {(k, *v) for k, v in headers.items() if len(v) == 2}
     sorted_headers = sorted(headers, key=lambda x: -len(x[1]))
 
-    canonical_form = sorted(headers, key=lambda x: len(x[0]))[0][0]
-    if not all([canonical_form in isoform for isoform, _, _ in headers]):
-        raise ValueError("There seem to be isoforms of different proteins in the fasta file. Not all isoforms are "
-                         f"related to {canonical_form}. Please check the fasta file.")
+    canonical_forms = {header[0].split("-")[0] for header in sorted_headers}
+    if len(canonical_forms) > 1:
+        raise ValueError("There seem to be isoforms of different proteins in the fasta file. Found canonical forms: "
+                         f"{', '.join(canonical_forms)}. Please check the fasta file.")
 
     return sorted_headers
 
