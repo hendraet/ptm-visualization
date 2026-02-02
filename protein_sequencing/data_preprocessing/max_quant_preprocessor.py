@@ -18,8 +18,8 @@ class MaxQuantPreprocessor:
         config,
         preprocessor_config,
         evidence_df: pd.DataFrame,
-        metadata_df: pd.DataFrame,
-        metadata_column: str,
+        metadata_df: pd.DataFrame | None = None,
+        metadata_column: str | None = None,
     ) -> None:
         self.CONFIG = config
         self.PREPROCESSOR_CONFIG = preprocessor_config
@@ -27,16 +27,16 @@ class MaxQuantPreprocessor:
         self.fasta_file = self.PREPROCESSOR_CONFIG.FASTA_FILE
         self.aligned_fasta_file = self.PREPROCESSOR_CONFIG.ALIGNED_FASTA_FILE
         self.out_dir = config.OUTPUT_FOLDER
-        self.metadata_mapping = {}
-        if metadata_df is not None and not metadata_df.empty and metadata_column in metadata_df.columns:
-            for _, row in metadata_df.iterrows():
-                self.metadata_mapping[row["Sample"]] = row[metadata_column]
-        else:
-            # TODO: write test
-            # TODO: also test the other metadata columns work
-            raise ValueError(
-                "Metadata dataframe is empty or metadata column not found. Please provide valid metadata."
+        if metadata_df is not None:
+            assert metadata_column in metadata_df.columns, (
+                f"Metadata column '{metadata_column}' not found in metadata DataFrame columns: {metadata_df.columns}"
             )
+            self.groups_df = metadata_df[["Sample", metadata_column]].rename(
+                columns={"Sample": "file_name", metadata_column: "group_name"}
+            )
+            self.groups_df = self.groups_df[~self.groups_df["group_name"].isin(["AD", "CTR"])]
+        else:
+            self.groups_df = pd.DataFrame(columns=["file_name", "group_name"])
 
         aligned_sequence = uniprot_align.get_alignment(
             Path(self.fasta_file), Path(self.out_dir)
@@ -55,15 +55,6 @@ class MaxQuantPreprocessor:
             self.fasta_file, self.aligned_fasta_file
         )
 
-        group_file_keys = {"file_name", "group_name", "replicate"}
-        self.groups_df = (
-            pd.read_csv(gf)
-            if (gf := self.PREPROCESSOR_CONFIG.GROUPS_CSV) is not None
-            else pd.DataFrame({k: [] for k in group_file_keys})
-        )
-        assert group_file_keys.issubset(set(self.groups_df.columns)), (
-            f"Groups file must contain the columns: " f"{group_file_keys}"
-        )
         (
             self.exon_found,
             self.exon_start_index,
@@ -223,7 +214,6 @@ class MaxQuantPreprocessor:
             except ValueError:
                 continue
 
-            current_group = self.metadata_mapping[row["Sample"]]
             cleavage = preprocessor_helper.check_N_term_cleavage(
                 row["Sequence"],
                 row["Protein ID"],
@@ -240,7 +230,7 @@ class MaxQuantPreprocessor:
             if cleavage != "":
                 all_cleavages.append(cleavage)
                 if len(self.groups_df) > 0:
-                    cleavages_for_exp[current_group].append(cleavage)
+                    cleavages_for_exp[row["Sample"]].append(cleavage)
 
             cleavage = preprocessor_helper.check_C_term_cleavage(
                 row["Sequence"],
@@ -258,7 +248,7 @@ class MaxQuantPreprocessor:
             if cleavage != "":
                 all_cleavages.append(cleavage)
                 if len(self.groups_df) > 0:
-                    cleavages_for_exp[current_group].append(cleavage)
+                    cleavages_for_exp[row["Sample"]].append(cleavage)
 
             if float(row["PEP"]) < self.PREPROCESSOR_CONFIG.THRESHOLD:
                 if row["Modifications"] != "Unmodified":
@@ -271,8 +261,8 @@ class MaxQuantPreprocessor:
                         aligned_sequence,
                     )
                     all_mods.extend(mods)
-                    if current_group in group_names:
-                        mods_for_exp[current_group].extend(mods)
+                    if row["Sample"] in group_names:
+                        mods_for_exp[row["Sample"]].extend(mods)
 
         all_mods = sorted(set(all_mods), key=preprocessor_helper.extract_index)
         all_mods = preprocessor_helper.sort_by_index_and_exons(all_mods)

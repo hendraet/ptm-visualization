@@ -72,16 +72,17 @@ class BarPlotter(Plotter):
         height_offset = 0
         modifications_visited = 0
         positions_visited = 0
-        bar_percentages = {group: [] for group in self.plot_config.BAR_GROUPS.keys()}
+        relevant_groups = df["Group"].dropna().unique()
+        bar_percentages = {group: [] for group in relevant_groups}
 
         for aa_position in sorted(modification_sites_all.keys(), reverse=True):
-            for modification_sight in modification_sites_all[aa_position]:
-                if modification_sight not in modification_sites_relevant[aa_position]:
-                    for group in self.plot_config.BAR_GROUPS.keys():
+            for modification_site in modification_sites_all[aa_position]:
+                if modification_site not in modification_sites_relevant[aa_position]:
+                    for group in relevant_groups:
                         bar_percentages[group].append(0)
                     modifications_visited += 1
                     continue
-                label, modification_type, _, isoform = modification_sight
+                label, modification_type, _, isoform = modification_site
                 if self.FIGURE_ORIENTATION == 0:
                     # x position for protein sequence
                     position = self.get_position_with_offset(aa_position, isoform)
@@ -108,16 +109,21 @@ class BarPlotter(Plotter):
                     space_above_sequence = self.get_height() - y_0_line if above == 'A' else y_0_line
                     space_per_group = (space_above_sequence - label_plot_height) // (len(df["Group"].unique()) - 1)
                     max_bar_height = space_per_group - 2 * bar_plot_margin
+
                     # plot bars
-                    for i, group in enumerate(self.plot_config.BAR_GROUPS.keys()):
-                        modification_column = [col for col in df.columns if
-                                               col not in ['ID', 'Group'] and df[col].iloc[1] == label]
+                    for i, group in enumerate(relevant_groups):
+                        modification_column = [
+                            col
+                            for col in df.columns
+                            if col not in ["ID", "Group"] and df[col].iloc[1] == label
+                        ]
                         bar_df = df[['ID', 'Group'] + modification_column]
                         bar_df = bar_df[bar_df['Group'] == group]
                         values = bar_df.iloc[:, 2].astype(int)
                         percentage = values.mean()
-                        height = max_bar_height * percentage
                         bar_percentages[group].append(percentage)
+
+                        height = max_bar_height * percentage
                         x0 = x_1_line - bar_width // 2 * self.plot_config.BAR_WIDTH
                         x1 = x_1_line + bar_width // 2 * self.plot_config.BAR_WIDTH
                         y0 = y_bar + (i * space_per_group + 5) * group_direction
@@ -158,8 +164,9 @@ class BarPlotter(Plotter):
                     space_above_sequence = self.get_width() - x_0_line if above == 'A' else x_0_line
                     space_per_group = (space_above_sequence - label_plot_height) // (len(df["Group"].unique()) - 1)
                     max_bar_height = space_per_group - 2 * bar_plot_margin
+
                     # plot bars
-                    for i, group in enumerate(self.plot_config.BAR_GROUPS.keys()):
+                    for i, group in enumerate(relevant_groups):
                         modification_column = [col for col in df.columns if
                                                col not in ['ID', 'Group'] and df[col].iloc[1] == label]
                         bar_df = df[['ID', 'Group'] + modification_column]
@@ -193,16 +200,16 @@ class BarPlotter(Plotter):
             else:
                 height_offset += 2
 
-        max_lines = max(value.count('<br>') + 1 for value in self.plot_config.BAR_GROUPS.values())
+        max_lines = max(value.count('<br>') + 1 for value in relevant_groups)
         if self.FIGURE_ORIENTATION == 0:
-            for i, group in enumerate(self.plot_config.BAR_GROUPS.keys()):
+            for i, group in enumerate(relevant_groups):
                 y_group = y_bar + (i * space_per_group + 5) * group_direction
                 x_line_start = self.get_width() - bar_plot_width
                 fig.add_annotation(
                     x=x_line_start - self.get_label_length('100%', ) - max_lines * self.get_label_height() + 3,
                     y=y_group + space_per_group // 2 * group_direction,
                     width=space_per_group,
-                    text=self.plot_config.BAR_GROUPS[group],
+                    text=group,
                     textangle=-90,
                     font={'size': self.sequence_plot_font_size, 'family': self.FONT, 'color': "black"},
                     showarrow=False)
@@ -230,12 +237,12 @@ class BarPlotter(Plotter):
                                              'color': "black"},
                                        showarrow=False)
         else:
-            for i, group in enumerate(self.plot_config.BAR_GROUPS.keys()):
+            for i, group in enumerate(relevant_groups):
                 x_group = x_bar + (i * space_per_group + 5) * group_direction
                 y_line_start = bar_plot_width
                 fig.add_annotation(x=x_group + space_per_group // 2 * group_direction,
                                    y=y_line_start + self.get_label_height() + max_lines * self.get_label_height() - 5,
-                                   text=self.plot_config.BAR_GROUPS[group],
+                                   text=group,
                                    font={'size': self.sequence_plot_font_size, 'family': self.FONT,
                                          'color': "black"},
                                    showarrow=False)

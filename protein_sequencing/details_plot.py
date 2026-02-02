@@ -952,16 +952,27 @@ class DetailsPlotter(Plotter):
             out_dir=self.output_path
         )
 
-        cleavage_file_path = None
-        ptm_file_path = None
+        cleavage_df = None
+        ptm_df = None
+        relevant_groups = set()
         for above in self.plot_config.INPUT_FILES.keys():
             match self.plot_config.INPUT_FILES[above][0]:
                 case 'Cleavage':
-                    cleavage_file_path = self.plot_config.INPUT_FILES[above][1]
+                    cleavage_df = pd.read_csv(self.plot_config.INPUT_FILES[above][1])
                     cleavage_above = above
+                    relevant_groups.update(cleavage_df['Group'].unique().tolist())
                 case 'PTM':
-                    ptm_file_path = self.plot_config.INPUT_FILES[above][1]
+                    ptm_df = self.filter_relevant_modification_sites(self.plot_config.INPUT_FILES[above][1], self.plot_config.MODIFICATION_THRESHOLD)
                     ptm_above = above
+                    relevant_groups.update(ptm_df['Group'].unique().tolist())
+        assert len(relevant_groups) > 0, "No relevant groups found in the provided data."
+        # Since we are using only the relevant parts of the metadata, we have to filter the groups here. The original
+        # tool was not developed with variable metadata in mind, so this
+        self.plot_config.GROUPS = {
+            group: self.plot_config.GROUPS[group]
+            for group in relevant_groups
+            if group in self.plot_config.GROUPS
+        }
 
         if self.FIGURE_ORIENTATION == 0:
             plot_space = self.get_width() - self.SEQUENCE_BOUNDARIES['x0']
@@ -971,8 +982,7 @@ class DetailsPlotter(Plotter):
 
         label_plot_height = 150
 
-        if cleavage_file_path:
-            cleavage_df = pd.read_csv(cleavage_file_path)
+        if cleavage_df is not None:
             present_regions = self.get_present_regions_cleavage(cleavage_df)
             number_of_cleavages = len(cleavage_df.columns)
             number_of_dividers = present_regions.count(True) - 1
@@ -982,8 +992,7 @@ class DetailsPlotter(Plotter):
 
             self.plot_cleavages(fig, cleavage_df, pixels_per_cleavage, label_plot_height, cleavage_above)
 
-        if ptm_file_path:
-            ptm_df = self.filter_relevant_modification_sites(ptm_file_path, self.plot_config.MODIFICATION_THRESHOLD)
+        if ptm_df is not None:
             present_regions = self.get_present_regions_ptm(ptm_df)
             number_of_ptms = len(ptm_df.columns)
             number_of_dividers = present_regions.count(True) - 1
