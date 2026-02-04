@@ -28,13 +28,24 @@ class MaxQuantPreprocessor:
         self.aligned_fasta_file = self.PREPROCESSOR_CONFIG.ALIGNED_FASTA_FILE
         self.out_dir = config.OUTPUT_FOLDER
         if metadata_df is not None:
-            assert metadata_column in metadata_df.columns, (
-                f"Metadata column '{metadata_column}' not found in metadata DataFrame columns: {metadata_df.columns}"
-            )
+            if metadata_column not in metadata_df.columns:
+                raise ValueError(
+                    f"Metadata column '{metadata_column}' not found in metadata DataFrame columns: {metadata_df.columns}"
+                )
+            metadata_samples = set(metadata_df["Sample"].unique())
+            evidence_samples = set(evidence_df["Sample"].unique())
+            if not evidence_samples.issubset(metadata_samples):
+                missing_groups = evidence_samples - metadata_samples
+                raise ValueError(
+                    f"The following samples from the evidence file are missing in the metadata file: {missing_groups}"
+                )
+
             self.groups_df = metadata_df[["Sample", metadata_column]].rename(
                 columns={"Sample": "file_name", metadata_column: "group_name"}
             )
-            self.groups_df = self.groups_df[~self.groups_df["group_name"].isin(["AD", "CTR"])]
+            self.groups_df = self.groups_df[
+                ~self.groups_df["group_name"].isin(["AD", "CTR"])
+            ]
         else:
             self.groups_df = pd.DataFrame(columns=["file_name", "group_name"])
 

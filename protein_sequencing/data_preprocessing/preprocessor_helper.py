@@ -157,7 +157,7 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
         for key, value in mods_for_exp.items():
             row = [1 if mod in value else 0 for mod in all_mods]
             if key not in groups_df['file_name'].values:
-                raise ValueError(f"Group {key} not found in provided groups file")
+                raise ValueError(f"File name {key} not found in provided groups file")
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
             writer.writerow([key, group] + row)
 
@@ -172,7 +172,7 @@ def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_e
             indexes = [extract_index(cleavage) for cleavage in value]
             row = cleavage_score(ranges, indexes)
             if key not in groups_df['file_name'].values:
-                raise ValueError(f"Group '{key}' not found in provided groups file")
+                raise ValueError(f"File name '{key}' not found in provided groups file")
             group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
             writer.writerow([key, group] + row)
 

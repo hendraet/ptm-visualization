@@ -852,7 +852,7 @@ class DetailsPlotter(Plotter):
 
     def filter_relevant_modification_sites(self, ptm_file: str, threshold: int):
         """Filter the relevant modification sights."""
-        df = pd.read_csv(ptm_file)
+        df = pd.read_csv(ptm_file, dtype={"ID": str, "Group": str})
         columns_to_keep = []
         for col in df.columns:
             if self.INCLUDED_MODIFICATIONS.get(df[col].iloc[0]):
@@ -958,7 +958,7 @@ class DetailsPlotter(Plotter):
         for above in self.plot_config.INPUT_FILES.keys():
             match self.plot_config.INPUT_FILES[above][0]:
                 case 'Cleavage':
-                    cleavage_df = pd.read_csv(self.plot_config.INPUT_FILES[above][1])
+                    cleavage_df = pd.read_csv(self.plot_config.INPUT_FILES[above][1], dtype={"ID": str, "Group": str})
                     cleavage_above = above
                     relevant_groups.update(cleavage_df['Group'].unique().tolist())
                 case 'PTM':

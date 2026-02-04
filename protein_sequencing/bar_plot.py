@@ -329,7 +329,7 @@ class BarPlotter(Plotter):
 
     def filter_relevant_modification_sites(self, helper_file: str):
         """Filter relevant modification sites from input file based on user defined filters."""
-        df = pd.read_csv(helper_file)
+        df = pd.read_csv(helper_file, dtype={"ID": str, "Group": str})
 
         # only keep first two columns and columns that are in MODIFICATIONS
         columns_to_keep = list(self.INCLUDED_MODIFICATIONS.keys())
