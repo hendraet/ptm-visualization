@@ -1,4 +1,5 @@
 """Module to generate overview plot for protein sequences."""
+
 import logging
 from collections import defaultdict
 
@@ -19,12 +20,12 @@ class OverviewPlotter(Plotter):
 
     def get_present_modifications(self, mod_file):
         """Get present modifications"""
-        with open(mod_file, 'r', encoding="utf-8") as f:
+        with open(mod_file, "r", encoding="utf-8") as f:
             rows = f.readlines()[1:4]
-            modification_types = rows[0].strip().split(',')
+            modification_types = rows[0].strip().split(",")
             present_modifications = set()
-            for i, (label) in enumerate(rows[1].strip().split(',')):
-                if label == '':
+            for i, (label) in enumerate(rows[1].strip().split(",")):
+                if label == "":
                     continue
                 aa = label[0]
                 if modification_types[i] not in self.plot_config.MODIFICATIONS_GROUP:
@@ -32,57 +33,59 @@ class OverviewPlotter(Plotter):
                 if self.INCLUDED_MODIFICATIONS.get(modification_types[i]):
                     if aa not in self.INCLUDED_MODIFICATIONS[modification_types[i]]:
                         continue
-                    if aa == 'R' and modification_types[i] == 'Deamidated':
-                        modification_types[i] = 'Citrullination'
+                    if aa == "R" and modification_types[i] == "Deamidated":
+                        modification_types[i] = "Citrullination"
                 present_modifications.add(modification_types[i])
         return present_modifications
 
     def get_modifications_per_position(
-            self,
-            mod_file,
-            modifications_to_filter: set | None = None,
-            filter_based_on_modifications_group: bool = True
+        self,
+        mod_file,
+        modifications_to_filter: set | None = None,
+        filter_based_on_modifications_group: bool = True,
     ) -> dict:
         """Get modifications per amino acid position"""
         mod_df = (
             pd.read_csv(mod_file)
             .transpose()
-            .fillna('')
-            .rename(columns={0: 'modification_type', 1: 'label', 2: 'isoform'})
+            .fillna("")
+            .rename(columns={0: "modification_type", 1: "label", 2: "isoform"})
         )
         if modifications_to_filter is not None:
-            mod_df = mod_df[mod_df['modification_type'].isin(modifications_to_filter)]
-        modification_types = mod_df['modification_type'].tolist()
-        labels = mod_df['label'].tolist()
-        isoforms = mod_df['isoform'].tolist()
+            mod_df = mod_df[mod_df["modification_type"].isin(modifications_to_filter)]
+        modification_types = mod_df["modification_type"].tolist()
+        labels = mod_df["label"].tolist()
+        isoforms = mod_df["isoform"].tolist()
 
         modifications_by_position = defaultdict(list)
         for i, (label) in enumerate(labels):
-            if label == '':
+            if label == "":
                 continue
             aa = label[0]
             if (
-                    filter_based_on_modifications_group
-                    and modification_types[i] not in self.plot_config.MODIFICATIONS_GROUP
+                filter_based_on_modifications_group
+                and modification_types[i] not in self.plot_config.MODIFICATIONS_GROUP
             ):
                 continue
             if self.INCLUDED_MODIFICATIONS.get(modification_types[i]):
                 if aa not in self.INCLUDED_MODIFICATIONS[modification_types[i]]:
                     continue
-                if aa == 'R' and modification_types[i] == 'Deamidated':
-                    modification_types[i] = 'Citrullination'
+                if aa == "R" and modification_types[i] == "Deamidated":
+                    modification_types[i] = "Citrullination"
             isoform = isoforms[i]
             position = self.get_position_with_offset(int(label[1:]), isoform)
-            modifications_by_position[position].append((
-                label,
-                modification_types[i],
+            modifications_by_position[position].append(
                 (
-                    self.plot_config.MODIFICATIONS_GROUP[modification_types[i]]
-                    if modification_types[i] in self.plot_config.MODIFICATIONS_GROUP
-                    else 'B'
-                ),
-                isoform
-            ))
+                    label,
+                    modification_types[i],
+                    (
+                        self.plot_config.MODIFICATIONS_GROUP[modification_types[i]]
+                        if modification_types[i] in self.plot_config.MODIFICATIONS_GROUP
+                        else "B"
+                    ),
+                    isoform,
+                )
+            )
         for position, mods in modifications_by_position.items():
             modifications_by_position[position] = list(set(mods))
 
@@ -90,90 +93,161 @@ class OverviewPlotter(Plotter):
 
     def plot_labels(self, fig, modifications_by_position):
         """Main plotting function. Plots labels for modifications at correspinding positions."""
-        x0 = self.SEQUENCE_BOUNDARIES['x0']
-        x1 = self.SEQUENCE_BOUNDARIES['x1']
-        y0 = self.SEQUENCE_BOUNDARIES['y0']
-        y1 = self.SEQUENCE_BOUNDARIES['y1']
+        x0 = self.SEQUENCE_BOUNDARIES["x0"]
+        x1 = self.SEQUENCE_BOUNDARIES["x1"]
+        y0 = self.SEQUENCE_BOUNDARIES["y0"]
+        y1 = self.SEQUENCE_BOUNDARIES["y1"]
 
-        label_offsets_with_orientation = self.get_label_offsets_with_orientation(modifications_by_position)
+        label_offsets_with_orientation = self.get_label_offsets_with_orientation(
+            modifications_by_position
+        )
         for aa_position in label_offsets_with_orientation.keys():
             line_plotted_a, line_plotted_b = False, False
-            for height_offset, group, label, modification_type, orientation in label_offsets_with_orientation[
-                aa_position]:
+            for (
+                height_offset,
+                group,
+                label,
+                modification_type,
+                orientation,
+            ) in label_offsets_with_orientation[aa_position]:
                 if self.FIGURE_ORIENTATION == 0:
-                    x_position_line = (aa_position * self.PIXELS_PER_AA) + self.SEQUENCE_OFFSET
-                    x_position_line = self.offset_line_for_exon(x_position_line, int(label[1:]),
-                                                                 self.FIGURE_ORIENTATION)
-                    y_length = self.plot_config.SEQUENCE_MIN_LINE_LENGTH + height_offset * self.get_label_height()
-                    y_beginning_line = y0 if group == 'B' else y1
-                    y_end_line = y_beginning_line - y_length if group == 'B' else y_beginning_line + y_length
-
-                    if not line_plotted_a and group == 'A':
-                        self.plot_line(fig, x_position_line, x_position_line, y_beginning_line, y_end_line)
-                        line_plotted_a = True
-                    if not line_plotted_b and group == 'B':
-                        self.plot_line(fig, x_position_line, x_position_line, y_beginning_line, y_end_line)
-                        line_plotted_b = True
-
-                    position_label = 'top center'
-                    if group == 'B':
-                        position_label = 'bottom ' + orientation
-                    if group == 'A':
-                        position_label = 'top ' + orientation
-
-                    self.plot_label(fig, x_position_line, y_end_line, label, modification_type, position_label)
-                else:
-                    y_position_line = self.FIGURE_WIDTH - (
-                                aa_position * self.PIXELS_PER_AA) - self.SEQUENCE_OFFSET
-                    y_position_line = self.offset_line_for_exon(y_position_line, int(label[1:]),
-                                                                 self.FIGURE_ORIENTATION)
-                    x_length = self.plot_config.SEQUENCE_MIN_LINE_LENGTH + height_offset * self.get_label_length(
-                        label,
+                    x_position_line = (
+                        aa_position * self.PIXELS_PER_AA
+                    ) + self.SEQUENCE_OFFSET
+                    x_position_line = self.offset_line_for_exon(
+                        x_position_line, int(label[1:]), self.FIGURE_ORIENTATION
                     )
-                    x_beginning_line = x0 if group == 'B' else x1
-                    x_end_line = x_beginning_line - x_length if group == 'B' else x_beginning_line + x_length
+                    y_length = (
+                        self.plot_config.SEQUENCE_MIN_LINE_LENGTH
+                        + height_offset * self.get_label_height()
+                    )
+                    y_beginning_line = y0 if group == "B" else y1
+                    y_end_line = (
+                        y_beginning_line - y_length
+                        if group == "B"
+                        else y_beginning_line + y_length
+                    )
 
-                    if not line_plotted_a and group == 'A':
-                        self.plot_line(fig, x_beginning_line, x_end_line, y_position_line, y_position_line)
+                    if not line_plotted_a and group == "A":
+                        self.plot_line(
+                            fig,
+                            x_position_line,
+                            x_position_line,
+                            y_beginning_line,
+                            y_end_line,
+                        )
                         line_plotted_a = True
-                    if not line_plotted_b and group == 'B':
-                        self.plot_line(fig, x_beginning_line, x_end_line, y_position_line, y_position_line)
+                    if not line_plotted_b and group == "B":
+                        self.plot_line(
+                            fig,
+                            x_position_line,
+                            x_position_line,
+                            y_beginning_line,
+                            y_end_line,
+                        )
                         line_plotted_b = True
 
-                    position_label = 'middle'
-                    if orientation == 'left':
-                        position_label = 'top'
-                    if orientation == 'right':
-                        position_label = 'bottom'
-                    if group == 'B':
-                        position_label = position_label + ' left'
-                    if group == 'A':
-                        position_label = position_label + ' right'
+                    position_label = "top center"
+                    if group == "B":
+                        position_label = "bottom " + orientation
+                    if group == "A":
+                        position_label = "top " + orientation
 
-                    self.plot_label(fig, x_end_line, y_position_line, label, modification_type, position_label)
+                    self.plot_label(
+                        fig,
+                        x_position_line,
+                        y_end_line,
+                        label,
+                        modification_type,
+                        position_label,
+                    )
+                else:
+                    y_position_line = (
+                        self.FIGURE_WIDTH
+                        - (aa_position * self.PIXELS_PER_AA)
+                        - self.SEQUENCE_OFFSET
+                    )
+                    y_position_line = self.offset_line_for_exon(
+                        y_position_line, int(label[1:]), self.FIGURE_ORIENTATION
+                    )
+                    x_length = (
+                        self.plot_config.SEQUENCE_MIN_LINE_LENGTH
+                        + height_offset
+                        * self.get_label_length(
+                            label,
+                        )
+                    )
+                    x_beginning_line = x0 if group == "B" else x1
+                    x_end_line = (
+                        x_beginning_line - x_length
+                        if group == "B"
+                        else x_beginning_line + x_length
+                    )
+
+                    if not line_plotted_a and group == "A":
+                        self.plot_line(
+                            fig,
+                            x_beginning_line,
+                            x_end_line,
+                            y_position_line,
+                            y_position_line,
+                        )
+                        line_plotted_a = True
+                    if not line_plotted_b and group == "B":
+                        self.plot_line(
+                            fig,
+                            x_beginning_line,
+                            x_end_line,
+                            y_position_line,
+                            y_position_line,
+                        )
+                        line_plotted_b = True
+
+                    position_label = "middle"
+                    if orientation == "left":
+                        position_label = "top"
+                    if orientation == "right":
+                        position_label = "bottom"
+                    if group == "B":
+                        position_label = position_label + " left"
+                    if group == "A":
+                        position_label = position_label + " right"
+
+                    self.plot_label(
+                        fig,
+                        x_end_line,
+                        y_position_line,
+                        label,
+                        modification_type,
+                        position_label,
+                    )
         return fig
 
     def get_distance_groups(self, group):
         """Get distance groups for modifications."""
         result = []
-        last_sight = {'position': None, 'mod': None}
+        last_sight = {"position": None, "mod": None}
         distance_group = defaultdict(list)
         size = 0
         new_group = True
         for aa_pos in group.keys():
             for modification in group[aa_pos]:
-                current_sight = {'position': aa_pos, 'mod': modification}
-                if last_sight['position'] is not None:
+                current_sight = {"position": aa_pos, "mod": modification}
+                if last_sight["position"] is not None:
                     if self.check_distance(last_sight, current_sight) <= 0:
                         if new_group:
-                            distance_group[last_sight['position']].append(last_sight['mod'])
+                            distance_group[last_sight["position"]].append(
+                                last_sight["mod"]
+                            )
                             size += 1
                             new_group = False
                         distance_group[aa_pos].append(modification)
                         size += 1
                     else:
                         if new_group:
-                            distance_group[last_sight['position']].append(last_sight['mod'])
+                            distance_group[last_sight["position"]].append(
+                                last_sight["mod"]
+                            )
                             size += 1
                         result.append((size, distance_group))
                         new_group = True
@@ -183,11 +257,17 @@ class OverviewPlotter(Plotter):
         if not new_group:
             result.append((size, distance_group))
         else:
-            result.append((1, {last_sight['position']: [last_sight['mod']]}))
+            result.append((1, {last_sight["position"]: [last_sight["mod"]]}))
         return result
 
-    def get_offsets_with_orientations(self, distance_group, label_offsets_with_orientation, group_label, nearest_left,
-                                      nearest_right):
+    def get_offsets_with_orientations(
+        self,
+        distance_group,
+        label_offsets_with_orientation,
+        group_label,
+        nearest_left,
+        nearest_right,
+    ):
         """Get offsets with orientations for modifications."""
         nearest_left_offset = 0
         nearest_right_offset = 0
@@ -206,22 +286,32 @@ class OverviewPlotter(Plotter):
         left_offset, right_offset = -1, -1
 
         additional_offset = 0
-        for i, position in enumerate(sorted((k for k in distance_group[1].keys() if k < mid_position))):
+        for i, position in enumerate(
+            sorted((k for k in distance_group[1].keys() if k < mid_position))
+        ):
             for mod in distance_group[1][position]:
                 offset = i + additional_offset + nearest_left_offset
-                orientation = 'left'
+                orientation = "left"
                 additional_offset += 1
-                label_offsets_with_orientation[position].append((offset, group_label, mod[0], mod[1], orientation))
+                label_offsets_with_orientation[position].append(
+                    (offset, group_label, mod[0], mod[1], orientation)
+                )
                 left_offset = max(left_offset, offset)
             additional_offset -= 1
 
         additional_offset = 0
-        for i, position in enumerate(sorted((k for k in distance_group[1].keys() if k > mid_position), reverse=True)):
+        for i, position in enumerate(
+            sorted(
+                (k for k in distance_group[1].keys() if k > mid_position), reverse=True
+            )
+        ):
             for mod in distance_group[1][position]:
                 offset = i + additional_offset + nearest_right_offset
-                orientation = 'right'
+                orientation = "right"
                 additional_offset += 1
-                label_offsets_with_orientation[position].append((offset, group_label, mod[0], mod[1], orientation))
+                label_offsets_with_orientation[position].append(
+                    (offset, group_label, mod[0], mod[1], orientation)
+                )
                 right_offset = max(right_offset, offset)
             additional_offset -= 1
 
@@ -233,12 +323,12 @@ class OverviewPlotter(Plotter):
         for mod in distance_group[1][mid_position]:
             if right_offset < left_offset:
                 offset = right_offset + additional_offset + 1
-                orientation = 'right'
+                orientation = "right"
             elif right_offset > left_offset:
                 offset = left_offset + additional_offset + 1
-                orientation = 'left'
+                orientation = "left"
             else:
-                orientation = 'center'
+                orientation = "center"
                 offsets = []
                 if right_offset != -1:
                     offsets.append(right_offset)
@@ -249,7 +339,9 @@ class OverviewPlotter(Plotter):
                 else:
                     offset = min(offsets) + additional_offset + 1
             additional_offset += 1
-            label_offsets_with_orientation[mid_position].append((offset, group_label, mod[0], mod[1], orientation))
+            label_offsets_with_orientation[mid_position].append(
+                (offset, group_label, mod[0], mod[1], orientation)
+            )
 
         return label_offsets_with_orientation
 
@@ -263,25 +355,47 @@ class OverviewPlotter(Plotter):
         smaller_offset = 0
         larger_offset = 0
 
-        for position in sorted((k for k in label_offsets_with_orientation.keys() if k < first_position), reverse=True):
+        for position in sorted(
+            (k for k in label_offsets_with_orientation.keys() if k < first_position),
+            reverse=True,
+        ):
             if position < first_position:
-                distance = self.check_distance({'position': position,
-                                                'mod': (label_offsets_with_orientation[position][-1][2],
-                                                        label_offsets_with_orientation[position][-1][3])},
-                                               {'position': first_position,
-                                                'mod': distance_group[1][first_position][0]})
+                distance = self.check_distance(
+                    {
+                        "position": position,
+                        "mod": (
+                            label_offsets_with_orientation[position][-1][2],
+                            label_offsets_with_orientation[position][-1][3],
+                        ),
+                    },
+                    {
+                        "position": first_position,
+                        "mod": distance_group[1][first_position][0],
+                    },
+                )
                 if distance < 2:
                     nearest_smaller = position
                     smaller_offset = label_offsets_with_orientation[position][-1][0]
                 else:
                     break
 
-        for position in sorted(k for k in label_offsets_with_orientation.keys() if k > last_position):
+        for position in sorted(
+            k for k in label_offsets_with_orientation.keys() if k > last_position
+        ):
             if position > last_position:
-                distance = self.check_distance({'position': position,
-                                                'mod': (label_offsets_with_orientation[position][-1][2],
-                                                        label_offsets_with_orientation[position][-1][3])},
-                                               {'position': last_position, 'mod': distance_group[1][last_position][0]})
+                distance = self.check_distance(
+                    {
+                        "position": position,
+                        "mod": (
+                            label_offsets_with_orientation[position][-1][2],
+                            label_offsets_with_orientation[position][-1][3],
+                        ),
+                    },
+                    {
+                        "position": last_position,
+                        "mod": distance_group[1][last_position][0],
+                    },
+                )
                 if distance < 2:
                     nearest_larger = position
                     larger_offset = label_offsets_with_orientation[position][-1][0]
@@ -296,17 +410,27 @@ class OverviewPlotter(Plotter):
         label_offsets_with_orientation_a = defaultdict(list)
         label_offsets_with_orientation_b = defaultdict(list)
 
-        for group, label_offsets_with_orientation in [(group_a, label_offsets_with_orientation_a),
-                                                      (group_b, label_offsets_with_orientation_b)]:
-            group_label = 'A' if group == group_a else 'B'
+        for group, label_offsets_with_orientation in [
+            (group_a, label_offsets_with_orientation_a),
+            (group_b, label_offsets_with_orientation_b),
+        ]:
+            group_label = "A" if group == group_a else "B"
             if len(group) == 0:
                 continue
             distance_groups = self.get_distance_groups(group)
-            for distance_group in sorted(distance_groups, key=lambda x: x[0], reverse=True):
-                nearest_left, nearest_right = self.find_nearest_positions(label_offsets_with_orientation,
-                                                                          distance_group)
-                self.get_offsets_with_orientations(distance_group, label_offsets_with_orientation, group_label,
-                                                   nearest_left, nearest_right)
+            for distance_group in sorted(
+                distance_groups, key=lambda x: x[0], reverse=True
+            ):
+                nearest_left, nearest_right = self.find_nearest_positions(
+                    label_offsets_with_orientation, distance_group
+                )
+                self.get_offsets_with_orientations(
+                    distance_group,
+                    label_offsets_with_orientation,
+                    group_label,
+                    nearest_left,
+                    nearest_right,
+                )
 
         return {**label_offsets_with_orientation_a, **label_offsets_with_orientation_b}
 
@@ -316,20 +440,26 @@ class OverviewPlotter(Plotter):
             -1 if label must be positioned left or right
             0 if label must be positioned in the center
             1 if label can be positioned anywhere
-            2 if there is enough space for both labels to be positioned left and right"""
-        first_position = int(first_modification['position'])
-        second_position = int(second_modification['position'])
-        label_length = self.get_label_length(
-            first_modification['mod'][0]
-        ) if self.FIGURE_ORIENTATION == 0 else self.get_label_height()
-        distance_between_modifications = abs(first_position - second_position) * self.PIXELS_PER_AA
+            2 if there is enough space for both labels to be positioned left and right
+        """
+        first_position = int(first_modification["position"])
+        second_position = int(second_modification["position"])
+        label_length = (
+            self.get_label_length(first_modification["mod"][0])
+            if self.FIGURE_ORIENTATION == 0
+            else self.get_label_height()
+        )
+        distance_between_modifications = (
+            abs(first_position - second_position) * self.PIXELS_PER_AA
+        )
         if distance_between_modifications < label_length / 2:
             return -1
         if distance_between_modifications < label_length:
             return 0
         second_label_length = (
-            self.get_label_length(second_modification['mod'][0])
-            if self.FIGURE_ORIENTATION == 0 else self.get_label_height()
+            self.get_label_length(second_modification["mod"][0])
+            if self.FIGURE_ORIENTATION == 0
+            else self.get_label_height()
         )
         if distance_between_modifications > label_length + second_label_length:
             return 2
@@ -338,27 +468,34 @@ class OverviewPlotter(Plotter):
     def plot_line(self, fig, x_start, x_end, y_start, y_end):
         """Plot single line for modifications."""
         fig.add_trace(
-            go.Scatter(x=[x_start, x_end], y=[y_start, y_end], mode='lines', line=dict(color='black', width=1),
-                       showlegend=False, hoverinfo='none'))
+            go.Scatter(
+                x=[x_start, x_end],
+                y=[y_start, y_end],
+                mode="lines",
+                line=dict(color="black", width=1),
+                showlegend=False,
+                hoverinfo="none",
+            )
+        )
 
     def plot_label(self, fig, x, y, text, modification_type, position_label):
         """Plots single label for modification."""
         # Label bounding box for highlitghted PTMs
-        if f'{modification_type}({text[0]})@{text[1:]}' in self.PTMS_TO_HIGHLIGHT:
+        if f"{modification_type}({text[0]})@{text[1:]}" in self.PTMS_TO_HIGHLIGHT:
             x0 = x + 1
             y0 = y - 1
             x1 = x - self.get_label_length(text) + 2
             y1 = y + self.get_label_height() - 1
-            if 'bottom' in position_label:
+            if "bottom" in position_label:
                 y1 = y - self.get_label_height() + 1
                 y0 = y + 1
-            if 'right' in position_label:
+            if "right" in position_label:
                 x1 = x + self.get_label_length(text) - 2
                 x0 = x - 1
-            if 'center' in position_label:
+            if "center" in position_label:
                 x1 = x + self.get_label_length(text) // 2
                 x0 = x - self.get_label_length(text) // 2
-            if 'middle' in position_label:
+            if "middle" in position_label:
                 y0 = y - self.get_label_height() // 2
                 y1 = y + self.get_label_height() // 2
 
@@ -368,19 +505,26 @@ class OverviewPlotter(Plotter):
                 y0=y0,
                 x1=x1,
                 y1=y1,
-                layer='below',
+                layer="below",
                 fillcolor=self.PTM_HIGHLIGHT_LABEL_COLOR,
                 line=dict(width=0),
             )
-        fig.add_trace(go.Scatter(x=[x], y=[y], mode='text',
-                                 text=text,
-                                 textposition=position_label,
-                                 showlegend=False,
-                                 hoverinfo='none',
-                                 textfont=dict(
-                                     family=self.FONT,
-                                     size=self.sequence_plot_font_size,
-                                     color=self.MODIFICATIONS[modification_type][1])))
+        fig.add_trace(
+            go.Scatter(
+                x=[x],
+                y=[y],
+                mode="text",
+                text=text,
+                textposition=position_label,
+                showlegend=False,
+                hoverinfo="none",
+                textfont=dict(
+                    family=self.FONT,
+                    size=self.sequence_plot_font_size,
+                    color=self.MODIFICATIONS[modification_type][1],
+                ),
+            )
+        )
 
     def create_overview_plot(self) -> tuple[go.Figure, list]:
         """Create overview plot for protein sequences."""
@@ -388,44 +532,59 @@ class OverviewPlotter(Plotter):
 
         # naming might be a bit confusing, but present_modifications are the modifications that are the detected
         # modifications that are also specified in the settings, whereas detected_modifications are all modifications
-        present_modifications = self.get_present_modifications(self.plot_config.INPUT_FILE)
-        detected_modifications = self.get_modifications_from_file(self.plot_config.INPUT_FILE)
-        if (
-                present_modifications is not None
-                and not set(detected_modifications).issubset(set(self.MODIFICATIONS.keys()))
-        ):
-            self.MODIFICATIONS = {k: v for k, v in self.MODIFICATIONS.items() if k in self.INCLUDED_MODIFICATIONS}
-            present_modifications = {mod for mod in present_modifications if mod in self.INCLUDED_MODIFICATIONS}
-            messages.append({
-                'level': logging.WARNING,
-                'msg': 'More modifications were detected than are present in the settings. Only the modifications '
-                       'present in the modification settings are shown in the plot. You can see the additional '
-                       'modifications in the "Tables" section.'
-            })
+        present_modifications = self.get_present_modifications(
+            self.plot_config.INPUT_FILE
+        )
+        detected_modifications = self.get_modifications_from_file(
+            self.plot_config.INPUT_FILE
+        )
+        if present_modifications is not None and not set(
+            detected_modifications
+        ).issubset(set(self.MODIFICATIONS.keys())):
+            self.MODIFICATIONS = {
+                k: v
+                for k, v in self.MODIFICATIONS.items()
+                if k in self.INCLUDED_MODIFICATIONS
+            }
+            present_modifications = {
+                mod
+                for mod in present_modifications
+                if mod in self.INCLUDED_MODIFICATIONS
+            }
+            messages.append(
+                {
+                    "level": logging.WARNING,
+                    "msg": "More modifications were detected than are present in the settings. Only the modifications "
+                    "present in the modification settings are shown in the plot. You can see the additional "
+                    'modifications in the "Tables" section.',
+                }
+            )
 
-        groups_present = {self.plot_config.MODIFICATIONS_GROUP[mod] for mod in present_modifications if
-                          mod in self.plot_config.MODIFICATIONS_GROUP}
-        if 'A' not in groups_present:
-            groups_missing = 'A'
-            legend_positioning = 'A'
-        elif 'B' not in groups_present:
-            groups_missing = 'B'
-            legend_positioning = 'B'
+        groups_present = {
+            self.plot_config.MODIFICATIONS_GROUP[mod]
+            for mod in present_modifications
+            if mod in self.plot_config.MODIFICATIONS_GROUP
+        }
+        if "A" not in groups_present:
+            groups_missing = "A"
+            legend_positioning = "A"
+        elif "B" not in groups_present:
+            groups_missing = "B"
+            legend_positioning = "B"
         else:
             groups_missing = None
-            legend_positioning = 'A'
+            legend_positioning = "A"
 
         fig = self._create_plot(
             input_file=self.input_file,
             present_modifications=present_modifications,
             groups_missing=groups_missing,
             legend_positioning=legend_positioning,
-            out_dir=self.output_path
+            out_dir=self.output_path,
         )
 
         modifications_by_position = self.get_modifications_per_position(
-            self.plot_config.INPUT_FILE,
-            modifications_to_filter=present_modifications
+            self.plot_config.INPUT_FILE, modifications_to_filter=present_modifications
         )
         fig = self.plot_labels(fig, modifications_by_position)
 
@@ -433,6 +592,6 @@ class OverviewPlotter(Plotter):
             fig,
             self.output_path,
             save_plot=self.plot_config.SAVE_PLOT,
-            show_plot=self.plot_config.SHOW_PLOT
+            show_plot=self.plot_config.SHOW_PLOT,
         )
         return fig, messages

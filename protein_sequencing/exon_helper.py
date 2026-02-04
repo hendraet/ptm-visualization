@@ -1,4 +1,5 @@
 """Helper functions for exon retrieval"""
+
 from pathlib import Path
 
 from protein_sequencing import uniprot_align
@@ -11,7 +12,8 @@ def levenshtein_distance(str1: str, str2: str, min_exon_length: int) -> bool:
         str2 (str): Second exon.
         min_exon_length (int): Minimum exon length.
     Returns:
-        bool: True if the Levenshtein distance is less than or equal to the minimum exon length."""
+        bool: True if the Levenshtein distance is less than or equal to the minimum exon length.
+    """
     if abs(len(str1) - len(str2)) > 1:
         return False
     matrix = [[0] * (len(str2) + 1) for _ in range(len(str1) + 1)]
@@ -27,7 +29,7 @@ def levenshtein_distance(str1: str, str2: str, min_exon_length: int) -> bool:
                 matrix[i][j] = 1 + min(
                     matrix[i - 1][j],  # Deletion
                     matrix[i][j - 1],  # Insertion
-                    matrix[i - 1][j - 1]  # Substitution
+                    matrix[i - 1][j - 1],  # Substitution
                 )
 
     return matrix[-1][-1] <= min_exon_length
@@ -48,11 +50,11 @@ def retrieve_exon(input_file: Path, min_exon_length: int, out_dir: Path) -> tupl
         for alignment in alignments:
             amino_acid = alignment.seq[i]
             if amino_acid not in amino_acids:
-                amino_acids[amino_acid] = [alignment.id.split('|')[1]]
+                amino_acids[amino_acid] = [alignment.id.split("|")[1]]
             else:
-                amino_acids[amino_acid].append(alignment.id.split('|')[1])
+                amino_acids[amino_acid].append(alignment.id.split("|")[1])
 
-        if '-' in amino_acids:
+        if "-" in amino_acids:
             if len(amino_acids) == 2:
                 different_possibilities[i] = -1
             if len(amino_acids) > 2:
@@ -71,7 +73,8 @@ def retrieve_exon(input_file: Path, min_exon_length: int, out_dir: Path) -> tupl
         if different_possibilities[i] == 2:
             if exon_found:
                 raise ValueError(
-                    "There are multiple exons in the sequence, currently the tool just supports 1 different exon.")
+                    "There are multiple exons in the sequence, currently the tool just supports 1 different exon."
+                )
             current_position = i
             exon_start_index = i
             while i > 0:
@@ -89,8 +92,13 @@ def retrieve_exon(input_file: Path, min_exon_length: int, out_dir: Path) -> tupl
             exon_end_index = i
             min_alignment_offset = -1
             for alignment in alignments:
-                alignemnt_offset = alignment.seq[exon_start_index:exon_end_index].count('-')
-                if min_alignment_offset == -1 or alignemnt_offset < min_alignment_offset:
+                alignemnt_offset = alignment.seq[exon_start_index:exon_end_index].count(
+                    "-"
+                )
+                if (
+                    min_alignment_offset == -1
+                    or alignemnt_offset < min_alignment_offset
+                ):
                     min_alignment_offset = alignemnt_offset
 
             max_exon_length = exon_end_index - exon_start_index - min_alignment_offset
@@ -107,11 +115,17 @@ def retrieve_exon(input_file: Path, min_exon_length: int, out_dir: Path) -> tupl
                 exon_none_isoforms = []
                 exon_1_length = -1
                 exon_2_length = -1
-                max_sequence_length = max_sequence_length - (exon_end_index - exon_start_index) + max_exon_length
+                max_sequence_length = (
+                    max_sequence_length
+                    - (exon_end_index - exon_start_index)
+                    + max_exon_length
+                )
                 for alignment in alignments:
-                    exon = alignment.seq[exon_start_index:exon_end_index].replace('-', '')
-                    isoform = alignment.id.split('|')[1]
-                    if exon != '' and len(exon) > min_exon_length:
+                    exon = alignment.seq[exon_start_index:exon_end_index].replace(
+                        "-", ""
+                    )
+                    isoform = alignment.id.split("|")[1]
+                    if exon != "" and len(exon) > min_exon_length:
                         if exon_1 is None:
                             exon_1 = exon
                             exon_1_isoforms.append(isoform)
@@ -125,14 +139,37 @@ def retrieve_exon(input_file: Path, min_exon_length: int, out_dir: Path) -> tupl
                         elif levenshtein_distance(exon_1, exon, min_exon_length):
                             exon_2_isoforms.append(isoform)
                         else:
-                            raise ValueError("There are more than 2 different exons in the sequence.")
+                            raise ValueError(
+                                "There are more than 2 different exons in the sequence."
+                            )
                     else:
                         exon_none_isoforms.append(isoform)
         i += 1
 
     if exon_found:
         # exon_start_index starts with 0 (so the first amino acid in the exon is +1)
-        return True, exon_start_index + 1, exon_end_index + 1, max_exon_length, exon_1_isoforms, exon_1_length, exon_2_isoforms, exon_2_length, exon_none_isoforms, max_sequence_length
+        return (
+            True,
+            exon_start_index + 1,
+            exon_end_index + 1,
+            max_exon_length,
+            exon_1_isoforms,
+            exon_1_length,
+            exon_2_isoforms,
+            exon_2_length,
+            exon_none_isoforms,
+            max_sequence_length,
+        )
 
-    return False, -1, -1, -1, [], -1, [], -1, [alignment.id.split('|')[1] for alignment in
-                                               alignments], max_sequence_length
+    return (
+        False,
+        -1,
+        -1,
+        -1,
+        [],
+        -1,
+        [],
+        -1,
+        [alignment.id.split("|")[1] for alignment in alignments],
+        max_sequence_length,
+    )

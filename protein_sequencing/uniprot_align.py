@@ -1,4 +1,5 @@
 """Module to align protein sequences using Clustal Omega"""
+
 import os
 import subprocess
 from pathlib import Path
@@ -7,7 +8,9 @@ from sys import platform
 from Bio import AlignIO, SeqIO
 
 
-def get_alignment(input_file: Path | str, out_dir: Path | str) -> AlignIO.MultipleSeqAlignment:
+def get_alignment(
+    input_file: Path | str, out_dir: Path | str
+) -> AlignIO.MultipleSeqAlignment:
     if not isinstance(input_file, Path):
         input_file = Path(input_file)
     if not isinstance(out_dir, Path):
@@ -16,24 +19,31 @@ def get_alignment(input_file: Path | str, out_dir: Path | str) -> AlignIO.Multip
         os.makedirs(out_dir, exist_ok=True)
 
     """Align protein sequences using Clustal Omega."""
-    records = list(SeqIO.parse(input_file, 'fasta'))
+    records = list(SeqIO.parse(input_file, "fasta"))
 
-    padded_sequences_path = out_dir / f'{input_file.stem}_padded{input_file.suffix}'
-    aligned_fasta_path = out_dir / f'{input_file.stem}_aligned{input_file.suffix}'
+    padded_sequences_path = out_dir / f"{input_file.stem}_padded{input_file.suffix}"
+    aligned_fasta_path = out_dir / f"{input_file.stem}_aligned{input_file.suffix}"
     # write to temporary file and do alignment
-    with padded_sequences_path.open('w', encoding="utf-8") as f:
-        SeqIO.write(records, f, 'fasta')
+    with padded_sequences_path.open("w", encoding="utf-8") as f:
+        SeqIO.write(records, f, "fasta")
 
     if len(records) == 1:
         aligned_sequence = records
     else:
         if platform == "linux" or platform == "linux2":
-            clustal_omega_path = Path(__file__).parent / 'clustal-omega' / 'clustalo-1.2.4-Ubuntu-x86_64'
+            clustal_omega_path = (
+                Path(__file__).parent / "clustal-omega" / "clustalo-1.2.4-Ubuntu-x86_64"
+            )
         elif platform == "darwin":
-            clustal_omega_path = Path(__file__).parent / 'clustal-omega' / 'clustal-omega-1.2.3-macosx'
+            clustal_omega_path = (
+                Path(__file__).parent / "clustal-omega" / "clustal-omega-1.2.3-macosx"
+            )
         elif platform == "win32":
             clustal_omega_path = (
-                    Path(__file__).parent / 'clustal-omega' / 'clustal-omega-1.2.2-win64' / 'clustalo.exe'
+                Path(__file__).parent
+                / "clustal-omega"
+                / "clustal-omega-1.2.2-win64"
+                / "clustalo.exe"
             )
         else:
             raise OSError(f"Unsupported operating system: {platform}")
@@ -50,8 +60,8 @@ def get_alignment(input_file: Path | str, out_dir: Path | str) -> AlignIO.Multip
 
     if not out_dir.exists():
         out_dir.mkdir(parents=True, exist_ok=True)
-    with (out_dir / 'aligned.fasta').open('w', encoding="utf-8") as f:
-        SeqIO.write(aligned_sequence, f, 'fasta')
+    with (out_dir / "aligned.fasta").open("w", encoding="utf-8") as f:
+        SeqIO.write(aligned_sequence, f, "fasta")
 
     # clean up temporary files
     if padded_sequences_path.exists():

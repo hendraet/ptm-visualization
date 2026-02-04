@@ -1,4 +1,5 @@
 """Module to create bar plots for protein sequences"""
+
 import logging
 from collections import defaultdict
 
@@ -20,12 +21,15 @@ class BarPlotter(Plotter):
         self._create_plot(
             input_file=self.input_file,
             present_modifications=None,
-            groups_missing='A',
-            out_dir=self.output_path
+            groups_missing="A",
+            out_dir=self.output_path,
         )
 
-    def get_bar_positions(self, modification_sights_all_a: dict[int, list[tuple[int, str, str]]],
-                          modification_sights_all_b: dict[int, list[tuple[int, str, str]]]):
+    def get_bar_positions(
+        self,
+        modification_sights_all_a: dict[int, list[tuple[int, str, str]]],
+        modification_sights_all_b: dict[int, list[tuple[int, str, str]]],
+    ):
         """Get positions for bar plot."""
         positions_a = []
         positions_b = []
@@ -41,32 +45,42 @@ class BarPlotter(Plotter):
     def get_bar_plot_width(self, group_size_a: int, group_size_b: int) -> int:
         """Get width of bar plot."""
         legend_height = self.get_label_height() * (
-            max(value.count('<br>') + 1 for value in self.plot_config.BAR_GROUPS.values()))
+            max(
+                value.count("<br>") + 1
+                for value in self.plot_config.BAR_GROUPS.values()
+            )
+        )
         if self.FIGURE_ORIENTATION == 0:
-            legend_height += self.get_label_length('100%')
-            bar_width = (self.get_width() - legend_height) // max(group_size_a, group_size_b)
+            legend_height += self.get_label_length("100%")
+            bar_width = (self.get_width() - legend_height) // max(
+                group_size_a, group_size_b
+            )
             bar_plot_width = bar_width * max(group_size_a, group_size_b)
         else:
             legend_height += self.get_label_height()
-            bar_width = (self.get_height() - legend_height) // max(group_size_a, group_size_b)
+            bar_width = (self.get_height() - legend_height) // max(
+                group_size_a, group_size_b
+            )
             bar_plot_width = bar_width * max(group_size_a, group_size_b)
         return bar_plot_width
 
     def add_bar_plot(
-            self,
-            fig: go.Figure,
-            above: str,
-            modification_sites_all: dict[int, list[tuple[int, str, str, str]]],
-            modification_sites_relevant: dict[int, list[tuple[int, str, str, str]]],
-            df,
-            group_positions: list,
-            bar_plot_width: int,
-            label_plot_height: int
+        self,
+        fig: go.Figure,
+        above: str,
+        modification_sites_all: dict[int, list[tuple[int, str, str, str]]],
+        modification_sites_relevant: dict[int, list[tuple[int, str, str, str]]],
+        df,
+        group_positions: list,
+        bar_plot_width: int,
+        label_plot_height: int,
     ) -> go.Figure:
         """Add bar plot to sequence plot."""
-        group_direction = 1 if above == 'A' else -1
+        group_direction = 1 if above == "A" else -1
         bar_width = bar_plot_width // len(group_positions)
-        assert bar_width >= self.FONT_SIZE, f"Too many bars to plot! Bar width: {bar_width} < FONT_SIZE: {self.FONT_SIZE}."
+        assert (
+            bar_width >= self.FONT_SIZE
+        ), f"Too many bars to plot! Bar width: {bar_width} < FONT_SIZE: {self.FONT_SIZE}."
         bar_plot_margin = self.FONT_SIZE
 
         height_offset = 0
@@ -87,27 +101,54 @@ class BarPlotter(Plotter):
                     # x position for protein sequence
                     position = self.get_position_with_offset(aa_position, isoform)
                     x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
-                    x_0_line = self.offset_line_for_exon(x_0_line, aa_position, self.FIGURE_ORIENTATION)
+                    x_0_line = self.offset_line_for_exon(
+                        x_0_line, aa_position, self.FIGURE_ORIENTATION
+                    )
                     # x position for bar plot
-                    x_1_line = self.get_width() - (modifications_visited * bar_width + bar_width // 2)
-                    y_0_line = self.SEQUENCE_BOUNDARIES['y1'] if above == 'A' else self.SEQUENCE_BOUNDARIES['y0']
+                    x_1_line = self.get_width() - (
+                        modifications_visited * bar_width + bar_width // 2
+                    )
+                    y_0_line = (
+                        self.SEQUENCE_BOUNDARIES["y1"]
+                        if above == "A"
+                        else self.SEQUENCE_BOUNDARIES["y0"]
+                    )
                     y_1_line = y_0_line + group_direction * height_offset
-                    y_3_line = y_0_line + label_plot_height * group_direction - (
-                                self.get_label_length(label) + 10) * group_direction
+                    y_3_line = (
+                        y_0_line
+                        + label_plot_height * group_direction
+                        - (self.get_label_length(label) + 10) * group_direction
+                    )
                     y_2_line = y_3_line - 10 * group_direction
-                    y_label = y_3_line + (self.get_label_length(label) // 2 + 5) * group_direction
-                    y_bar = y_3_line + (self.get_label_length(label) + 5) * group_direction
+                    y_label = (
+                        y_3_line
+                        + (self.get_label_length(label) // 2 + 5) * group_direction
+                    )
+                    y_bar = (
+                        y_3_line + (self.get_label_length(label) + 5) * group_direction
+                    )
 
                     # plot line with label
-                    self.plot_line_with_label_horizontal(fig,
-                                                         x_0_line, x_1_line,
-                                                         y_0_line, y_1_line, y_2_line, y_3_line,
-                                                         y_label,
-                                                         self.MODIFICATIONS[modification_type][1],
-                                                         label, modification_type)
+                    self.plot_line_with_label_horizontal(
+                        fig,
+                        x_0_line,
+                        x_1_line,
+                        y_0_line,
+                        y_1_line,
+                        y_2_line,
+                        y_3_line,
+                        y_label,
+                        self.MODIFICATIONS[modification_type][1],
+                        label,
+                        modification_type,
+                    )
 
-                    space_above_sequence = self.get_height() - y_0_line if above == 'A' else y_0_line
-                    space_per_group = (space_above_sequence - label_plot_height) // (len(df["Group"].unique()) - 1)
+                    space_above_sequence = (
+                        self.get_height() - y_0_line if above == "A" else y_0_line
+                    )
+                    space_per_group = (space_above_sequence - label_plot_height) // (
+                        len(df["Group"].unique()) - 1
+                    )
                     max_bar_height = space_per_group - 2 * bar_plot_margin
 
                     # plot bars
@@ -117,8 +158,8 @@ class BarPlotter(Plotter):
                             for col in df.columns
                             if col not in ["ID", "Group"] and df[col].iloc[1] == label
                         ]
-                        bar_df = df[['ID', 'Group'] + modification_column]
-                        bar_df = bar_df[bar_df['Group'] == group]
+                        bar_df = df[["ID", "Group"] + modification_column]
+                        bar_df = bar_df[bar_df["Group"] == group]
                         values = bar_df.iloc[:, 2].astype(int)
                         percentage = values.mean()
                         bar_percentages[group].append(percentage)
@@ -128,8 +169,12 @@ class BarPlotter(Plotter):
                         x1 = x_1_line + bar_width // 2 * self.plot_config.BAR_WIDTH
                         y0 = y_bar + (i * space_per_group + 5) * group_direction
                         y1 = y0 + height * group_direction
-                        if self.plot_config.INVERT_AXIS_GROUP_B and above == 'B':
-                            y0 = y_bar + (i * space_per_group + 5 + max_bar_height) * group_direction
+                        if self.plot_config.INVERT_AXIS_GROUP_B and above == "B":
+                            y0 = (
+                                y_bar
+                                + (i * space_per_group + 5 + max_bar_height)
+                                * group_direction
+                            )
                             y1 = y0 - height * group_direction
 
                         fig.add_shape(
@@ -138,39 +183,70 @@ class BarPlotter(Plotter):
                             y0=y0,
                             x1=x1,
                             y1=y1,
-                            line={'color': "black", 'width': 1},
-                            fillcolor=self.MODIFICATIONS[modification_type][1]
+                            line={"color": "black", "width": 1},
+                            fillcolor=self.MODIFICATIONS[modification_type][1],
                         )
                 else:
                     position = self.get_position_with_offset(aa_position, isoform)
-                    y_0_line = self.get_height() - (position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET)
-                    y_0_line = self.offset_line_for_exon(y_0_line, aa_position, self.FIGURE_ORIENTATION)
+                    y_0_line = self.get_height() - (
+                        position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
+                    )
+                    y_0_line = self.offset_line_for_exon(
+                        y_0_line, aa_position, self.FIGURE_ORIENTATION
+                    )
                     y_1_line = modifications_visited * bar_width + bar_width // 2
-                    x_0_line = self.SEQUENCE_BOUNDARIES['x1'] if above == 'A' else self.SEQUENCE_BOUNDARIES['x0']
+                    x_0_line = (
+                        self.SEQUENCE_BOUNDARIES["x1"]
+                        if above == "A"
+                        else self.SEQUENCE_BOUNDARIES["x0"]
+                    )
                     x_1_line = x_0_line + group_direction * height_offset
-                    x_3_line = x_0_line + label_plot_height * group_direction - (
-                            self.get_label_length(label) + 10) * group_direction
+                    x_3_line = (
+                        x_0_line
+                        + label_plot_height * group_direction
+                        - (self.get_label_length(label) + 10) * group_direction
+                    )
                     x_2_line = x_3_line - 10 * group_direction
-                    x_label = x_3_line + (self.get_label_length(label) // 2 + 5) * group_direction
-                    x_bar = x_3_line + (self.get_label_length(label) + 5) * group_direction
+                    x_label = (
+                        x_3_line
+                        + (self.get_label_length(label) // 2 + 5) * group_direction
+                    )
+                    x_bar = (
+                        x_3_line + (self.get_label_length(label) + 5) * group_direction
+                    )
 
                     # plot line with label
-                    self.plot_line_with_label_vertical(fig,
-                                                       x_0_line, x_1_line, x_2_line, x_3_line, x_label,
-                                                       y_0_line, y_1_line,
-                                                       self.MODIFICATIONS[modification_type][1],
-                                                       label, modification_type)
+                    self.plot_line_with_label_vertical(
+                        fig,
+                        x_0_line,
+                        x_1_line,
+                        x_2_line,
+                        x_3_line,
+                        x_label,
+                        y_0_line,
+                        y_1_line,
+                        self.MODIFICATIONS[modification_type][1],
+                        label,
+                        modification_type,
+                    )
 
-                    space_above_sequence = self.get_width() - x_0_line if above == 'A' else x_0_line
-                    space_per_group = (space_above_sequence - label_plot_height) // (len(df["Group"].unique()) - 1)
+                    space_above_sequence = (
+                        self.get_width() - x_0_line if above == "A" else x_0_line
+                    )
+                    space_per_group = (space_above_sequence - label_plot_height) // (
+                        len(df["Group"].unique()) - 1
+                    )
                     max_bar_height = space_per_group - 2 * bar_plot_margin
 
                     # plot bars
                     for i, group in enumerate(relevant_groups):
-                        modification_column = [col for col in df.columns if
-                                               col not in ['ID', 'Group'] and df[col].iloc[1] == label]
-                        bar_df = df[['ID', 'Group'] + modification_column]
-                        bar_df = bar_df[bar_df['Group'] == group]
+                        modification_column = [
+                            col
+                            for col in df.columns
+                            if col not in ["ID", "Group"] and df[col].iloc[1] == label
+                        ]
+                        bar_df = df[["ID", "Group"] + modification_column]
+                        bar_df = bar_df[bar_df["Group"] == group]
                         values = bar_df.iloc[:, 2].astype(int)
                         percentage = values.mean()
                         height = max_bar_height * percentage
@@ -179,8 +255,12 @@ class BarPlotter(Plotter):
                         y1 = y_1_line + bar_width // 2 * self.plot_config.BAR_WIDTH
                         x0 = x_bar + (i * space_per_group + 5) * group_direction
                         x1 = x0 + height * group_direction
-                        if self.plot_config.INVERT_AXIS_GROUP_B and above == 'B':
-                            x0 = x_bar + (i * space_per_group + 5 + max_bar_height) * group_direction
+                        if self.plot_config.INVERT_AXIS_GROUP_B and above == "B":
+                            x0 = (
+                                x_bar
+                                + (i * space_per_group + 5 + max_bar_height)
+                                * group_direction
+                            )
                             x1 = x0 - height * group_direction
 
                         fig.add_shape(
@@ -189,8 +269,8 @@ class BarPlotter(Plotter):
                             y0=y0,
                             x1=x1,
                             y1=y1,
-                            line={'color': "black", 'width': 1},
-                            fillcolor=self.MODIFICATIONS[modification_type][1]
+                            line={"color": "black", "width": 1},
+                            fillcolor=self.MODIFICATIONS[modification_type][1],
                         )
 
                 modifications_visited += 1
@@ -200,131 +280,229 @@ class BarPlotter(Plotter):
             else:
                 height_offset += 2
 
-        max_lines = max(value.count('<br>') + 1 for value in relevant_groups)
+        max_lines = max(value.count("<br>") + 1 for value in relevant_groups)
         if self.FIGURE_ORIENTATION == 0:
             for i, group in enumerate(relevant_groups):
                 y_group = y_bar + (i * space_per_group + 5) * group_direction
                 x_line_start = self.get_width() - bar_plot_width
                 fig.add_annotation(
-                    x=x_line_start - self.get_label_length('100%', ) - max_lines * self.get_label_height() + 3,
+                    x=x_line_start
+                    - self.get_label_length(
+                        "100%",
+                    )
+                    - max_lines * self.get_label_height()
+                    + 3,
                     y=y_group + space_per_group // 2 * group_direction,
                     width=space_per_group,
                     text=group,
                     textangle=-90,
-                    font={'size': self.sequence_plot_font_size, 'family': self.FONT, 'color': "black"},
-                    showarrow=False)
+                    font={
+                        "size": self.sequence_plot_font_size,
+                        "family": self.FONT,
+                        "color": "black",
+                    },
+                    showarrow=False,
+                )
                 for j in range(5):
                     if j == 0:
                         y_trace = y_group
                     elif j == 4:
                         y_trace = y_group + max_bar_height * group_direction
                     else:
-                        y_trace = y_group + round(max_bar_height / 4, 1) * j * group_direction
-                    fig.add_trace(go.Scatter(x=[x_line_start, x_line_start + bar_plot_width],
-                                             y=[y_trace, y_trace],
-                                             mode='lines',
-                                             line={'color': 'lightgray', 'width': 1},
-                                             showlegend=False,
-                                             hoverinfo='none'))
+                        y_trace = (
+                            y_group + round(max_bar_height / 4, 1) * j * group_direction
+                        )
+                    fig.add_trace(
+                        go.Scatter(
+                            x=[x_line_start, x_line_start + bar_plot_width],
+                            y=[y_trace, y_trace],
+                            mode="lines",
+                            line={"color": "lightgray", "width": 1},
+                            showlegend=False,
+                            hoverinfo="none",
+                        )
+                    )
                 if j % 2 == 0:
-                    text = str(j * 25) + '%'
-                    if self.plot_config.INVERT_AXIS_GROUP_B and above == 'B':
-                        text = str(100 - j * 25) + '%'
-                    fig.add_annotation(x=x_line_start - self.get_label_length(text) // 2 - 5,
-                                       y=y_trace,
-                                       text=text,
-                                       font={'size': self.sequence_plot_font_size, 'family': self.FONT,
-                                             'color': "black"},
-                                       showarrow=False)
+                    text = str(j * 25) + "%"
+                    if self.plot_config.INVERT_AXIS_GROUP_B and above == "B":
+                        text = str(100 - j * 25) + "%"
+                    fig.add_annotation(
+                        x=x_line_start - self.get_label_length(text) // 2 - 5,
+                        y=y_trace,
+                        text=text,
+                        font={
+                            "size": self.sequence_plot_font_size,
+                            "family": self.FONT,
+                            "color": "black",
+                        },
+                        showarrow=False,
+                    )
         else:
             for i, group in enumerate(relevant_groups):
                 x_group = x_bar + (i * space_per_group + 5) * group_direction
                 y_line_start = bar_plot_width
-                fig.add_annotation(x=x_group + space_per_group // 2 * group_direction,
-                                   y=y_line_start + self.get_label_height() + max_lines * self.get_label_height() - 5,
-                                   text=group,
-                                   font={'size': self.sequence_plot_font_size, 'family': self.FONT,
-                                         'color': "black"},
-                                   showarrow=False)
+                fig.add_annotation(
+                    x=x_group + space_per_group // 2 * group_direction,
+                    y=y_line_start
+                    + self.get_label_height()
+                    + max_lines * self.get_label_height()
+                    - 5,
+                    text=group,
+                    font={
+                        "size": self.sequence_plot_font_size,
+                        "family": self.FONT,
+                        "color": "black",
+                    },
+                    showarrow=False,
+                )
                 for j in range(5):
                     if j == 0:
                         x_trace = x_group
                     elif j == 4:
                         x_trace = x_group + max_bar_height * group_direction
                     else:
-                        x_trace = x_group + round(max_bar_height / 4, 1) * j * group_direction
-                    fig.add_trace(go.Scatter(x=[x_trace, x_trace],
-                                             y=[y_line_start, 0],
-                                             mode='lines',
-                                             line={'color': 'lightgray', 'width': 1},
-                                             showlegend=False,
-                                             hoverinfo='none'))
+                        x_trace = (
+                            x_group + round(max_bar_height / 4, 1) * j * group_direction
+                        )
+                    fig.add_trace(
+                        go.Scatter(
+                            x=[x_trace, x_trace],
+                            y=[y_line_start, 0],
+                            mode="lines",
+                            line={"color": "lightgray", "width": 1},
+                            showlegend=False,
+                            hoverinfo="none",
+                        )
+                    )
                     if j % 2 == 0:
-                        text = str(j * 25) + '%'
-                        if self.plot_config.INVERT_AXIS_GROUP_B and above == 'B':
-                            text = str(100 - j * 25) + '%'
+                        text = str(j * 25) + "%"
+                        if self.plot_config.INVERT_AXIS_GROUP_B and above == "B":
+                            text = str(100 - j * 25) + "%"
                         if j == 0:
-                            x_pos = x_trace - self.get_label_length(
-                                text) // 2 if above == 'B' else x_trace + self.get_label_length(text) // 2
+                            x_pos = (
+                                x_trace - self.get_label_length(text) // 2
+                                if above == "B"
+                                else x_trace + self.get_label_length(text) // 2
+                            )
                         elif j == 4:
-                            x_pos = x_trace + self.get_label_length(
-                                text) // 2 if above == 'B' else x_trace - self.get_label_length(text) // 2
+                            x_pos = (
+                                x_trace + self.get_label_length(text) // 2
+                                if above == "B"
+                                else x_trace - self.get_label_length(text) // 2
+                            )
                         else:
                             x_pos = x_trace
-                        fig.add_annotation(x=x_pos,
-                                           y=y_line_start + 5,
-                                           text=text,
-                                           font={'size': self.sequence_plot_font_size,
-                                                 'family': self.FONT, 'color': "black"},
-                                           showarrow=False)
+                        fig.add_annotation(
+                            x=x_pos,
+                            y=y_line_start + 5,
+                            text=text,
+                            font={
+                                "size": self.sequence_plot_font_size,
+                                "family": self.FONT,
+                                "color": "black",
+                            },
+                            showarrow=False,
+                        )
 
         return fig
 
-    def plot_line_with_label_horizontal(self, fig, x_0, x_1, y_0, y_1, y_2, y_3, y_label, color, label,
-                                        modification_type):
+    def plot_line_with_label_horizontal(
+        self,
+        fig,
+        x_0,
+        x_1,
+        y_0,
+        y_1,
+        y_2,
+        y_3,
+        y_label,
+        color,
+        label,
+        modification_type,
+    ):
         """Plot single line with label in horizontal orientation."""
-        fig.add_trace(go.Scatter(x=[x_0, x_0, x_1, x_1],
-                                 y=[y_0, y_1, y_2, y_3],
-                                 mode='lines',
-                                 line={'color': color, 'width': 1}, showlegend=False, hoverinfo='none'))
-        fig.add_annotation(x=x_1, y=y_label,
-                           text=label,
-                           showarrow=False,
-                           textangle=-90,
-                           font={'family': self.FONT, 'size': self.sequence_plot_font_size,
-                                 'color': color})
-        if f'{modification_type}({label[0]})@{label[1:]}' in self.PTMS_TO_HIGHLIGHT:
-            fig.add_shape(type='rect',
-                          x0=x_1 - self.get_label_height() // 2 - 1,
-                          x1=x_1 + self.get_label_height() // 2 + 1,
-                          y0=y_label - self.get_label_length(label) // 2 - 3,
-                          y1=y_label + self.get_label_length(label) // 2 + 3,
-                          line={'width': 0},
-                          fillcolor=self.PTM_HIGHLIGHT_LABEL_COLOR,
-                          showlegend=False)
+        fig.add_trace(
+            go.Scatter(
+                x=[x_0, x_0, x_1, x_1],
+                y=[y_0, y_1, y_2, y_3],
+                mode="lines",
+                line={"color": color, "width": 1},
+                showlegend=False,
+                hoverinfo="none",
+            )
+        )
+        fig.add_annotation(
+            x=x_1,
+            y=y_label,
+            text=label,
+            showarrow=False,
+            textangle=-90,
+            font={
+                "family": self.FONT,
+                "size": self.sequence_plot_font_size,
+                "color": color,
+            },
+        )
+        if f"{modification_type}({label[0]})@{label[1:]}" in self.PTMS_TO_HIGHLIGHT:
+            fig.add_shape(
+                type="rect",
+                x0=x_1 - self.get_label_height() // 2 - 1,
+                x1=x_1 + self.get_label_height() // 2 + 1,
+                y0=y_label - self.get_label_length(label) // 2 - 3,
+                y1=y_label + self.get_label_length(label) // 2 + 3,
+                line={"width": 0},
+                fillcolor=self.PTM_HIGHLIGHT_LABEL_COLOR,
+                showlegend=False,
+            )
         return fig
 
-    def plot_line_with_label_vertical(self, fig, x_0, x_1, x_2, x_3, x_label, y_0, y_1, color, label,
-                                      modification_type):
+    def plot_line_with_label_vertical(
+        self,
+        fig,
+        x_0,
+        x_1,
+        x_2,
+        x_3,
+        x_label,
+        y_0,
+        y_1,
+        color,
+        label,
+        modification_type,
+    ):
         """Plot single line with label in vertical orientation."""
-        fig.add_trace(go.Scatter(x=[x_0, x_1, x_2, x_3],
-                                 y=[y_0, y_0, y_1, y_1],
-                                 mode='lines',
-                                 line={'color': color, 'width': 1}, showlegend=False, hoverinfo='none'))
-        fig.add_annotation(x=x_label, y=y_1,
-                           text=label,
-                           showarrow=False,
-                           font={'family': self.FONT, 'size': self.sequence_plot_font_size,
-                                 'color': color})
-        if f'{modification_type}({label[0]})@{label[1:]}' in self.PTMS_TO_HIGHLIGHT:
-            fig.add_shape(type='rect',
-                          x0=x_label - self.get_label_length(label) // 2 - 3,
-                          x1=x_label + self.get_label_length(label) // 2 + 3,
-                          y0=y_1 - self.get_label_height() // 2 - 1,
-                          y1=y_1 + self.get_label_height() // 2 + 1,
-                          line={'width': 0},
-                          fillcolor=self.PTM_HIGHLIGHT_LABEL_COLOR,
-                          showlegend=False)
+        fig.add_trace(
+            go.Scatter(
+                x=[x_0, x_1, x_2, x_3],
+                y=[y_0, y_0, y_1, y_1],
+                mode="lines",
+                line={"color": color, "width": 1},
+                showlegend=False,
+                hoverinfo="none",
+            )
+        )
+        fig.add_annotation(
+            x=x_label,
+            y=y_1,
+            text=label,
+            showarrow=False,
+            font={
+                "family": self.FONT,
+                "size": self.sequence_plot_font_size,
+                "color": color,
+            },
+        )
+        if f"{modification_type}({label[0]})@{label[1:]}" in self.PTMS_TO_HIGHLIGHT:
+            fig.add_shape(
+                type="rect",
+                x0=x_label - self.get_label_length(label) // 2 - 3,
+                x1=x_label + self.get_label_length(label) // 2 + 3,
+                y0=y_1 - self.get_label_height() // 2 - 1,
+                y1=y_1 + self.get_label_height() // 2 + 1,
+                line={"width": 0},
+                fillcolor=self.PTM_HIGHLIGHT_LABEL_COLOR,
+                showlegend=False,
+            )
         return fig
 
     def filter_relevant_modification_sites(self, helper_file: str):
@@ -333,12 +511,18 @@ class BarPlotter(Plotter):
 
         # only keep first two columns and columns that are in MODIFICATIONS
         columns_to_keep = list(self.INCLUDED_MODIFICATIONS.keys())
-        df = df[[col for col in df.columns if df[col][0] in columns_to_keep or col in ['ID', 'Group']]]
+        df = df[
+            [
+                col
+                for col in df.columns
+                if df[col][0] in columns_to_keep or col in ["ID", "Group"]
+            ]
+        ]
 
         # create dict for all modification sights
         all_modification_sites = defaultdict(list)
         for column in df.columns:
-            if column in ['ID', 'Group']:
+            if column in ["ID", "Group"]:
                 continue
             column_modification = df[column][0]
             column_label = df[column][1][0]
@@ -347,16 +531,21 @@ class BarPlotter(Plotter):
             if self.INCLUDED_MODIFICATIONS.get(column_modification):
                 if column_label not in self.INCLUDED_MODIFICATIONS[column_modification]:
                     continue
-                if column_label == 'R' and column_modification == 'Deamidated':
-                    column_modification = 'Citrullination'
+                if column_label == "R" and column_modification == "Deamidated":
+                    column_modification = "Citrullination"
             isoform = df[column][2]
             all_modification_sites[int(df[column][1][1:])].append(
-                (df[column][1], column_modification, self.plot_config.MODIFICATIONS_GROUP[column_modification],
-                 isoform))
+                (
+                    df[column][1],
+                    column_modification,
+                    self.plot_config.MODIFICATIONS_GROUP[column_modification],
+                    isoform,
+                )
+            )
 
         # remove rows where groups is not in self.plot_config.BAR_GROUPS
         header_rows = df.iloc[:4, :]
-        df = df[df['Group'].isin(self.plot_config.BAR_GROUPS.keys())]
+        df = df[df["Group"].isin(self.plot_config.BAR_GROUPS.keys())]
         df = pd.concat([header_rows, df], ignore_index=True)
 
         # filter out columns that have no modifications observed for relevant groups
@@ -365,14 +554,16 @@ class BarPlotter(Plotter):
         for col in data_to_filter.columns:
             data_to_filter[col] = data_to_filter[col].astype(int)
         if len(data_to_filter) == 0:
-            logging.warning('No modifications found for the specified groups and modification filters!')
+            logging.warning(
+                "No modifications found for the specified groups and modification filters!"
+            )
         df = df[[col for col in data_to_filter if data_to_filter[col].sum(axis=0) > 0]]
         df = pd.concat([header_columns, df], axis=1)
 
         # create new dict for modification sights
         relevant_modification_sites = defaultdict(list)
         for column in df.columns:
-            if column in ['ID', 'Group']:
+            if column in ["ID", "Group"]:
                 continue
             column_modification = df[column][0]
             column_label = df[column][1][0]
@@ -381,18 +572,22 @@ class BarPlotter(Plotter):
             if self.INCLUDED_MODIFICATIONS.get(column_modification):
                 if column_label not in self.INCLUDED_MODIFICATIONS[column_modification]:
                     continue
-                if column_label == 'R' and column_modification == 'Deamidated':
-                    column_modification = 'Citrullination'
+                if column_label == "R" and column_modification == "Deamidated":
+                    column_modification = "Citrullination"
             isoform = df[column][2]
-            relevant_modification_sites[int(df[column][1][1:])].append((
-                df[column][1],
-                column_modification,
-                self.plot_config.MODIFICATIONS_GROUP[column_modification],
-                isoform
-            ))
+            relevant_modification_sites[int(df[column][1][1:])].append(
+                (
+                    df[column][1],
+                    column_modification,
+                    self.plot_config.MODIFICATIONS_GROUP[column_modification],
+                    isoform,
+                )
+            )
         return all_modification_sites, relevant_modification_sites, df
 
-    def get_relevant_mod_types(self, relevant_positions: dict[int, list[tuple[int, str, str, str]]]) -> set[str]:
+    def get_relevant_mod_types(
+        self, relevant_positions: dict[int, list[tuple[int, str, str, str]]]
+    ) -> set[str]:
         """Get relevant modification types."""
         present_mod_types = set()
         for aa_position in relevant_positions.keys():
@@ -404,55 +599,71 @@ class BarPlotter(Plotter):
         """Main function to create bar plot."""
         messages = []
 
-        all_positions, relevant_positions, df = self.filter_relevant_modification_sites(self.plot_config.BAR_INPUT_FILE)
-        all_mods = {mod[1] for location, sublist in all_positions.items() for mod in sublist}
-        detected_modifications = self.get_modifications_from_file(self.plot_config.BAR_INPUT_FILE)
+        all_positions, relevant_positions, df = self.filter_relevant_modification_sites(
+            self.plot_config.BAR_INPUT_FILE
+        )
+        all_mods = {
+            mod[1] for location, sublist in all_positions.items() for mod in sublist
+        }
+        detected_modifications = self.get_modifications_from_file(
+            self.plot_config.BAR_INPUT_FILE
+        )
         if detected_modifications > all_mods:
-            messages.append({
-                'level': logging.WARNING,
-                'msg': 'More modifications were detected than are present in the settings. Only the modifications '
-                       'present in the modification settings are shown in the plot. You can see the additional '
-                       'modifications in the "Tables" section.'
-            })
+            messages.append(
+                {
+                    "level": logging.WARNING,
+                    "msg": "More modifications were detected than are present in the settings. Only the modifications "
+                    "present in the modification settings are shown in the plot. You can see the additional "
+                    'modifications in the "Tables" section.',
+                }
+            )
 
         above_all, below_all = self.separate_by_group(all_positions)
         above_relevant, below_relevant = self.separate_by_group(relevant_positions)
         present_mod_types = self.get_relevant_mod_types(relevant_positions)
 
         if len(above_relevant) == 0:
-            groups_missing = 'A'
-            legend_positioning = 'A'
+            groups_missing = "A"
+            legend_positioning = "A"
         elif len(below_relevant) == 0:
-            groups_missing = 'B'
-            legend_positioning = 'B'
+            groups_missing = "B"
+            legend_positioning = "B"
         else:
             groups_missing = None
-            legend_positioning = 'A' if self.FIGURE_ORIENTATION == 0 else 'B'
+            legend_positioning = "A" if self.FIGURE_ORIENTATION == 0 else "B"
 
         fig = self._create_plot(
             input_file=self.input_file,
             present_modifications=present_mod_types,
             groups_missing=groups_missing,
             legend_positioning=legend_positioning,
-            out_dir=self.output_path
+            out_dir=self.output_path,
         )
 
         positions_a, positions_b = self.get_bar_positions(above_all, below_all)
         group_size_a = len(positions_a)
         group_size_b = len(positions_b)
         bar_plot_width = self.get_bar_plot_width(group_size_a, group_size_b)
-        highest_position = positions_a[-1] if group_size_a > group_size_b else positions_b[-1]
-        label_plot_height = max(group_size_a, group_size_b) + self.get_label_length(f'X{highest_position}') + 30
+        highest_position = (
+            positions_a[-1] if group_size_a > group_size_b else positions_b[-1]
+        )
+        label_plot_height = (
+            max(group_size_a, group_size_b)
+            + self.get_label_length(f"X{highest_position}")
+            + 30
+        )
 
-        for (group_label, group_all, group_relevant, group_positions) in [
+        for group_label, group_all, group_relevant, group_positions in [
             # TODO: is this 'A' and 'B' hard_coded and should this be controlled from the outside?
-            ('A', above_all, above_relevant, positions_a),
-            ('B', below_all, below_relevant, positions_b)
+            ("A", above_all, above_relevant, positions_a),
+            ("B", below_all, below_relevant, positions_b),
         ]:
-            if len(group_positions) == 0 or all([len(mods) == 0 for site, mods in group_relevant.items()]):
+            if len(group_positions) == 0 or all(
+                [len(mods) == 0 for site, mods in group_relevant.items()]
+            ):
                 logging.warning(
-                    'No relevant modifications found. Plotting no bar plot %s',
-                    'above' if group_label == 'A' else 'below'
+                    "No relevant modifications found. Plotting no bar plot %s",
+                    "above" if group_label == "A" else "below",
                 )
                 continue
 
@@ -464,13 +675,13 @@ class BarPlotter(Plotter):
                 df=df,
                 group_positions=group_positions,
                 bar_plot_width=bar_plot_width,
-                label_plot_height=label_plot_height
+                label_plot_height=label_plot_height,
             )
 
         self.finalize_plotting(
             fig,
             self.output_path,
             save_plot=self.plot_config.SAVE_PLOT,
-            show_plot=self.plot_config.SHOW_PLOT
+            show_plot=self.plot_config.SHOW_PLOT,
         )
         return fig, messages
