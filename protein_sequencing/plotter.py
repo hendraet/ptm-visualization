@@ -218,9 +218,9 @@ class Plotter:
         if exon_found:
             # get exon lengths
             self.EXON_1_OFFSET["index_start"] = exon_start_index
-            self.EXON_1_OFFSET["index_end"] = exon_start_index + exon_1_length - 1
+            self.EXON_1_OFFSET["index_end"] = exon_start_index + exon_1_length
             self.EXON_2_OFFSET["index_start"] = exon_start_index
-            self.EXON_2_OFFSET["index_end"] = exon_start_index + exon_2_length - 1
+            self.EXON_2_OFFSET["index_end"] = exon_start_index + exon_2_length
 
             # calculate new max sequence length with exons
             max_sequence_length = (
@@ -230,9 +230,13 @@ class Plotter:
             # check if exon lengths match with regions
             region_end_matches_exon = False
             for i, region in enumerate(self.regions):
-                if region[1] + 1 == exon_start_index:
+                region = self.regions[i]
+                current_region_end = region[1]
+                if current_region_end == exon_start_index:
                     region_end_matches_exon = True
-                    if len(self.regions) <= i + 2:
+                    # We first check that there are actually two exons after the current region to account for
+                    # potential exons at the end of the sequence
+                    if exon_1_length > 0 and exon_2_length > 0 and len(self.regions) <= i + 2:
                         raise ValueError(
                             f"Exon start {exon_start_index} matches a region end for region {region}, but "
                             "there are not enough regions after it, please check your supplied region "
@@ -241,21 +245,24 @@ class Plotter:
 
                     exon_1_region = self.regions[i + 1]
                     exon_2_region = self.regions[i + 2]
-                    if exon_1_region[1] - region[1] != exon_1_length:
-                        if exon_1_region[1] - region[1] != exon_2_length:
+                    if (exon_1_region[1] - current_region_end != exon_1_length) or (
+                        exon_2_region[1] - current_region_end != exon_2_length
+                    ):
+                        # Double check if exon regions are maybe swapped or if it is an actual mismatch between exon
+                        # and region lengths
+                        if exon_2_region[1] - current_region_end != exon_1_length:
                             raise ValueError(
-                                f"Exon 1 length {exon_1_length} does not match with end for "
-                                f"region {exon_1_region}."
+                                f"Exon 2 length {exon_2_length} does not match with end for region {exon_2_region}."
                             )
-
-                        # Swap regions in case they are in the wrong order
+                        if exon_1_region[1] - current_region_end != exon_2_length:
+                            raise ValueError(
+                                f"Exon 1 length {exon_1_length} does not match with end for region {exon_1_region}."
+                            )
                         exon_1_region, exon_2_region = exon_2_region, exon_1_region
                         exon_1_length, exon_2_length = exon_2_length, exon_1_length
-                    if exon_2_region[1] - region[1] != exon_2_length:
-                        raise ValueError(
-                            f"Exon 2 length {exon_2_length} does not match with end for region {exon_2_region}."
-                        )
+
             if not region_end_matches_exon:
+                # TODO: still off-by-one?
                 raise ValueError(
                     f"Exon start {exon_start_index} does not match any region end, please check your supplied region "
                     "list - maybe it is missing some regions or it doesn't match the provided fasta sequence."
