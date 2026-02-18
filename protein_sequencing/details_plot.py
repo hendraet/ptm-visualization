@@ -64,6 +64,8 @@ class DetailsPlotter(Plotter):
                 )
                 if index:
                     regions_present[index] = True
+            # TODO: there's no guarantee that the region index is not overflowing - how can we get a cleavage that is out of range? (438)
+            # TODO: add check here
             while position_range[0] > region_ranges[region_index][1]:
                 region_index += 1
             regions_present[region_index] = True
@@ -1006,6 +1008,8 @@ class DetailsPlotter(Plotter):
         above: str,
         second_row: bool,
     ):
+        # TODO: that exons are properly separated
+        # TODO: fix problem that gap is nor properly accounted for - alsso for cleavages
         """Plot the PTMs."""
         group_direction = 1 if above == "A" else -1
         mean_values, ptms = self.preprocess_groups(ptm_df)
@@ -1117,8 +1121,13 @@ class DetailsPlotter(Plotter):
 
         previous_ptm = 0
         last_i = 0
+        ##############################################
+        # TODO: I guess the problem is the ordering of these PTMs. It is a bit too naive.
+        #    - maybe have a look at the cleavages and see why it works there.
         for i, ptm in enumerate(ptms):
             ptm_position = int(ptm[1:])
+            # Inside this conditional statement, it is checked if the current PTM is in a new region. If it is, it
+            # plots the groups for the previous region and updates the last_region and last_end variables.
             if ptm_position > last_end or ptm_position < previous_ptm:
                 if self.FIGURE_ORIENTATION == 0:
                     start_idx = ptm_idx - (i - first_ptm_in_region)
@@ -1211,6 +1220,9 @@ class DetailsPlotter(Plotter):
                         last_end = self.REGIONS[last_region][1]
                 ptm_idx += 1
                 first_ptm_in_region = i
+
+            # Inside this conditional statement, the lines and labels for the current PTM are plotted (including the
+            # box indicating what kind of PTM is plotted)
             if self.FIGURE_ORIENTATION == 0:
                 position = self.get_position_with_offset(ptm_position, isoforms[i])
                 x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET

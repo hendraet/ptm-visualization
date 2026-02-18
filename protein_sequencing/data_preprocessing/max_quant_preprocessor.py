@@ -88,7 +88,8 @@ class MaxQuantPreprocessor:
             Path(self.fasta_file), self.CONFIG.MIN_EXON_LENGTH, Path(self.out_dir)
         )
 
-        self.process_max_quant_file(evidence_df)
+        remapped_evidence_df = self._remap_isoforms_in_evidence(evidence_df)
+        self.process_max_quant_file(remapped_evidence_df)
 
     def get_exact_indices(self, mod_sequence: str) -> list:
         """Get exact indices of the modifications in the sequence."""
@@ -115,6 +116,21 @@ class MaxQuantPreprocessor:
                 current_index += 1
 
         return indices
+
+    @staticmethod
+    def _remap_isoforms_in_evidence(evidence_df: pd.DataFrame) -> pd.DataFrame:
+        """Remap isoform IDs in the evidence DataFrame to match those in the fasta file."""
+        def remap_protein_id(protein_id: str) -> str:
+            protein_ids = protein_id.split(";")
+            remapped_ids = []
+            for protein_id in protein_ids:
+                new_protein_id = f"{protein_id}-1" if "-" not in protein_id else protein_id
+                remapped_ids.append(new_protein_id)
+
+            return ";".join(remapped_ids)
+
+        evidence_df["Protein ID"] = evidence_df["Protein ID"].apply(remap_protein_id)
+        return evidence_df
 
     def reformat_mod(
         self,
@@ -150,28 +166,14 @@ class MaxQuantPreprocessor:
                 elif mod_type == "de":
                     mod_type = "Deamidated"
 
-            if mod_site == "Protein N-term":
-                # TODO: skip for now and maybe fix later
-                # aa = sequence[peptide_offset - 1]
-                # aa_offset = 0
+            if mod_site == "Protein N-term" or mod_site == "Protein C-term" or indices[counter] == 0:
+                # We skip these modifications because they are not as relevant
                 continue
-            elif mod_site == "Protein C-term":
-                # TODO: skip for now and maybe fix later
-                # TODO: check number of modification site (shouldn't be the last amino acid)
-                # aa = peptide[-1]
-                # aa_offset = len(peptide)
-                continue
-            else:
-                if indices[counter] == 0:
-                    # TODO: technically also need C-Term clause
-                    # We disregard all peptide N-Term modifications for now
-                    continue
-                assert indices[counter] > 0, "Modification site index should be greater than 0"
-                mod_site_index = indices[counter] - 1
-                aa = peptide[mod_site_index]
-                # TODO: should this also include a -1? Could this be a problem if adding different offsets? If multiple
-                #  of them are 1 indexed, then it could mess up the calc
-                aa_offset = indices[counter]
+
+            assert indices[counter] > 0, "Modification site index should be greater than 0"
+            mod_site_index = indices[counter] - 1
+            aa = peptide[mod_site_index]
+            aa_offset = indices[counter]
 
             if aa == "R" and mod_type == "Deamidated":
                 mod_type = "Citrullination"
@@ -186,7 +188,6 @@ class MaxQuantPreprocessor:
                     self.exon_end_index,
                 )
             offset = preprocessor_helper.calculate_exon_offset(
-                # TODO: double check if this is also used somewhere else
                 aa_offset + peptide_offset + missing_aa,
                 isoform,
                 self.exon_found,
@@ -197,8 +198,8 @@ class MaxQuantPreprocessor:
                 self.exon_2_length,
                 self.exon_length,
             )
+            assert offset < len(aligned_sequence)
             if aligned_sequence[offset - 1] != aa:
-                # TODO: maybe write a test for this
                 raise ValueError(
                     f"Amino acid doesn't match for {aa} for peptide {peptide} in sequence {sequence} with offset {offset}"
                 )
@@ -297,7 +298,6 @@ class MaxQuantPreprocessor:
                         mods_for_exp[row["Sample"]].extend(mods)
 
         all_mods = sorted(set(all_mods), key=preprocessor_helper.extract_index)
-        # TODO: how can Oxi and Ci both be M but 1_general and 0_general?
         all_mods = preprocessor_helper.sort_by_index_and_exons(all_mods)
         for key in mods_for_exp:
             mods_for_exp[key] = sorted(

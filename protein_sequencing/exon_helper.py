@@ -139,8 +139,6 @@ def retrieve_exon(input_file: Path, min_exon_length: int, out_dir: Path) -> tupl
                         "-", ""
                     )
                     isoform = alignment.id.split("|")[1]
-                    # TODO: what happens if there's a single substitution (or at least smaller than min_exon_length)
-                    #  regarding the AA on which the modification is present
                     if exon != "" and len(exon) > min_exon_length:
                         if exon_1 is None:
                             exon_1 = exon

@@ -17,15 +17,7 @@ def process_fasta_files(fasta_file, aligned_fasta_file):
         try:
             with fasta.read(str(f), parser=fasta.parse) as reader:
                 for item in reader:
-                    protein_id = (
-                        item.description["id"][
-                            :-2
-                        ]  # reduce to canonical form without isoform number
-                        if item.description["id"].endswith("-1")
-                        or item.description["id"].endswith(".1")
-                        else item.description["id"]
-                    )
-                    headers[protein_id].append(item.sequence)
+                    headers[item.description["id"]].append(item.sequence)
         except PyteomicsError:
             raise ValueError(
                 "Error parsing fasta file. Please check the format of the fasta file. Uniprot style is "
@@ -296,6 +288,7 @@ def check_N_term_cleavage(
             exon_2_length,
             exon_length,
         )
+        assert offset < len(aligned_sequence)
         iso = get_isoform_for_offset(
             isoform,
             offset,
@@ -333,6 +326,7 @@ def check_C_term_cleavage(
             peptide, aligned_sequence, offset, exon_start_index, exon_end_index
         )
     amino_acid_last = peptide[-1]
+    # TODO: ideally double check all usages of exon_1_isoforms and exon_2_isoforms
     if amino_acid_last not in ["K", "R"]:
         offset = calculate_exon_offset(
             offset + len(peptide) + missing_aa,
@@ -345,6 +339,7 @@ def check_C_term_cleavage(
             exon_2_length,
             exon_length,
         )
+        assert offset < len(aligned_sequence)
         iso = get_isoform_for_offset(
             isoform,
             offset,
