@@ -1,14 +1,13 @@
 """Module for plotting cleavages and PTMs on the sequence plot."""
 
-from collections import OrderedDict
+from pathlib import Path
 
 import logging
 import math
-from pathlib import Path
-
-import plotly.graph_objects as go
-import pandas as pd
 import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+
 from protein_sequencing.plotter import Plotter
 
 
@@ -16,7 +15,6 @@ class DetailsPlotter(Plotter):
     """Class to plot cleavages and PTMs on the sequence plot."""
 
     def __init__(self, config, plot_config, input_file, output_path):
-        """Initialize the DetailsPlot class."""
         super().__init__(config, plot_config)
 
         self.input_file = input_file
@@ -25,7 +23,6 @@ class DetailsPlotter(Plotter):
             Path(self.output_path).mkdir(parents=True, exist_ok=True)
 
     def get_present_regions(self, positions, isoforms):
-        """Get the regions present in the cleavages or PTMs."""
         ranges = []
         for position_range in positions:
             if "-" in str(position_range):
@@ -66,21 +63,18 @@ class DetailsPlotter(Plotter):
                 )
                 if index:
                     regions_present[index] = True
-            # TODO: there's no guarantee that the region index is not overflowing - how can we get a cleavage that is out of range? (438)
-            # TODO: add check here
+            # TODO: add check here that this is not overflowing
             while position_range[0] > region_ranges[region_index][1]:
                 region_index += 1
             regions_present[region_index] = True
         return regions_present
 
     def get_present_regions_cleavage(self, cleavage_df: pd.DataFrame):
-        """Get the regions present in the cleavages."""
         cleavages = cleavage_df.iloc[1:2, 2:].values[0].tolist()
         isoforms = cleavage_df.iloc[2:3, 2:].values[0].tolist()
         return self.get_present_regions(cleavages, isoforms)
 
     def get_present_regions_ptm(self, ptm_df: pd.DataFrame):
-        """Get the regions present in the PTMs."""
         ptms = ptm_df.iloc[1:2, 2:].values[0].tolist()
         ptms = [ptm[1:] for ptm in ptms]
         isoforms = ptm_df.iloc[2:3, 2:].values[0].tolist()
@@ -101,7 +95,6 @@ class DetailsPlotter(Plotter):
         ptm_color: str | None = None,
         ptm_modification: str | None = None,
     ):
-        """Plot a line with a label for the horizontal plot."""
         line_color = "black"
         if ptm:
             line_color = ptm_color
@@ -161,7 +154,6 @@ class DetailsPlotter(Plotter):
         ptm_color: str | None = None,
         ptm_modification: str | None = None,
     ):
-        """Plot a line with a label for the vertical plot."""
         line_color = "black"
         if ptm:
             line_color = ptm_color
@@ -218,7 +210,6 @@ class DetailsPlotter(Plotter):
         y_label: int,
         label: str,
     ):
-        """Plot a range with a label for the horizontal plot."""
         fig.add_trace(
             go.Scatter(
                 x=[x_0_start, x_0_start, x_1, x_1, x_1, x_0_end, x_0_end],
@@ -261,7 +252,6 @@ class DetailsPlotter(Plotter):
         x_label: int,
         label: str,
     ):
-        """Plot a range with a label for the vertical plot."""
         fig.add_trace(
             go.Scatter(
                 x=[x_0, x_1, x_2, x_3, x_2, x_1, x_0],
@@ -303,7 +293,6 @@ class DetailsPlotter(Plotter):
         group_dircetion: int,
         ptm: bool,
     ):
-        """Plot the groups for the horizontal plot."""
         x_margin = 0
         if dx % 2 != 0:
             x_margin = 1
@@ -379,7 +368,6 @@ class DetailsPlotter(Plotter):
         group_dircetion: int,
         ptm: bool,
     ):
-        """Plot the groups for the vertical plot."""
         y_margin = 0
         if dy % 2 != 0:
             y_margin = 1
@@ -440,7 +428,6 @@ class DetailsPlotter(Plotter):
     def plot_group_labels_horizontal(
         self, fig: go.Figure, mean_values: pd.DataFrame, y_0_groups: int, dy: int
     ):
-        """Plot the group labels for the horizontal plot."""
         for i, group in enumerate(mean_values.index):
             y_0_rect = y_0_groups + i * dy
             x_1_rect = self.calculate_group_space()
@@ -471,7 +458,6 @@ class DetailsPlotter(Plotter):
             )
 
     def get_label_color(self, group: str):
-        """Get the label color based on the group color."""
         # based on https://stackoverflow.com/questions/3942878/
         red, green, blue = tuple(
             int(self.plot_config.GROUPS[group][1][i : i + 2], 16) for i in (1, 3, 5)
@@ -483,7 +469,6 @@ class DetailsPlotter(Plotter):
     def plot_group_labels_vertical(
         self, fig: go.Figure, mean_values: pd.DataFrame, x_0_groups: int, dx: int
     ):
-        """Plot the group labels for the vertical plot."""
         for i, group in enumerate(mean_values.index):
             x_0_rect = x_0_groups + i * dx
             y_0_rect = self.get_height()
@@ -517,7 +502,6 @@ class DetailsPlotter(Plotter):
     def preprocess_groups(
         self, df: pd.DataFrame
     ) -> tuple[pd.DataFrame, list[tuple[str, str]]]:
-        """Preprocess the groups for the heatmap."""
         df.columns = df.iloc[0]
         labels = df.iloc[1:2, 2:].values.flatten().tolist()
         regions = df.iloc[2:3, 2:].values.flatten().tolist()
@@ -536,7 +520,6 @@ class DetailsPlotter(Plotter):
         return mean_values, label_region_type_map
 
     def offset_region_label_from_angle(self):
-        """Calculate the offset for the region label based on the angle."""
         longest_label = ""
         for _, _, _, region_label_short in self.REGIONS:
             if self.get_label_length(region_label_short) > self.get_label_length(
@@ -561,7 +544,6 @@ class DetailsPlotter(Plotter):
         longest_label: str,
         group_direction: int,
     ):
-        """Calculate line coordinates for horizontal cleavage plotting."""
         y_0_line = (
             self.SEQUENCE_BOUNDARIES["y1"]
             if above == "A"
@@ -582,7 +564,6 @@ class DetailsPlotter(Plotter):
         longest_label: str,
         group_direction: int,
     ):
-        """Calculate line coordinates for vertical cleavage plotting."""
         x_0_line = (
             self.SEQUENCE_BOUNDARIES["x1"]
             if above == "A"
@@ -605,7 +586,6 @@ class DetailsPlotter(Plotter):
         group_direction: int,
         mean_values: pd.DataFrame,
     ):
-        """Setup group spacing for horizontal cleavage plotting."""
         y_0_groups = y_0_line + (label_plot_height + 10) * group_direction
         vertical_space_left = (
             self.get_height() - y_0_groups if above == "A" else y_0_groups
@@ -628,7 +608,6 @@ class DetailsPlotter(Plotter):
         group_direction: int,
         mean_values: pd.DataFrame,
     ):
-        """Setup group spacing for vertical cleavage plotting."""
         x_0_groups = x_0_line + (label_plot_height + 10) * group_direction
         horizontal_space_left = (
             self.get_width() - x_0_groups if above == "A" else x_0_groups
@@ -657,7 +636,6 @@ class DetailsPlotter(Plotter):
         group_direction: int,
         is_ptm: bool,
     ):
-        """Plot region groups and divider for horizontal orientation (shared by PTM and cleavage)."""
         start_idx = item_idx - (i - first_item_in_region)
         x_0_groups = start_idx * pixels_per_item + self.get_horizontal_offset(dx)
         x_divider = item_idx * pixels_per_item + self.get_horizontal_offset(dx)
@@ -708,7 +686,6 @@ class DetailsPlotter(Plotter):
         group_direction: int,
         is_ptm: bool,
     ):
-        """Plot region groups and divider for vertical orientation (shared by PTM and cleavage)."""
         start_idx = item_idx - (i - first_item_in_region)
         y_0_groups = (
             self.get_height()
@@ -767,7 +744,6 @@ class DetailsPlotter(Plotter):
         label_plot_height: int,
         group_direction: int,
     ):
-        """Plot a single cleavage for horizontal orientation."""
         if start == end:
             label = str(start)
             position = self.get_position_with_offset(start, isoform)
@@ -851,7 +827,6 @@ class DetailsPlotter(Plotter):
         label_plot_height: int,
         group_direction: int,
     ):
-        """Plot a single cleavage for vertical orientation."""
         if start == end:
             label = str(start)
             position = self.get_position_with_offset(start, isoform)
@@ -950,7 +925,6 @@ class DetailsPlotter(Plotter):
         vertical_space_left: int,
         is_ptm: bool,
     ):
-        """Plot the final region for horizontal orientation (shared by PTM and cleavage)."""
         start_idx = item_idx - (last_i - first_item_in_region) - 1
         x_0_groups = start_idx * pixels_per_item + self.get_horizontal_offset(dx)
         region_length = len(mean_values.iloc[0:1, first_item_in_region:].columns)
@@ -975,7 +949,7 @@ class DetailsPlotter(Plotter):
             is_ptm,
         )
 
-        self.create_custome_colorscale(
+        self.create_custom_colorscale(
             fig,
             vertical_space_left,
             group_direction,
@@ -1002,7 +976,6 @@ class DetailsPlotter(Plotter):
         horizontal_space_left: int,
         is_ptm: bool,
     ):
-        """Plot the final region for vertical orientation (shared by PTM and cleavage)."""
         start_idx = item_idx - (last_i - first_item_in_region) - 1
         y_0_groups = (
             self.get_height()
@@ -1031,7 +1004,7 @@ class DetailsPlotter(Plotter):
             is_ptm,
         )
 
-        self.create_custome_colorscale(
+        self.create_custom_colorscale(
             fig,
             horizontal_space_left,
             group_direction,
@@ -1050,7 +1023,6 @@ class DetailsPlotter(Plotter):
         label_plot_height: int,
         above: str,
     ):
-        """Plot the cleavages on the sequence plot."""
         # Validate and preprocess data
         mean_values, cleavage_region_type_map = self.preprocess_groups(cleavage_df)
         if len(cleavage_region_type_map) == 0 or len(mean_values.columns) == 0:
@@ -1112,7 +1084,7 @@ class DetailsPlotter(Plotter):
         first_cleavage_in_region = 0
         cleavage_idx = 0
         last_end = self.REGIONS[0][1]
-        last_region = 0
+        last_region_idx = 0
         previous_index = 0
         previous_region_type = None
         last_i = 0
@@ -1142,7 +1114,7 @@ class DetailsPlotter(Plotter):
                         dy,
                         mean_values,
                         y_0_groups,
-                        last_region,
+                        last_region_idx,
                         group_direction,
                         False,
                     )
@@ -1157,19 +1129,19 @@ class DetailsPlotter(Plotter):
                         dy,
                         mean_values,
                         x_0_groups,
-                        last_region,
+                        last_region_idx,
                         group_direction,
                         False,
                     )
 
                 # Update region tracking
                 if start < previous_index:
-                    last_region += 1
-                    last_end = self.REGIONS[last_region][1]
+                    last_region_idx += 1
+                    last_end = self.REGIONS[last_region_idx][1]
                 else:
                     while start > last_end:
-                        last_region += 1
-                        last_end = self.REGIONS[last_region][1]
+                        last_region_idx += 1
+                        last_end = self.REGIONS[last_region_idx][1]
                 cleavage_idx += 1
                 first_cleavage_in_region = i
 
@@ -1211,15 +1183,7 @@ class DetailsPlotter(Plotter):
             last_i = i
 
         # Finalize region tracking
-        while start > last_end:
-            last_region += 1
-            last_end = self.REGIONS[last_region][1]
-
-        if (
-            isoforms[first_cleavage_in_region] == "exon2"
-            and isoforms[first_cleavage_in_region - 1] != "exon1"
-        ):
-            last_region += 1
+        last_region_idx = len(self.REGIONS) - 1
 
         # Plot groups for the final region
         if self.FIGURE_ORIENTATION == 0:
@@ -1233,7 +1197,7 @@ class DetailsPlotter(Plotter):
                 dy,
                 mean_values,
                 y_0_groups,
-                last_region,
+                last_region_idx,
                 group_direction,
                 vertical_space_left,
                 False,
@@ -1249,18 +1213,16 @@ class DetailsPlotter(Plotter):
                 dy,
                 mean_values,
                 x_0_groups,
-                last_region,
+                last_region_idx,
                 group_direction,
                 horizontal_space_left,
                 False,
             )
 
     def get_horizontal_offset(self, dx):
-        """Get the horizontal offset for the heatmap."""
         return self.calculate_group_space() + dx // 2
 
     def get_vertical_offset(self, dy):
-        """Get the vertical offset for the heatmap."""
         return self.calculate_group_space() + dy // 2
 
     def _calculate_ptm_line_coordinates_horizontal(
@@ -1271,7 +1233,6 @@ class DetailsPlotter(Plotter):
         group_direction: int,
         second_row: bool,
     ):
-        """Calculate line coordinates for horizontal PTM plotting."""
         y_0_line = (
             self.SEQUENCE_BOUNDARIES["y1"]
             if above == "A"
@@ -1310,7 +1271,6 @@ class DetailsPlotter(Plotter):
         group_direction: int,
         second_row: bool,
     ):
-        """Calculate line coordinates for vertical PTM plotting."""
         x_0_line = (
             self.SEQUENCE_BOUNDARIES["x1"]
             if above == "A"
@@ -1350,7 +1310,6 @@ class DetailsPlotter(Plotter):
         group_direction: int,
         mean_values: pd.DataFrame,
     ):
-        """Setup group spacing for horizontal PTM plotting."""
         dx = pixels_per_ptm
         y_0_groups = y_0_line + (label_plot_height + 10) * group_direction
         vertical_space_left = (
@@ -1371,7 +1330,6 @@ class DetailsPlotter(Plotter):
         group_direction: int,
         mean_values: pd.DataFrame,
     ):
-        """Setup group spacing for vertical PTM plotting."""
         dy = pixels_per_ptm
         x_0_groups = x_0_line + (label_plot_height + 10) * group_direction
         horizontal_space_left = (
@@ -1383,70 +1341,9 @@ class DetailsPlotter(Plotter):
         dx = horizontal_space_left // len(mean_values.index) * group_direction
         return dx, dy, x_0_groups, horizontal_space_left
 
-    def _plot_ptm_region_divider_horizontal(
-        self,
-        fig: go.Figure,
-        ptm_idx: int,
-        first_ptm_in_region: int,
-        i: int,
-        pixels_per_ptm: int,
-        dx: int,
-        dy: int,
-        mean_values: pd.DataFrame,
-        y_0_groups: int,
-        last_region: int,
-        group_direction: int,
-    ):
-        """Plot region groups and divider for horizontal orientation (PTM wrapper)."""
-        self._plot_region_divider_horizontal(
-            fig,
-            ptm_idx,
-            first_ptm_in_region,
-            i,
-            pixels_per_ptm,
-            dx,
-            dy,
-            mean_values,
-            y_0_groups,
-            last_region,
-            group_direction,
-            True,
-        )
-
-    def _plot_ptm_region_divider_vertical(
-        self,
-        fig: go.Figure,
-        ptm_idx: int,
-        first_ptm_in_region: int,
-        i: int,
-        pixels_per_ptm: int,
-        dx: int,
-        dy: int,
-        mean_values: pd.DataFrame,
-        x_0_groups: int,
-        last_region: int,
-        group_direction: int,
-    ):
-        """Plot region groups and divider for vertical orientation (PTM wrapper)."""
-        self._plot_region_divider_vertical(
-            fig,
-            ptm_idx,
-            first_ptm_in_region,
-            i,
-            pixels_per_ptm,
-            dx,
-            dy,
-            mean_values,
-            x_0_groups,
-            last_region,
-            group_direction,
-            True,
-        )
-
     def _update_region_tracking(
         self, ptm_position: int, previous_ptm: int, last_end: int, last_region: int
     ):
-        """Update region tracking variables based on PTM position."""
         if ptm_position < previous_ptm:
             last_region += 1
             last_end = self.REGIONS[last_region][1]
@@ -1475,7 +1372,6 @@ class DetailsPlotter(Plotter):
         group_direction: int,
         ptm_df: pd.DataFrame,
     ):
-        """Plot a single PTM for horizontal orientation."""
         position = self.get_position_with_offset(ptm_position, isoform)
         x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
         x_0_line = self.offset_line_for_exon(
@@ -1535,7 +1431,6 @@ class DetailsPlotter(Plotter):
         group_direction: int,
         ptm_df: pd.DataFrame,
     ):
-        """Plot a single PTM for vertical orientation."""
         position = self.get_position_with_offset(ptm_position, isoform)
         y_0_line = (
             self.get_height() - position * self.PIXELS_PER_AA - self.SEQUENCE_OFFSET
@@ -1578,70 +1473,6 @@ class DetailsPlotter(Plotter):
             fillcolor=text_color,
             line=dict(width=1, color="grey"),
             showlegend=False,
-        )
-
-    def _plot_last_ptm_region_horizontal(
-        self,
-        fig: go.Figure,
-        ptm_idx: int,
-        last_i: int,
-        first_ptm_in_region: int,
-        pixels_per_ptm: int,
-        dx: int,
-        dy: int,
-        mean_values: pd.DataFrame,
-        y_0_groups: int,
-        last_region: int,
-        group_direction: int,
-        vertical_space_left: int,
-    ):
-        """Plot the final PTM region for horizontal orientation (PTM wrapper)."""
-        self._plot_last_region_horizontal(
-            fig,
-            ptm_idx,
-            last_i,
-            first_ptm_in_region,
-            pixels_per_ptm,
-            dx,
-            dy,
-            mean_values,
-            y_0_groups,
-            last_region,
-            group_direction,
-            vertical_space_left,
-            True,
-        )
-
-    def _plot_last_ptm_region_vertical(
-        self,
-        fig: go.Figure,
-        ptm_idx: int,
-        last_i: int,
-        first_ptm_in_region: int,
-        pixels_per_ptm: int,
-        dx: int,
-        dy: int,
-        mean_values: pd.DataFrame,
-        x_0_groups: int,
-        last_region: int,
-        group_direction: int,
-        horizontal_space_left: int,
-    ):
-        """Plot the final PTM region for vertical orientation (PTM wrapper)."""
-        self._plot_last_region_vertical(
-            fig,
-            ptm_idx,
-            last_i,
-            first_ptm_in_region,
-            pixels_per_ptm,
-            dx,
-            dy,
-            mean_values,
-            x_0_groups,
-            last_region,
-            group_direction,
-            horizontal_space_left,
-            True,
         )
 
     def plot_ptms(
@@ -1730,7 +1561,7 @@ class DetailsPlotter(Plotter):
             ):
                 # Plot groups for the previous region and add divider
                 if self.FIGURE_ORIENTATION == 0:
-                    self._plot_ptm_region_divider_horizontal(
+                    self._plot_region_divider_horizontal(
                         fig,
                         ptm_idx,
                         first_ptm_in_region,
@@ -1742,9 +1573,10 @@ class DetailsPlotter(Plotter):
                         y_0_groups,
                         last_region_idx,
                         group_direction,
+                        is_ptm=True,
                     )
                 else:
-                    self._plot_ptm_region_divider_vertical(
+                    self._plot_region_divider_vertical(
                         fig,
                         ptm_idx,
                         first_ptm_in_region,
@@ -1756,6 +1588,7 @@ class DetailsPlotter(Plotter):
                         x_0_groups,
                         last_region_idx,
                         group_direction,
+                        is_ptm=True,
                     )
 
                 # Update region tracking
@@ -1811,19 +1644,11 @@ class DetailsPlotter(Plotter):
             last_i = i
 
         # Finalize region tracking
-        while ptm_position > last_end:
-            last_region_idx += 1
-            last_end = self.REGIONS[last_region_idx][1]
-
-        if (
-            isoforms[first_ptm_in_region] == "exon2"
-            and isoforms[first_ptm_in_region - 1] != "exon1"
-        ):
-            last_region_idx += 1
+        last_region_idx = len(self.REGIONS) - 1
 
         # Plot groups for the final region
         if self.FIGURE_ORIENTATION == 0:
-            self._plot_last_ptm_region_horizontal(
+            self._plot_last_region_horizontal(
                 fig,
                 ptm_idx,
                 last_i,
@@ -1836,9 +1661,10 @@ class DetailsPlotter(Plotter):
                 last_region_idx,
                 group_direction,
                 vertical_space_left,
+                is_ptm=True,
             )
         else:
-            self._plot_last_ptm_region_vertical(
+            self._plot_last_region_vertical(
                 fig,
                 ptm_idx,
                 last_i,
@@ -1851,9 +1677,10 @@ class DetailsPlotter(Plotter):
                 last_region_idx,
                 group_direction,
                 horizontal_space_left,
+                is_ptm=True,
             )
 
-    def create_custome_colorscale(
+    def create_custom_colorscale(
         self,
         fig: go.Figure,
         vertical_space_left: int,
@@ -1864,7 +1691,6 @@ class DetailsPlotter(Plotter):
         pixels_per_step: int,
         ptm: bool,
     ):
-        """Create a custom colorscale for the heatmap."""
         if ptm:
             colorscale = [
                 [0.0, self.plot_config.PTM_SCALE_COLOR_LOW],
@@ -1955,7 +1781,6 @@ class DetailsPlotter(Plotter):
         )
 
     def filter_relevant_modification_sites(self, ptm_file: str, threshold: int):
-        """Filter the relevant modification sights."""
         df = pd.read_csv(ptm_file, dtype={"ID": str, "Group": str})
         columns_to_keep = []
         for col in df.columns:
@@ -1980,7 +1805,6 @@ class DetailsPlotter(Plotter):
         return result_df
 
     def calculate_group_space(self):
-        """Calculate the space needed for the group labels."""
         longest_label = ""
         for key in self.plot_config.GROUPS.keys():
             if self.get_label_length(key) > self.get_label_length(longest_label):
@@ -1988,7 +1812,6 @@ class DetailsPlotter(Plotter):
         return self.get_label_length(longest_label) + 10
 
     def calculate_legend_space(self, ptm: bool):
-        """Calculate the space needed for the legend."""
         if self.FIGURE_ORIENTATION == 0:
             longest_label = ""
             if ptm:
@@ -2020,7 +1843,6 @@ class DetailsPlotter(Plotter):
             return self.get_label_height() + title_height + 10
 
     def get_present_mod_types(self):
-        """Get the present modification types."""
         for above in self.plot_config.INPUT_FILES.values():
             if above[0] == "PTM":
                 ptm_df = self.filter_relevant_modification_sites(
@@ -2030,7 +1852,6 @@ class DetailsPlotter(Plotter):
         return set()
 
     def create_details_plot(self):
-        """Create a detailed sequence plot."""
         legend = None
         messages = []
 
