@@ -17,7 +17,13 @@ def process_fasta_files(fasta_file, aligned_fasta_file):
         try:
             with fasta.read(str(f), parser=fasta.parse) as reader:
                 for item in reader:
-                    headers[item.description["id"]].append(item.sequence)
+                    # Make sure that canonical form explicitly ends with "-1"
+                    protein_id = (
+                        item.description["id"]
+                        if "-" in item.description["id"]
+                        else f"{item.description['id']}-1"
+                    )
+                    headers[protein_id].append(item.sequence)
         except PyteomicsError:
             raise ValueError(
                 "Error parsing fasta file. Please check the format of the fasta file. Uniprot style is "

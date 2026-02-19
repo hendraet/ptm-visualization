@@ -1,5 +1,7 @@
 """Module for plotting cleavages and PTMs on the sequence plot."""
 
+from collections import OrderedDict
+
 import logging
 import math
 from pathlib import Path
@@ -512,10 +514,14 @@ class DetailsPlotter(Plotter):
                 ),
             )
 
-    def preprocess_groups(self, df: pd.DataFrame):
+    def preprocess_groups(
+        self, df: pd.DataFrame
+    ) -> tuple[pd.DataFrame, list[tuple[str, str]]]:
         """Preprocess the groups for the heatmap."""
         df.columns = df.iloc[0]
         labels = df.iloc[1:2, 2:].values.flatten().tolist()
+        regions = df.iloc[2:3, 2:].values.flatten().tolist()
+        label_region_type_map = list(zip(labels, regions))
         df = df.iloc[3:]
 
         reverse_group_mapping = {}
@@ -527,7 +533,7 @@ class DetailsPlotter(Plotter):
         mean_values = df.iloc[:, 2:].astype(float).groupby(df.iloc[:, 1]).mean()
         mean_values = mean_values.reindex([*self.plot_config.GROUPS])
 
-        return mean_values, labels
+        return mean_values, label_region_type_map
 
     def offset_region_label_from_angle(self):
         """Calculate the offset for the region label based on the angle."""
@@ -548,6 +554,494 @@ class DetailsPlotter(Plotter):
 
         return int(dy) + 10
 
+    def _calculate_cleavage_line_coordinates_horizontal(
+        self,
+        above: str,
+        label_plot_height: int,
+        longest_label: str,
+        group_direction: int,
+    ):
+        """Calculate line coordinates for horizontal cleavage plotting."""
+        y_0_line = (
+            self.SEQUENCE_BOUNDARIES["y1"]
+            if above == "A"
+            else self.SEQUENCE_BOUNDARIES["y0"]
+        )
+        y_1_line = y_0_line + 10 * group_direction
+        y_2_line = (
+            y_0_line
+            + (label_plot_height - self.get_label_length(longest_label) - 10)
+            * group_direction
+        )
+        return y_0_line, y_1_line, y_2_line
+
+    def _calculate_cleavage_line_coordinates_vertical(
+        self,
+        above: str,
+        label_plot_height: int,
+        longest_label: str,
+        group_direction: int,
+    ):
+        """Calculate line coordinates for vertical cleavage plotting."""
+        x_0_line = (
+            self.SEQUENCE_BOUNDARIES["x1"]
+            if above == "A"
+            else self.SEQUENCE_BOUNDARIES["x0"]
+        )
+        x_1_line = x_0_line + 10 * group_direction
+        x_2_line = (
+            x_0_line
+            + (label_plot_height - self.get_label_length(longest_label) - 10)
+            * group_direction
+        )
+        return x_0_line, x_1_line, x_2_line
+
+    def _setup_cleavage_group_spacing_horizontal(
+        self,
+        pixels_per_cleavage: int,
+        y_0_line: int,
+        label_plot_height: int,
+        above: str,
+        group_direction: int,
+        mean_values: pd.DataFrame,
+    ):
+        """Setup group spacing for horizontal cleavage plotting."""
+        y_0_groups = y_0_line + (label_plot_height + 10) * group_direction
+        vertical_space_left = (
+            self.get_height() - y_0_groups if above == "A" else y_0_groups
+        )
+        # offset for border around heatmap
+        vertical_space_left -= 2
+        # offset for label for region
+        dy_label = self.offset_region_label_from_angle()
+        vertical_space_left -= dy_label * 2
+        dx = pixels_per_cleavage
+        dy = vertical_space_left // len(mean_values.index) * group_direction
+        return dx, dy, y_0_groups, vertical_space_left
+
+    def _setup_cleavage_group_spacing_vertical(
+        self,
+        pixels_per_cleavage: int,
+        x_0_line: int,
+        label_plot_height: int,
+        above: str,
+        group_direction: int,
+        mean_values: pd.DataFrame,
+    ):
+        """Setup group spacing for vertical cleavage plotting."""
+        x_0_groups = x_0_line + (label_plot_height + 10) * group_direction
+        horizontal_space_left = (
+            self.get_width() - x_0_groups if above == "A" else x_0_groups
+        )
+        # offset for border around heatmap
+        horizontal_space_left -= 2
+        # offset for label for region
+        dx_label = self.offset_region_label_from_angle()
+        horizontal_space_left -= dx_label * 2
+        dy = pixels_per_cleavage
+        dx = horizontal_space_left // len(mean_values.index) * group_direction
+        return dx, dy, x_0_groups, horizontal_space_left
+
+    def _plot_region_divider_horizontal(
+        self,
+        fig: go.Figure,
+        item_idx: int,
+        first_item_in_region: int,
+        i: int,
+        pixels_per_item: int,
+        dx: int,
+        dy: int,
+        mean_values: pd.DataFrame,
+        y_0_groups: int,
+        last_region: int,
+        group_direction: int,
+        is_ptm: bool,
+    ):
+        """Plot region groups and divider for horizontal orientation (shared by PTM and cleavage)."""
+        start_idx = item_idx - (i - first_item_in_region)
+        x_0_groups = start_idx * pixels_per_item + self.get_horizontal_offset(dx)
+        x_divider = item_idx * pixels_per_item + self.get_horizontal_offset(dx)
+        x_label = x_0_groups + (x_divider - x_0_groups) // 2 - dx // 2
+        y_label = (
+            y_0_groups
+            + len(mean_values.index) * dy
+            + (5 + self.get_label_height() // 2) * group_direction
+        )
+
+        self.plot_groups_horizontal(
+            fig,
+            mean_values.iloc[:, first_item_in_region:i],
+            x_0_groups,
+            y_0_groups,
+            dx,
+            dy,
+            x_label,
+            y_label,
+            last_region,
+            group_direction,
+            is_ptm,
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=[x_divider, x_divider],
+                y=[y_0_groups, y_0_groups + len(mean_values.index) * dy],
+                mode="lines",
+                line=dict(color="black", width=3),
+                showlegend=False,
+                hoverinfo="none",
+            )
+        )
+
+    def _plot_region_divider_vertical(
+        self,
+        fig: go.Figure,
+        item_idx: int,
+        first_item_in_region: int,
+        i: int,
+        pixels_per_item: int,
+        dx: int,
+        dy: int,
+        mean_values: pd.DataFrame,
+        x_0_groups: int,
+        last_region: int,
+        group_direction: int,
+        is_ptm: bool,
+    ):
+        """Plot region groups and divider for vertical orientation (shared by PTM and cleavage)."""
+        start_idx = item_idx - (i - first_item_in_region)
+        y_0_groups = (
+            self.get_height()
+            - start_idx * pixels_per_item
+            - self.get_vertical_offset(dy)
+        )
+        y_divider = (
+            self.get_height()
+            - item_idx * pixels_per_item
+            - self.get_vertical_offset(dy)
+        )
+        y_label = y_0_groups - (y_0_groups - y_divider) // 2 + dy // 2
+        x_label = (
+            x_0_groups
+            + len(mean_values.index) * dx
+            + (5 + self.get_label_height() // 2) * group_direction
+        )
+
+        self.plot_groups_vertical(
+            fig,
+            mean_values.iloc[:, first_item_in_region:i],
+            x_0_groups,
+            y_0_groups,
+            dx,
+            dy,
+            x_label,
+            y_label,
+            last_region,
+            group_direction,
+            is_ptm,
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=[x_0_groups, x_0_groups + len(mean_values.index) * dx],
+                y=[y_divider, y_divider],
+                mode="lines",
+                line=dict(color="black", width=3),
+                showlegend=False,
+                hoverinfo="none",
+            )
+        )
+
+    def _plot_single_cleavage_horizontal(
+        self,
+        fig: go.Figure,
+        start: int,
+        end: int,
+        isoform: str,
+        cleavage_idx: int,
+        pixels_per_cleavage: int,
+        dx: int,
+        y_0_line: int,
+        y_1_line: int,
+        y_2_line: int,
+        label_plot_height: int,
+        group_direction: int,
+    ):
+        """Plot a single cleavage for horizontal orientation."""
+        if start == end:
+            label = str(start)
+            position = self.get_position_with_offset(start, isoform)
+            x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
+            x_0_line = self.offset_line_for_exon(
+                x_0_line, start, self.FIGURE_ORIENTATION
+            )
+            x_1_line = cleavage_idx * pixels_per_cleavage + self.get_horizontal_offset(
+                dx
+            )
+            y_3_line = (
+                y_0_line
+                + (label_plot_height - self.get_label_length(label)) * group_direction
+            )
+            y_label = (
+                y_3_line + (self.get_label_length(label) // 2 + 5) * group_direction
+            )
+
+            self.plot_line_with_label_horizontal(
+                fig,
+                x_0_line,
+                x_1_line,
+                y_0_line,
+                y_1_line,
+                y_2_line,
+                y_3_line,
+                y_label,
+                label,
+                False,
+                None,
+                None,
+            )
+        else:
+            label = f"{start}-{end}"
+            start_position = self.get_position_with_offset(start, isoform)
+            end_position = self.get_position_with_offset(end, isoform)
+            x_0_start_line = start_position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
+            x_0_end_line = end_position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
+            x_0_start_line = self.offset_line_for_exon(
+                x_0_start_line, start, self.FIGURE_ORIENTATION
+            )
+            x_0_end_line = self.offset_line_for_exon(
+                x_0_end_line, end, self.FIGURE_ORIENTATION
+            )
+            x_1_line = cleavage_idx * pixels_per_cleavage + self.get_horizontal_offset(
+                dx
+            )
+            y_3_line = (
+                y_0_line
+                + (label_plot_height - self.get_label_length(label)) * group_direction
+            )
+            y_label = (
+                y_3_line + (self.get_label_length(label) // 2 + 5) * group_direction
+            )
+
+            self.plot_range_with_label_horizontal(
+                fig,
+                x_0_start_line,
+                x_0_end_line,
+                x_1_line,
+                y_0_line,
+                y_1_line,
+                y_2_line,
+                y_3_line,
+                y_label,
+                label,
+            )
+
+    def _plot_single_cleavage_vertical(
+        self,
+        fig: go.Figure,
+        start: int,
+        end: int,
+        isoform: str,
+        cleavage_idx: int,
+        pixels_per_cleavage: int,
+        dy: int,
+        x_0_line: int,
+        x_1_line: int,
+        x_2_line: int,
+        label_plot_height: int,
+        group_direction: int,
+    ):
+        """Plot a single cleavage for vertical orientation."""
+        if start == end:
+            label = str(start)
+            position = self.get_position_with_offset(start, isoform)
+            y_0_line = (
+                self.get_height() - position * self.PIXELS_PER_AA - self.SEQUENCE_OFFSET
+            )
+            y_0_line = self.offset_line_for_exon(
+                y_0_line, start, self.FIGURE_ORIENTATION
+            )
+            y_1_line = (
+                self.get_height()
+                - cleavage_idx * pixels_per_cleavage
+                - self.get_vertical_offset(dy)
+            )
+            x_3_line = (
+                x_0_line
+                + (label_plot_height - self.get_label_length(label)) * group_direction
+            )
+            x_label = (
+                x_3_line + (self.get_label_length(label) // 2 + 5) * group_direction
+            )
+
+            self.plot_line_with_label_vertical(
+                fig,
+                x_0_line,
+                x_1_line,
+                x_2_line,
+                x_3_line,
+                y_0_line,
+                y_1_line,
+                x_label,
+                label,
+                False,
+                None,
+                None,
+            )
+        else:
+            label = f"{start}-{end}"
+            start_position = self.get_position_with_offset(start, isoform)
+            end_position = self.get_position_with_offset(end, isoform)
+            y_0_start_line = (
+                self.get_height()
+                - start_position * self.PIXELS_PER_AA
+                - self.SEQUENCE_OFFSET
+            )
+            y_0_end_line = (
+                self.get_height()
+                - end_position * self.PIXELS_PER_AA
+                - self.SEQUENCE_OFFSET
+            )
+            y_0_start_line = self.offset_line_for_exon(
+                y_0_start_line, start, self.FIGURE_ORIENTATION
+            )
+            y_0_end_line = self.offset_line_for_exon(
+                y_0_end_line, end, self.FIGURE_ORIENTATION
+            )
+            y_1_line = (
+                self.get_height()
+                - cleavage_idx * pixels_per_cleavage
+                - self.get_vertical_offset(dy)
+            )
+            x_3_line = (
+                x_0_line
+                + (label_plot_height - self.get_label_length(label)) * group_direction
+            )
+            x_label = (
+                x_3_line + (self.get_label_length(label) // 2 + 5) * group_direction
+            )
+
+            self.plot_range_with_label_vertical(
+                fig,
+                x_0_line,
+                x_1_line,
+                x_2_line,
+                x_3_line,
+                y_0_start_line,
+                y_0_end_line,
+                y_1_line,
+                x_label,
+                label,
+            )
+
+    def _plot_last_region_horizontal(
+        self,
+        fig: go.Figure,
+        item_idx: int,
+        last_i: int,
+        first_item_in_region: int,
+        pixels_per_item: int,
+        dx: int,
+        dy: int,
+        mean_values: pd.DataFrame,
+        y_0_groups: int,
+        last_region: int,
+        group_direction: int,
+        vertical_space_left: int,
+        is_ptm: bool,
+    ):
+        """Plot the final region for horizontal orientation (shared by PTM and cleavage)."""
+        start_idx = item_idx - (last_i - first_item_in_region) - 1
+        x_0_groups = start_idx * pixels_per_item + self.get_horizontal_offset(dx)
+        region_length = len(mean_values.iloc[0:1, first_item_in_region:].columns)
+        x_label = x_0_groups + (region_length * pixels_per_item) // 2 - dx // 2
+        y_label = (
+            y_0_groups
+            + len(mean_values.index) * dy
+            + (5 + self.get_label_height() // 2) * group_direction
+        )
+
+        self.plot_groups_horizontal(
+            fig,
+            mean_values.iloc[:, first_item_in_region:],
+            x_0_groups,
+            y_0_groups,
+            dx,
+            dy,
+            x_label,
+            y_label,
+            last_region,
+            group_direction,
+            is_ptm,
+        )
+
+        self.create_custome_colorscale(
+            fig,
+            vertical_space_left,
+            group_direction,
+            x_0_groups,
+            y_0_groups,
+            region_length,
+            pixels_per_item,
+            is_ptm,
+        )
+
+    def _plot_last_region_vertical(
+        self,
+        fig: go.Figure,
+        item_idx: int,
+        last_i: int,
+        first_item_in_region: int,
+        pixels_per_item: int,
+        dx: int,
+        dy: int,
+        mean_values: pd.DataFrame,
+        x_0_groups: int,
+        last_region: int,
+        group_direction: int,
+        horizontal_space_left: int,
+        is_ptm: bool,
+    ):
+        """Plot the final region for vertical orientation (shared by PTM and cleavage)."""
+        start_idx = item_idx - (last_i - first_item_in_region) - 1
+        y_0_groups = (
+            self.get_height()
+            - start_idx * pixels_per_item
+            - self.get_vertical_offset(dy)
+        )
+        region_length = len(mean_values.iloc[0:1, first_item_in_region:].columns)
+        y_label = y_0_groups - (region_length * pixels_per_item) // 2 + dy // 2
+        x_label = (
+            x_0_groups
+            + len(mean_values.index) * dx
+            + (5 + self.get_label_height() // 2) * group_direction
+        )
+
+        self.plot_groups_vertical(
+            fig,
+            mean_values.iloc[:, first_item_in_region:],
+            x_0_groups,
+            y_0_groups,
+            dx,
+            dy,
+            x_label,
+            y_label,
+            last_region,
+            group_direction,
+            is_ptm,
+        )
+
+        self.create_custome_colorscale(
+            fig,
+            horizontal_space_left,
+            group_direction,
+            x_0_groups,
+            y_0_groups,
+            region_length,
+            pixels_per_item,
+            is_ptm,
+        )
+
     def plot_cleavages(
         self,
         fig: go.Figure,
@@ -557,172 +1051,118 @@ class DetailsPlotter(Plotter):
         above: str,
     ):
         """Plot the cleavages on the sequence plot."""
-        mean_values, cleavages = self.preprocess_groups(cleavage_df)
-        if len(cleavages) == 0 or len(mean_values.columns) == 0:
+        # Validate and preprocess data
+        mean_values, cleavage_region_type_map = self.preprocess_groups(cleavage_df)
+        if len(cleavage_region_type_map) == 0 or len(mean_values.columns) == 0:
             logging.warning("No groups found in cleavage data, skipping cleavage plot.")
             return
 
         isoforms = cleavage_df.iloc[2:3, 2:].values.flatten().tolist()
+        group_direction = 1 if above == "A" else -1
+
+        # Inverse index for group B
         if above == "B":
             mean_values = mean_values.iloc[::-1]
 
+        # Find longest label
         longest_label = ""
-        for cleavage in cleavages[::-1]:
+        for cleavage in list(zip(*cleavage_region_type_map))[0][::-1]:
             if self.get_label_length(str(cleavage)) > self.get_label_length(
                 longest_label
             ):
                 longest_label = str(cleavage)
 
-        group_direction = 1 if above == "A" else -1
+        # Calculate line coordinates based on orientation
+        if self.FIGURE_ORIENTATION == 0:
+            y_0_line, y_1_line, y_2_line = (
+                self._calculate_cleavage_line_coordinates_horizontal(
+                    above, label_plot_height, longest_label, group_direction
+                )
+            )
+            dx, dy, y_0_groups, vertical_space_left = (
+                self._setup_cleavage_group_spacing_horizontal(
+                    pixels_per_cleavage,
+                    y_0_line,
+                    label_plot_height,
+                    above,
+                    group_direction,
+                    mean_values,
+                )
+            )
+            self.plot_group_labels_horizontal(fig, mean_values, y_0_groups, dy)
+        else:
+            x_0_line, x_1_line, x_2_line = (
+                self._calculate_cleavage_line_coordinates_vertical(
+                    above, label_plot_height, longest_label, group_direction
+                )
+            )
+            dx, dy, x_0_groups, horizontal_space_left = (
+                self._setup_cleavage_group_spacing_vertical(
+                    pixels_per_cleavage,
+                    x_0_line,
+                    label_plot_height,
+                    above,
+                    group_direction,
+                    mean_values,
+                )
+            )
+            self.plot_group_labels_vertical(fig, mean_values, x_0_groups, dx)
+
+        # Initialize tracking variables
         first_cleavage_in_region = 0
         cleavage_idx = 0
         last_end = self.REGIONS[0][1]
         last_region = 0
-
-        if self.FIGURE_ORIENTATION == 0:
-            y_0_line = (
-                self.SEQUENCE_BOUNDARIES["y1"]
-                if above == "A"
-                else self.SEQUENCE_BOUNDARIES["y0"]
-            )
-            y_1_line = y_0_line + 10 * group_direction
-            y_2_line = (
-                y_0_line
-                + (label_plot_height - self.get_label_length(longest_label) - 10)
-                * group_direction
-            )
-
-            y_0_groups = y_0_line + (label_plot_height + 10) * group_direction
-            vertical_space_left = (
-                self.get_height() - y_0_groups if above == "A" else y_0_groups
-            )
-            # offset for border around heatmap
-            vertical_space_left -= 2
-            # offset for label for region
-            dy_label = self.offset_region_label_from_angle()
-            vertical_space_left -= dy_label * 2
-            dx = pixels_per_cleavage
-            dy = vertical_space_left // len(mean_values.index) * group_direction
-
-            self.plot_group_labels_horizontal(fig, mean_values, y_0_groups, dy)
-        else:
-            x_0_line = (
-                self.SEQUENCE_BOUNDARIES["x1"]
-                if above == "A"
-                else self.SEQUENCE_BOUNDARIES["x0"]
-            )
-            x_1_line = x_0_line + 10 * group_direction
-            x_2_line = (
-                x_0_line
-                + (label_plot_height - self.get_label_length(longest_label) - 10)
-                * group_direction
-            )
-
-            x_0_groups = x_0_line + (label_plot_height + 10) * group_direction
-            horizontal_space_left = (
-                self.get_width() - x_0_groups if above == "A" else x_0_groups
-            )
-            # offset for border around heatmap
-            horizontal_space_left -= 2
-            # offset for label for region
-            dx_label = self.offset_region_label_from_angle()
-            horizontal_space_left -= dx_label * 2
-            dy = pixels_per_cleavage
-            dx = horizontal_space_left // len(mean_values.index) * group_direction
-
-            self.plot_group_labels_vertical(fig, mean_values, x_0_groups, dx)
-
         previous_index = 0
+        previous_region_type = None
         last_i = 0
-        for i, cleavage in enumerate(cleavages):
+
+        # Process each cleavage
+        for i, (cleavage, region_type) in enumerate(cleavage_region_type_map):
             if "-" in str(cleavage):
                 start, end = map(int, cleavage.split("-"))
             else:
                 start = end = int(cleavage)
-            if start > last_end or start < previous_index:
-                if self.FIGURE_ORIENTATION == 0:
-                    start_idx = cleavage_idx - (i - first_cleavage_in_region)
-                    x_0_groups = (
-                        start_idx * pixels_per_cleavage + self.get_horizontal_offset(dx)
-                    )
-                    x_divider = (
-                        cleavage_idx * pixels_per_cleavage
-                        + self.get_horizontal_offset(dx)
-                    )
-                    x_label = x_0_groups + (x_divider - x_0_groups) // 2 - dx // 2
-                    y_label = (
-                        y_0_groups
-                        + len(mean_values.index) * dy
-                        + (5 + self.get_label_height() // 2) * group_direction
-                    )
 
-                    self.plot_groups_horizontal(
+            # Check if we're entering a new region
+            if (
+                start > last_end
+                or start < previous_index
+                or (previous_region_type is not None and region_type != previous_region_type)
+            ):
+                # Plot groups for the previous region and add divider
+                if self.FIGURE_ORIENTATION == 0:
+                    self._plot_region_divider_horizontal(
                         fig,
-                        mean_values.iloc[:, first_cleavage_in_region:i],
-                        x_0_groups,
-                        y_0_groups,
+                        cleavage_idx,
+                        first_cleavage_in_region,
+                        i,
+                        pixels_per_cleavage,
                         dx,
                         dy,
-                        x_label,
-                        y_label,
+                        mean_values,
+                        y_0_groups,
                         last_region,
                         group_direction,
                         False,
-                    )
-
-                    fig.add_trace(
-                        go.Scatter(
-                            x=[x_divider, x_divider],
-                            y=[y_0_groups, y_0_groups + len(mean_values.index) * dy],
-                            mode="lines",
-                            line=dict(color="black", width=3),
-                            showlegend=False,
-                            hoverinfo="none",
-                        )
                     )
                 else:
-                    start_idx = cleavage_idx - (i - first_cleavage_in_region)
-                    y_0_groups = (
-                        self.get_height()
-                        - start_idx * pixels_per_cleavage
-                        - self.get_vertical_offset(dy)
-                    )
-                    y_divider = (
-                        self.get_height()
-                        - cleavage_idx * pixels_per_cleavage
-                        - self.get_vertical_offset(dy)
-                    )
-                    y_label = y_0_groups - (y_0_groups - y_divider) // 2 + dy // 2
-                    x_label = (
-                        x_0_groups
-                        + len(mean_values.index) * dx
-                        + (5 + self.get_label_height() // 2) * group_direction
-                    )
-
-                    self.plot_groups_vertical(
+                    self._plot_region_divider_vertical(
                         fig,
-                        mean_values.iloc[:, first_cleavage_in_region:i],
-                        x_0_groups,
-                        y_0_groups,
+                        cleavage_idx,
+                        first_cleavage_in_region,
+                        i,
+                        pixels_per_cleavage,
                         dx,
                         dy,
-                        x_label,
-                        y_label,
+                        mean_values,
+                        x_0_groups,
                         last_region,
                         group_direction,
                         False,
                     )
 
-                    fig.add_trace(
-                        go.Scatter(
-                            x=[x_0_groups, x_0_groups + len(mean_values.index) * dx],
-                            y=[y_divider, y_divider],
-                            mode="lines",
-                            line=dict(color="black", width=3),
-                            showlegend=False,
-                            hoverinfo="none",
-                        )
-                    )
+                # Update region tracking
                 if start < previous_index:
                     last_region += 1
                     last_end = self.REGIONS[last_region][1]
@@ -732,175 +1172,45 @@ class DetailsPlotter(Plotter):
                         last_end = self.REGIONS[last_region][1]
                 cleavage_idx += 1
                 first_cleavage_in_region = i
+
+            # Plot the current cleavage line and label
             if self.FIGURE_ORIENTATION == 0:
-                if start == end:
-                    label = str(start)
-                    position = self.get_position_with_offset(start, isoforms[i])
-                    x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
-                    x_0_line = self.offset_line_for_exon(
-                        x_0_line, start, self.FIGURE_ORIENTATION
-                    )
-                    x_1_line = (
-                        cleavage_idx * pixels_per_cleavage
-                        + self.get_horizontal_offset(dx)
-                    )
-                    y_3_line = (
-                        y_0_line
-                        + (label_plot_height - self.get_label_length(label))
-                        * group_direction
-                    )
-                    y_label = (
-                        y_3_line
-                        + (self.get_label_length(label) // 2 + 5) * group_direction
-                    )
-
-                    self.plot_line_with_label_horizontal(
-                        fig,
-                        x_0_line,
-                        x_1_line,
-                        y_0_line,
-                        y_1_line,
-                        y_2_line,
-                        y_3_line,
-                        y_label,
-                        label,
-                        False,
-                        None,
-                        None,
-                    )
-                else:
-                    label = f"{start}-{end}"
-                    start_position = self.get_position_with_offset(start, isoforms[i])
-                    end_position = self.get_position_with_offset(end, isoforms[i])
-                    x_0_start_line = (
-                        start_position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
-                    )
-                    x_0_end_line = (
-                        end_position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
-                    )
-                    x_0_start_line = self.offset_line_for_exon(
-                        x_0_start_line, start, self.FIGURE_ORIENTATION
-                    )
-                    x_0_end_line = self.offset_line_for_exon(
-                        x_0_end_line, end, self.FIGURE_ORIENTATION
-                    )
-                    x_1_line = (
-                        cleavage_idx * pixels_per_cleavage
-                        + self.get_horizontal_offset(dx)
-                    )
-                    y_3_line = (
-                        y_0_line
-                        + (label_plot_height - self.get_label_length(label))
-                        * group_direction
-                    )
-                    y_label = (
-                        y_3_line
-                        + (self.get_label_length(label) // 2 + 5) * group_direction
-                    )
-
-                    self.plot_range_with_label_horizontal(
-                        fig,
-                        x_0_start_line,
-                        x_0_end_line,
-                        x_1_line,
-                        y_0_line,
-                        y_1_line,
-                        y_2_line,
-                        y_3_line,
-                        y_label,
-                        label,
-                    )
+                self._plot_single_cleavage_horizontal(
+                    fig,
+                    start,
+                    end,
+                    isoforms[i],
+                    cleavage_idx,
+                    pixels_per_cleavage,
+                    dx,
+                    y_0_line,
+                    y_1_line,
+                    y_2_line,
+                    label_plot_height,
+                    group_direction,
+                )
             else:
-                if start == end:
-                    label = str(start)
-                    position = self.get_position_with_offset(start, isoforms[i])
-                    y_0_line = (
-                        self.get_height()
-                        - position * self.PIXELS_PER_AA
-                        - self.SEQUENCE_OFFSET
-                    )
-                    y_0_line = self.offset_line_for_exon(
-                        y_0_line, start, self.FIGURE_ORIENTATION
-                    )
-                    y_1_line = (
-                        self.get_height()
-                        - cleavage_idx * pixels_per_cleavage
-                        - self.get_vertical_offset(dy)
-                    )
-                    x_3_line = (
-                        x_0_line
-                        + (label_plot_height - self.get_label_length(label))
-                        * group_direction
-                    )
-                    x_label = (
-                        x_3_line
-                        + (self.get_label_length(label) // 2 + 5) * group_direction
-                    )
+                self._plot_single_cleavage_vertical(
+                    fig,
+                    start,
+                    end,
+                    isoforms[i],
+                    cleavage_idx,
+                    pixels_per_cleavage,
+                    dy,
+                    x_0_line,
+                    x_1_line,
+                    x_2_line,
+                    label_plot_height,
+                    group_direction,
+                )
 
-                    self.plot_line_with_label_vertical(
-                        fig,
-                        x_0_line,
-                        x_1_line,
-                        x_2_line,
-                        x_3_line,
-                        y_0_line,
-                        y_1_line,
-                        x_label,
-                        label,
-                        False,
-                        None,
-                        None,
-                    )
-                else:
-                    label = f"{start}-{end}"
-                    start_position = self.get_position_with_offset(start, isoforms[i])
-                    end_position = self.get_position_with_offset(end, isoforms[i])
-                    y_0_start_line = (
-                        self.get_height()
-                        - start_position * self.PIXELS_PER_AA
-                        - self.SEQUENCE_OFFSET
-                    )
-                    y_0_end_line = (
-                        self.get_height()
-                        - end_position * self.PIXELS_PER_AA
-                        - self.SEQUENCE_OFFSET
-                    )
-                    y_0_start_line = self.offset_line_for_exon(
-                        y_0_start_line, start, self.FIGURE_ORIENTATION
-                    )
-                    y_0_end_line = self.offset_line_for_exon(
-                        y_0_end_line, end, self.FIGURE_ORIENTATION
-                    )
-                    y_1_line = (
-                        self.get_height()
-                        - cleavage_idx * pixels_per_cleavage
-                        - self.get_vertical_offset(dy)
-                    )
-                    x_3_line = (
-                        x_0_line
-                        + (label_plot_height - self.get_label_length(label))
-                        * group_direction
-                    )
-                    x_label = (
-                        x_3_line
-                        + (self.get_label_length(label) // 2 + 5) * group_direction
-                    )
-
-                    self.plot_range_with_label_vertical(
-                        fig,
-                        x_0_line,
-                        x_1_line,
-                        x_2_line,
-                        x_3_line,
-                        y_0_start_line,
-                        y_0_end_line,
-                        y_1_line,
-                        x_label,
-                        label,
-                    )
             cleavage_idx += 1
             previous_index = start
+            previous_region_type = region_type
             last_i = i
+
+        # Finalize region tracking
         while start > last_end:
             last_region += 1
             last_end = self.REGIONS[last_region][1]
@@ -911,83 +1221,37 @@ class DetailsPlotter(Plotter):
         ):
             last_region += 1
 
-        # plot groups for last region
+        # Plot groups for the final region
         if self.FIGURE_ORIENTATION == 0:
-            start_idx = cleavage_idx - (last_i - first_cleavage_in_region) - 1
-            x_0_groups = start_idx * pixels_per_cleavage + self.get_horizontal_offset(
-                dx
-            )
-            region_length = len(
-                mean_values.iloc[0:1, first_cleavage_in_region:].columns
-            )
-            x_label = x_0_groups + (region_length * pixels_per_cleavage) // 2 - dx // 2
-            y_label = (
-                y_0_groups
-                + len(mean_values.index) * dy
-                + (5 + self.get_label_height() // 2) * group_direction
-            )
-            self.plot_groups_horizontal(
+            self._plot_last_region_horizontal(
                 fig,
-                mean_values.iloc[:, first_cleavage_in_region:],
-                x_0_groups,
-                y_0_groups,
+                cleavage_idx,
+                last_i,
+                first_cleavage_in_region,
+                pixels_per_cleavage,
                 dx,
                 dy,
-                x_label,
-                y_label,
+                mean_values,
+                y_0_groups,
                 last_region,
                 group_direction,
-                False,
-            )
-
-            self.create_custome_colorscale(
-                fig,
                 vertical_space_left,
-                group_direction,
-                x_0_groups,
-                y_0_groups,
-                region_length,
-                pixels_per_cleavage,
                 False,
             )
         else:
-            start_idx = cleavage_idx - (last_i - first_cleavage_in_region) - 1
-            y_0_groups = (
-                self.get_height()
-                - start_idx * pixels_per_cleavage
-                - self.get_vertical_offset(dy)
-            )
-            region_length = len(
-                mean_values.iloc[0:1, first_cleavage_in_region:].columns
-            )
-            y_label = y_0_groups - (region_length * pixels_per_cleavage) // 2 + dy // 2
-            x_label = (
-                x_0_groups
-                + len(mean_values.index) * dx
-                + (5 + self.get_label_height() // 2) * group_direction
-            )
-            self.plot_groups_vertical(
+            self._plot_last_region_vertical(
                 fig,
-                mean_values.iloc[:, first_cleavage_in_region:],
-                x_0_groups,
-                y_0_groups,
+                cleavage_idx,
+                last_i,
+                first_cleavage_in_region,
+                pixels_per_cleavage,
                 dx,
                 dy,
-                x_label,
-                y_label,
+                mean_values,
+                x_0_groups,
                 last_region,
                 group_direction,
-                False,
-            )
-
-            self.create_custome_colorscale(
-                fig,
                 horizontal_space_left,
-                group_direction,
-                x_0_groups,
-                y_0_groups,
-                region_length,
-                pixels_per_cleavage,
                 False,
             )
 
@@ -999,6 +1263,387 @@ class DetailsPlotter(Plotter):
         """Get the vertical offset for the heatmap."""
         return self.calculate_group_space() + dy // 2
 
+    def _calculate_ptm_line_coordinates_horizontal(
+        self,
+        above: str,
+        label_plot_height: int,
+        label_length: int,
+        group_direction: int,
+        second_row: bool,
+    ):
+        """Calculate line coordinates for horizontal PTM plotting."""
+        y_0_line = (
+            self.SEQUENCE_BOUNDARIES["y1"]
+            if above == "A"
+            else self.SEQUENCE_BOUNDARIES["y0"]
+        )
+        y_1_line = y_0_line + 10 * group_direction
+        y_2_line = (
+            y_0_line
+            + (
+                label_plot_height
+                - label_length
+                - 10
+                - self.plot_config.PTM_RECT_LENGTH
+                - 10
+            )
+            * group_direction
+        )
+        if second_row:
+            y_2_line = (
+                y_0_line
+                + (
+                    label_plot_height
+                    - 2 * (label_length + 10)
+                    - self.plot_config.PTM_RECT_LENGTH
+                    - 5
+                )
+                * group_direction
+            )
+        return y_0_line, y_1_line, y_2_line
+
+    def _calculate_ptm_line_coordinates_vertical(
+        self,
+        above: str,
+        label_plot_height: int,
+        label_length: int,
+        group_direction: int,
+        second_row: bool,
+    ):
+        """Calculate line coordinates for vertical PTM plotting."""
+        x_0_line = (
+            self.SEQUENCE_BOUNDARIES["x1"]
+            if above == "A"
+            else self.SEQUENCE_BOUNDARIES["x0"]
+        )
+        x_1_line = x_0_line + 10 * group_direction
+        x_2_line = (
+            x_0_line
+            + (
+                label_plot_height
+                - label_length
+                - 10
+                - self.plot_config.PTM_RECT_LENGTH
+                - 10
+            )
+            * group_direction
+        )
+        if second_row:
+            x_2_line = (
+                x_0_line
+                + (
+                    label_plot_height
+                    - 2 * (label_length + 10)
+                    - self.plot_config.PTM_RECT_LENGTH
+                    - 5
+                )
+                * group_direction
+            )
+        return x_0_line, x_1_line, x_2_line
+
+    def _setup_ptm_group_spacing_horizontal(
+        self,
+        pixels_per_ptm: int,
+        y_0_line: int,
+        label_plot_height: int,
+        above: str,
+        group_direction: int,
+        mean_values: pd.DataFrame,
+    ):
+        """Setup group spacing for horizontal PTM plotting."""
+        dx = pixels_per_ptm
+        y_0_groups = y_0_line + (label_plot_height + 10) * group_direction
+        vertical_space_left = (
+            self.get_height() - y_0_groups if above == "A" else y_0_groups
+        )
+        # offset for region label
+        dy_label = self.offset_region_label_from_angle()
+        vertical_space_left -= dy_label * 2
+        dy = vertical_space_left // len(mean_values.index) * group_direction
+        return dx, dy, y_0_groups, vertical_space_left
+
+    def _setup_ptm_group_spacing_vertical(
+        self,
+        pixels_per_ptm: int,
+        x_0_line: int,
+        label_plot_height: int,
+        above: str,
+        group_direction: int,
+        mean_values: pd.DataFrame,
+    ):
+        """Setup group spacing for vertical PTM plotting."""
+        dy = pixels_per_ptm
+        x_0_groups = x_0_line + (label_plot_height + 10) * group_direction
+        horizontal_space_left = (
+            self.get_width() - x_0_groups if above == "A" else x_0_groups
+        )
+        # offset for region label
+        dx_label = self.offset_region_label_from_angle()
+        horizontal_space_left -= dx_label * 2
+        dx = horizontal_space_left // len(mean_values.index) * group_direction
+        return dx, dy, x_0_groups, horizontal_space_left
+
+    def _plot_ptm_region_divider_horizontal(
+        self,
+        fig: go.Figure,
+        ptm_idx: int,
+        first_ptm_in_region: int,
+        i: int,
+        pixels_per_ptm: int,
+        dx: int,
+        dy: int,
+        mean_values: pd.DataFrame,
+        y_0_groups: int,
+        last_region: int,
+        group_direction: int,
+    ):
+        """Plot region groups and divider for horizontal orientation (PTM wrapper)."""
+        self._plot_region_divider_horizontal(
+            fig,
+            ptm_idx,
+            first_ptm_in_region,
+            i,
+            pixels_per_ptm,
+            dx,
+            dy,
+            mean_values,
+            y_0_groups,
+            last_region,
+            group_direction,
+            True,
+        )
+
+    def _plot_ptm_region_divider_vertical(
+        self,
+        fig: go.Figure,
+        ptm_idx: int,
+        first_ptm_in_region: int,
+        i: int,
+        pixels_per_ptm: int,
+        dx: int,
+        dy: int,
+        mean_values: pd.DataFrame,
+        x_0_groups: int,
+        last_region: int,
+        group_direction: int,
+    ):
+        """Plot region groups and divider for vertical orientation (PTM wrapper)."""
+        self._plot_region_divider_vertical(
+            fig,
+            ptm_idx,
+            first_ptm_in_region,
+            i,
+            pixels_per_ptm,
+            dx,
+            dy,
+            mean_values,
+            x_0_groups,
+            last_region,
+            group_direction,
+            True,
+        )
+
+    def _update_region_tracking(
+        self, ptm_position: int, previous_ptm: int, last_end: int, last_region: int
+    ):
+        """Update region tracking variables based on PTM position."""
+        if ptm_position < previous_ptm:
+            last_region += 1
+            last_end = self.REGIONS[last_region][1]
+        else:
+            while ptm_position > last_end:
+                last_region += 1
+                last_end = self.REGIONS[last_region][1]
+        return last_end, last_region
+
+    def _plot_single_ptm_horizontal(
+        self,
+        fig: go.Figure,
+        ptm: str,
+        ptm_position: int,
+        isoform: str,
+        ptm_idx: int,
+        pixels_per_ptm: int,
+        dx: int,
+        i: int,
+        second_row: bool,
+        y_0_line: int,
+        y_1_line: int,
+        y_2_line: int,
+        label_length: int,
+        label_plot_height: int,
+        group_direction: int,
+        ptm_df: pd.DataFrame,
+    ):
+        """Plot a single PTM for horizontal orientation."""
+        position = self.get_position_with_offset(ptm_position, isoform)
+        x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
+        x_0_line = self.offset_line_for_exon(
+            x_0_line, ptm_position, self.FIGURE_ORIENTATION
+        )
+        x_1_line = ptm_idx * pixels_per_ptm + self.get_horizontal_offset(dx)
+        y_3_line = y_2_line + 10 * group_direction
+        if second_row and i % 2 == 1:
+            y_3_line = y_2_line + (label_length + 10 + 5) * group_direction
+        y_label = y_3_line + (self.get_label_length(ptm) + 10) // 2 * group_direction
+        text_color = self.MODIFICATIONS[str(ptm_df.iloc[0, i + 2])][1]
+
+        self.plot_line_with_label_horizontal(
+            fig,
+            x_0_line,
+            x_1_line,
+            y_0_line,
+            y_1_line,
+            y_2_line,
+            y_3_line,
+            y_label,
+            ptm,
+            True,
+            text_color,
+            str(ptm_df.iloc[0, i + 2]),
+        )
+
+        x_0_rect = x_1_line - dx // 2
+        fig.add_shape(
+            type="rect",
+            x0=x_0_rect,
+            x1=x_0_rect + dx,
+            y0=y_0_line
+            + (label_plot_height - self.plot_config.PTM_RECT_LENGTH) * group_direction,
+            y1=y_0_line + label_plot_height * group_direction,
+            fillcolor=text_color,
+            line=dict(width=1, color="grey"),
+            showlegend=False,
+        )
+
+    def _plot_single_ptm_vertical(
+        self,
+        fig: go.Figure,
+        ptm: str,
+        ptm_position: int,
+        isoform: str,
+        ptm_idx: int,
+        pixels_per_ptm: int,
+        dy: int,
+        i: int,
+        second_row: bool,
+        x_0_line: int,
+        x_1_line: int,
+        x_2_line: int,
+        label_length: int,
+        label_plot_height: int,
+        group_direction: int,
+        ptm_df: pd.DataFrame,
+    ):
+        """Plot a single PTM for vertical orientation."""
+        position = self.get_position_with_offset(ptm_position, isoform)
+        y_0_line = (
+            self.get_height() - position * self.PIXELS_PER_AA - self.SEQUENCE_OFFSET
+        )
+        y_0_line = self.offset_line_for_exon(
+            y_0_line, ptm_position, self.FIGURE_ORIENTATION
+        )
+        y_1_line = (
+            self.get_height() - ptm_idx * pixels_per_ptm - self.get_vertical_offset(dy)
+        )
+        x_3_line = x_2_line + 10 * group_direction
+        if second_row and i % 2 == 1:
+            x_3_line = x_2_line + (label_length + 10 + 5) * group_direction
+        x_label = x_3_line + (self.get_label_length(ptm) + 10) // 2 * group_direction
+        text_color = self.MODIFICATIONS[str(ptm_df.iloc[0, i + 2])][1]
+
+        self.plot_line_with_label_vertical(
+            fig,
+            x_0_line,
+            x_1_line,
+            x_2_line,
+            x_3_line,
+            y_0_line,
+            y_1_line,
+            x_label,
+            ptm,
+            True,
+            text_color,
+            str(ptm_df.iloc[0, i + 2]),
+        )
+
+        y_0_rect = y_1_line - dy // 2
+        fig.add_shape(
+            type="rect",
+            x0=x_0_line
+            + (label_plot_height - self.plot_config.PTM_RECT_LENGTH) * group_direction,
+            x1=x_0_line + label_plot_height * group_direction,
+            y0=y_0_rect,
+            y1=y_0_rect + dy,
+            fillcolor=text_color,
+            line=dict(width=1, color="grey"),
+            showlegend=False,
+        )
+
+    def _plot_last_ptm_region_horizontal(
+        self,
+        fig: go.Figure,
+        ptm_idx: int,
+        last_i: int,
+        first_ptm_in_region: int,
+        pixels_per_ptm: int,
+        dx: int,
+        dy: int,
+        mean_values: pd.DataFrame,
+        y_0_groups: int,
+        last_region: int,
+        group_direction: int,
+        vertical_space_left: int,
+    ):
+        """Plot the final PTM region for horizontal orientation (PTM wrapper)."""
+        self._plot_last_region_horizontal(
+            fig,
+            ptm_idx,
+            last_i,
+            first_ptm_in_region,
+            pixels_per_ptm,
+            dx,
+            dy,
+            mean_values,
+            y_0_groups,
+            last_region,
+            group_direction,
+            vertical_space_left,
+            True,
+        )
+
+    def _plot_last_ptm_region_vertical(
+        self,
+        fig: go.Figure,
+        ptm_idx: int,
+        last_i: int,
+        first_ptm_in_region: int,
+        pixels_per_ptm: int,
+        dx: int,
+        dy: int,
+        mean_values: pd.DataFrame,
+        x_0_groups: int,
+        last_region: int,
+        group_direction: int,
+        horizontal_space_left: int,
+    ):
+        """Plot the final PTM region for vertical orientation (PTM wrapper)."""
+        self._plot_last_region_vertical(
+            fig,
+            ptm_idx,
+            last_i,
+            first_ptm_in_region,
+            pixels_per_ptm,
+            dx,
+            dy,
+            mean_values,
+            x_0_groups,
+            last_region,
+            group_direction,
+            horizontal_space_left,
+            True,
+        )
+
     def plot_ptms(
         self,
         fig: go.Figure,
@@ -1008,404 +1653,204 @@ class DetailsPlotter(Plotter):
         above: str,
         second_row: bool,
     ):
-        # TODO: that exons are properly separated
-        # TODO: fix problem that gap is nor properly accounted for - alsso for cleavages
-        """Plot the PTMs."""
+        # TODO: figure out why last region is mislabeled (and why this is not the case for cleavages)
+        # TODO: fix problem that gap is nor properly accounted for - also for cleavages
+        # Validate and preprocess data
         group_direction = 1 if above == "A" else -1
-        mean_values, ptms = self.preprocess_groups(ptm_df)
+        mean_values, ptm_region_type_map = self.preprocess_groups(ptm_df)
         if len(mean_values) == 0:
             logging.warning("No groups found in PTM data, skipping PTM plot.")
             return
-        if len(ptms) == 0:
+        if len(ptm_region_type_map) == 0:
             logging.warning("No PTMs to plot - will be omitted.")
             return
-        isoforms = ptm_df.iloc[2:3, 2:].values.flatten().tolist()
-        # For debugging purposes
-        # new_row = pd.DataFrame([ptms], columns=mean_values.columns, index=['ptm_position'])
-        # mean_values = pd.concat([new_row, mean_values])
-        # mean_values.to_csv('plotting_data_ptms.csv', sep=',')
 
-        label_length = self.get_label_length(ptms[-1])
-        # inverse index for group B
+        isoforms = ptm_df.iloc[2:3, 2:].values.flatten().tolist()
+        label_length = self.get_label_length(ptm_region_type_map[-1][0])
+
+        # Inverse index for group B
         if above == "B":
             mean_values = mean_values.iloc[::-1]
 
+        # Calculate line coordinates based on orientation
         if self.FIGURE_ORIENTATION == 0:
-            y_0_line = (
-                self.SEQUENCE_BOUNDARIES["y1"]
-                if above == "A"
-                else self.SEQUENCE_BOUNDARIES["y0"]
-            )
-            y_1_line = y_0_line + 10 * group_direction
-            y_2_line = (
-                y_0_line
-                + (
-                    label_plot_height
-                    - label_length
-                    - 10
-                    - self.plot_config.PTM_RECT_LENGTH
-                    - 10
+            y_0_line, y_1_line, y_2_line = (
+                self._calculate_ptm_line_coordinates_horizontal(
+                    above, label_plot_height, label_length, group_direction, second_row
                 )
-                * group_direction
             )
-            if second_row:
-                y_2_line = (
-                    y_0_line
-                    + (
-                        label_plot_height
-                        - 2 * (label_length + 10)
-                        - self.plot_config.PTM_RECT_LENGTH
-                        - 5
-                    )
-                    * group_direction
+            dx, dy, y_0_groups, vertical_space_left = (
+                self._setup_ptm_group_spacing_horizontal(
+                    pixels_per_ptm,
+                    y_0_line,
+                    label_plot_height,
+                    above,
+                    group_direction,
+                    mean_values,
                 )
+            )
+            self.plot_group_labels_horizontal(fig, mean_values, y_0_groups, dy)
         else:
-            x_0_line = (
-                self.SEQUENCE_BOUNDARIES["x1"]
-                if above == "A"
-                else self.SEQUENCE_BOUNDARIES["x0"]
-            )
-            x_1_line = x_0_line + 10 * group_direction
-            x_2_line = (
-                x_0_line
-                + (
-                    label_plot_height
-                    - label_length
-                    - 10
-                    - self.plot_config.PTM_RECT_LENGTH
-                    - 10
+            x_0_line, x_1_line, x_2_line = (
+                self._calculate_ptm_line_coordinates_vertical(
+                    above, label_plot_height, label_length, group_direction, second_row
                 )
-                * group_direction
             )
-            if second_row:
-                x_2_line = (
-                    x_0_line
-                    + (
-                        label_plot_height
-                        - 2 * (label_length + 10)
-                        - self.plot_config.PTM_RECT_LENGTH
-                        - 5
-                    )
-                    * group_direction
+            dx, dy, x_0_groups, horizontal_space_left = (
+                self._setup_ptm_group_spacing_vertical(
+                    pixels_per_ptm,
+                    x_0_line,
+                    label_plot_height,
+                    above,
+                    group_direction,
+                    mean_values,
                 )
+            )
+            self.plot_group_labels_vertical(fig, mean_values, x_0_groups, dx)
 
+        # Initialize tracking variables
         last_end = self.REGIONS[0][1]
         first_ptm_in_region = 0
         ptm_idx = 0
-        last_region = 0
-
-        if self.FIGURE_ORIENTATION == 0:
-            dx = pixels_per_ptm
-            y_0_groups = y_0_line + (label_plot_height + 10) * group_direction
-            vertical_space_left = (
-                self.get_height() - y_0_groups if above == "A" else y_0_groups
-            )
-            # offset for region label
-            dy_label = self.offset_region_label_from_angle()
-            vertical_space_left -= dy_label * 2
-            dy = vertical_space_left // len(mean_values.index) * group_direction
-
-            self.plot_group_labels_horizontal(fig, mean_values, y_0_groups, dy)
-        else:
-            dy = pixels_per_ptm
-            x_0_groups = x_0_line + (label_plot_height + 10) * group_direction
-            horizontal_space_left = (
-                self.get_width() - x_0_groups if above == "A" else x_0_groups
-            )
-            # offset for region label
-            dx_label = self.offset_region_label_from_angle()
-            horizontal_space_left -= dx_label * 2
-            dx = horizontal_space_left // len(mean_values.index) * group_direction
-
-            self.plot_group_labels_vertical(fig, mean_values, x_0_groups, dx)
-
-        previous_ptm = 0
+        last_region_idx = 0
+        previous_region_type_label = None
+        previous_ptm_idx = 0
         last_i = 0
-        ##############################################
-        # TODO: I guess the problem is the ordering of these PTMs. It is a bit too naive.
-        #    - maybe have a look at the cleavages and see why it works there.
-        for i, ptm in enumerate(ptms):
+
+        for i, (ptm, region_type_label) in enumerate(ptm_region_type_map):
             ptm_position = int(ptm[1:])
-            # Inside this conditional statement, it is checked if the current PTM is in a new region. If it is, it
-            # plots the groups for the previous region and updates the last_region and last_end variables.
-            if ptm_position > last_end or ptm_position < previous_ptm:
+            # Check if we're entering a new region
+            if (
+                ptm_position > last_end
+                or ptm_position < previous_ptm_idx
+                or (
+                    previous_region_type_label is not None
+                    and region_type_label != previous_region_type_label
+                )
+            ):
+                # Plot groups for the previous region and add divider
                 if self.FIGURE_ORIENTATION == 0:
-                    start_idx = ptm_idx - (i - first_ptm_in_region)
-                    x_0_groups = (
-                        start_idx * pixels_per_ptm + self.get_horizontal_offset(dx)
-                    )
-                    x_divider = ptm_idx * pixels_per_ptm + self.get_horizontal_offset(
-                        dx
-                    )
-                    x_label = x_0_groups + (x_divider - x_0_groups) // 2 - dx // 2
-                    y_label = (
-                        y_0_groups
-                        + len(mean_values.index) * dy
-                        + (5 + self.get_label_height() // 2) * group_direction
-                    )
-
-                    self.plot_groups_horizontal(
+                    self._plot_ptm_region_divider_horizontal(
                         fig,
-                        mean_values.iloc[:, first_ptm_in_region:i],
-                        x_0_groups,
-                        y_0_groups,
+                        ptm_idx,
+                        first_ptm_in_region,
+                        i,
+                        pixels_per_ptm,
                         dx,
                         dy,
-                        x_label,
-                        y_label,
-                        last_region,
+                        mean_values,
+                        y_0_groups,
+                        last_region_idx,
                         group_direction,
-                        True,
-                    )
-
-                    fig.add_trace(
-                        go.Scatter(
-                            x=[x_divider, x_divider],
-                            y=[y_0_groups, y_0_groups + len(mean_values.index) * dy],
-                            mode="lines",
-                            line=dict(color="black", width=3),
-                            showlegend=False,
-                            hoverinfo="none",
-                        )
                     )
                 else:
-                    start_idx = ptm_idx - (i - first_ptm_in_region)
-                    y_0_groups = (
-                        self.get_height()
-                        - start_idx * pixels_per_ptm
-                        - self.get_vertical_offset(dy)
-                    )
-                    y_divider = (
-                        self.get_height()
-                        - ptm_idx * pixels_per_ptm
-                        - self.get_vertical_offset(dy)
-                    )
-                    y_label = y_0_groups - (y_0_groups - y_divider) // 2 + dy // 2
-                    x_label = (
-                        x_0_groups
-                        + len(mean_values.index) * dx
-                        + (5 + self.get_label_height() // 2) * group_direction
-                    )
-
-                    self.plot_groups_vertical(
+                    self._plot_ptm_region_divider_vertical(
                         fig,
-                        mean_values.iloc[:, first_ptm_in_region:i],
-                        x_0_groups,
-                        y_0_groups,
+                        ptm_idx,
+                        first_ptm_in_region,
+                        i,
+                        pixels_per_ptm,
                         dx,
                         dy,
-                        x_label,
-                        y_label,
-                        last_region,
+                        mean_values,
+                        x_0_groups,
+                        last_region_idx,
                         group_direction,
-                        True,
                     )
 
-                    fig.add_trace(
-                        go.Scatter(
-                            x=[x_0_groups, x_0_groups + len(mean_values.index) * dx],
-                            y=[y_divider, y_divider],
-                            mode="lines",
-                            line=dict(color="black", width=3),
-                            showlegend=False,
-                            hoverinfo="none",
-                        )
-                    )
-                if ptm_position < previous_ptm:
-                    last_region += 1
-                    last_end = self.REGIONS[last_region][1]
-                else:
-                    while ptm_position > last_end:
-                        last_region += 1
-                        last_end = self.REGIONS[last_region][1]
+                # Update region tracking
+                last_end, last_region_idx = self._update_region_tracking(
+                    ptm_position, previous_ptm_idx, last_end, last_region_idx
+                )
                 ptm_idx += 1
                 first_ptm_in_region = i
 
-            # Inside this conditional statement, the lines and labels for the current PTM are plotted (including the
-            # box indicating what kind of PTM is plotted)
+            # Plot the current PTM line, label, and marker box
             if self.FIGURE_ORIENTATION == 0:
-                position = self.get_position_with_offset(ptm_position, isoforms[i])
-                x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
-                x_0_line = self.offset_line_for_exon(
-                    x_0_line, ptm_position, self.FIGURE_ORIENTATION
-                )
-                x_1_line = ptm_idx * pixels_per_ptm + self.get_horizontal_offset(dx)
-                y_3_line = y_2_line + 10 * group_direction
-                if second_row and i % 2 == 1:
-                    x_1_line = ptm_idx * pixels_per_ptm + self.get_horizontal_offset(dx)
-                    y_3_line = y_2_line + (label_length + 10 + 5) * group_direction
-                y_label = (
-                    y_3_line + (self.get_label_length(ptm) + 10) // 2 * group_direction
-                )
-                text_color = self.MODIFICATIONS[str(ptm_df.iloc[0, i + 2])][1]
-                self.plot_line_with_label_horizontal(
+                self._plot_single_ptm_horizontal(
                     fig,
-                    x_0_line,
-                    x_1_line,
+                    ptm,
+                    ptm_position,
+                    isoforms[i],
+                    ptm_idx,
+                    pixels_per_ptm,
+                    dx,
+                    i,
+                    second_row,
                     y_0_line,
                     y_1_line,
                     y_2_line,
-                    y_3_line,
-                    y_label,
-                    ptm,
-                    True,
-                    text_color,
-                    str(ptm_df.iloc[0, i + 2]),
-                )
-                x_0_rect = x_1_line - dx // 2
-                fig.add_shape(
-                    type="rect",
-                    x0=x_0_rect,
-                    x1=x_0_rect + dx,
-                    y0=y_0_line
-                    + (label_plot_height - self.plot_config.PTM_RECT_LENGTH)
-                    * group_direction,
-                    y1=y_0_line + label_plot_height * group_direction,
-                    fillcolor=text_color,
-                    line=dict(width=1, color="grey"),
-                    showlegend=False,
+                    label_length,
+                    label_plot_height,
+                    group_direction,
+                    ptm_df,
                 )
             else:
-                position = self.get_position_with_offset(ptm_position, isoforms[i])
-                y_0_line = (
-                    self.get_height()
-                    - position * self.PIXELS_PER_AA
-                    - self.SEQUENCE_OFFSET
-                )
-                y_0_line = self.offset_line_for_exon(
-                    y_0_line, ptm_position, self.FIGURE_ORIENTATION
-                )
-                y_1_line = (
-                    self.get_height()
-                    - ptm_idx * pixels_per_ptm
-                    - self.get_vertical_offset(dy)
-                )
-                x_3_line = x_2_line + 10 * group_direction
-                if second_row and i % 2 == 1:
-                    y_1_line = (
-                        self.get_height()
-                        - ptm_idx * pixels_per_ptm
-                        - self.get_vertical_offset(dy)
-                    )
-                    x_3_line = x_2_line + (label_length + 10 + 5) * group_direction
-                x_label = (
-                    x_3_line + (self.get_label_length(ptm) + 10) // 2 * group_direction
-                )
-                text_color = self.MODIFICATIONS[str(ptm_df.iloc[0, i + 2])][1]
-                self.plot_line_with_label_vertical(
+                self._plot_single_ptm_vertical(
                     fig,
+                    ptm,
+                    ptm_position,
+                    isoforms[i],
+                    ptm_idx,
+                    pixels_per_ptm,
+                    dy,
+                    i,
+                    second_row,
                     x_0_line,
                     x_1_line,
                     x_2_line,
-                    x_3_line,
-                    y_0_line,
-                    y_1_line,
-                    x_label,
-                    ptm,
-                    True,
-                    text_color,
-                    str(ptm_df.iloc[0, i + 2]),
+                    label_length,
+                    label_plot_height,
+                    group_direction,
+                    ptm_df,
                 )
-                y_0_rect = y_1_line - dy // 2
-                fig.add_shape(
-                    type="rect",
-                    x0=x_0_line
-                    + (label_plot_height - self.plot_config.PTM_RECT_LENGTH)
-                    * group_direction,
-                    x1=x_0_line + label_plot_height * group_direction,
-                    y0=y_0_rect,
-                    y1=y_0_rect + dy,
-                    fillcolor=text_color,
-                    line=dict(width=1, color="grey"),
-                    showlegend=False,
-                )
+
             ptm_idx += 1
-            previous_ptm = ptm_position
+            previous_ptm_idx = ptm_position
+            previous_region_type_label = region_type_label
             last_i = i
 
+        # Finalize region tracking
         while ptm_position > last_end:
-            last_region += 1
-            last_end = self.REGIONS[last_region][1]
+            last_region_idx += 1
+            last_end = self.REGIONS[last_region_idx][1]
 
         if (
             isoforms[first_ptm_in_region] == "exon2"
             and isoforms[first_ptm_in_region - 1] != "exon1"
         ):
-            last_region += 1
+            last_region_idx += 1
 
-        # plot groups for last region
+        # Plot groups for the final region
         if self.FIGURE_ORIENTATION == 0:
-            start_idx = ptm_idx - (last_i - first_ptm_in_region) - 1
-            x_0_groups = start_idx * pixels_per_ptm + self.get_horizontal_offset(dx)
-            region_length = len(mean_values.iloc[0:1, first_ptm_in_region:].columns)
-            x_label = x_0_groups + (region_length * pixels_per_ptm) // 2 - dx // 2
-            y_label = (
-                y_0_groups
-                + len(mean_values.index) * dy
-                + (5 + self.get_label_height() // 2) * group_direction
-            )
-            self.plot_groups_horizontal(
+            self._plot_last_ptm_region_horizontal(
                 fig,
-                mean_values.iloc[:, first_ptm_in_region:],
-                x_0_groups,
-                y_0_groups,
+                ptm_idx,
+                last_i,
+                first_ptm_in_region,
+                pixels_per_ptm,
                 dx,
                 dy,
-                x_label,
-                y_label,
-                last_region,
+                mean_values,
+                y_0_groups,
+                last_region_idx,
                 group_direction,
-                True,
-            )
-
-            self.create_custome_colorscale(
-                fig,
                 vertical_space_left,
-                group_direction,
-                x_0_groups,
-                y_0_groups,
-                region_length,
-                pixels_per_ptm,
-                True,
             )
-
         else:
-            start_idx = ptm_idx - (last_i - first_ptm_in_region) - 1
-            y_0_groups = (
-                self.get_height()
-                - start_idx * pixels_per_ptm
-                - self.get_vertical_offset(dy)
-            )
-            region_length = len(mean_values.iloc[0:1, first_ptm_in_region:].columns)
-            y_label = y_0_groups - (region_length * pixels_per_ptm) // 2 + dy // 2
-            x_label = (
-                x_0_groups
-                + len(mean_values.index) * dx
-                + (5 + self.get_label_height() // 2) * group_direction
-            )
-            self.plot_groups_vertical(
+            self._plot_last_ptm_region_vertical(
                 fig,
-                mean_values.iloc[:, first_ptm_in_region:],
-                x_0_groups,
-                y_0_groups,
+                ptm_idx,
+                last_i,
+                first_ptm_in_region,
+                pixels_per_ptm,
                 dx,
                 dy,
-                x_label,
-                y_label,
-                last_region,
-                group_direction,
-                True,
-            )
-
-            self.create_custome_colorscale(
-                fig,
-                horizontal_space_left,
-                group_direction,
+                mean_values,
                 x_0_groups,
-                y_0_groups,
-                region_length,
-                pixels_per_ptm,
-                True,
+                last_region_idx,
+                group_direction,
+                horizontal_space_left,
             )
 
     def create_custome_colorscale(
