@@ -62,7 +62,7 @@ class MaxQuantPreprocessor:
         longest_original_sequence = max(
             [len(i) for i in aligned_sequence.alignment.inverse_indices]
         )
-        max_configured_region = max(region[1] for region in config.REGIONS)
+        max_configured_region = config.REGIONS.iloc[-1]["region_end"]
         if longest_original_sequence != max_configured_region:
             raise ValueError(
                 f"The longest original sequence has a length of {longest_original_sequence}, but the regions file only "

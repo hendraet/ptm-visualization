@@ -163,6 +163,7 @@ def count_missing_amino_acids(
         for i in range(peptide_offset, len(aligned_sequence)):
             stop_count = exon_start_index - 1 <= i < exon_end_index
             if aligned_sequence[i] == "-":
+                # TODO: I feel like this is a bit too general - maybe this is only the case with casette exons?
                 if not stop_count:
                     missing += 1
             elif peptide[j] == aligned_sequence[i]:
@@ -345,7 +346,7 @@ def check_C_term_cleavage(
             exon_2_length,
             exon_length,
         )
-        assert offset < len(aligned_sequence)
+        assert offset <= len(aligned_sequence)
         iso = get_isoform_for_offset(
             isoform,
             offset,
@@ -372,10 +373,10 @@ def get_isoform_for_offset(
     """Get the isoform for the given offset."""
     iso = "general"
     if isoform in exon_1_isoforms:
-        if offset >= exon_start_index and offset <= exon_start_index + exon_1_length:
+        if exon_start_index <= offset <= exon_start_index + exon_1_length:
             iso = "exon1"
     elif isoform in exon_2_isoforms:
-        if offset >= exon_start_index and offset <= exon_start_index + exon_2_length:
+        if exon_start_index <= offset <= exon_start_index + exon_2_length:
             iso = "exon2"
     return iso
 
