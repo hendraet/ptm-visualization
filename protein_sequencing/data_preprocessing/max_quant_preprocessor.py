@@ -48,9 +48,7 @@ class MaxQuantPreprocessor:
 
         # Makes sure that groups are correctly extracted from the metadata file if provided
         assert (
-            metadata_column is None
-            and metadata_df is None
-            or not self.groups_df.empty
+            metadata_column is None and metadata_df is None or not self.groups_df.empty
         ), (
             "Metadata was provided but no valid groups could be extracted. Please check the metadata file and the "
             "specified metadata column."
@@ -62,7 +60,7 @@ class MaxQuantPreprocessor:
         longest_original_sequence = max(
             [len(i) for i in aligned_sequence.alignment.inverse_indices]
         )
-        max_configured_region = config.REGIONS.iloc[-1]["region_end"]
+        max_configured_region = config.REGIONS["region_end"].max()
         if longest_original_sequence != max_configured_region:
             raise ValueError(
                 f"The longest original sequence has a length of {longest_original_sequence}, but the regions file only "
@@ -73,20 +71,44 @@ class MaxQuantPreprocessor:
             self.fasta_file, self.aligned_fasta_file
         )
 
+        # (
+        #     self.exon_found,
+        #     self.exon_start_index,
+        #     self.exon_end_index,
+        #     self.exon_length,
+        #     self.exon_1_isoforms,
+        #     self.exon_1_length,
+        #     self.exon_2_isoforms,
+        #     self.exon_2_length,
+        #     self.exon_none_isoforms,
+        #     self.max_sequence_leng,
+        # ) = exon_helper.add_exon_info_to_regions(
+        #     Path(self.fasta_file), self.CONFIG.MIN_EXON_LENGTH, Path(self.out_dir)
+        # )
+        # TODO: maybe write tests to check that regions are processed correctly, i.e. that isoforms and exon numbers
+        #  are assigned
+        # TODO: probably rename function again because it returns more than just exon info now
         (
-            self.exon_found,
+            self.CONFIG.REGIONS,
             self.exon_start_index,
             self.exon_end_index,
-            self.exon_length,
-            self.exon_1_isoforms,
             self.exon_1_length,
-            self.exon_2_isoforms,
             self.exon_2_length,
-            self.exon_none_isoforms,
-            self.max_sequence_leng,
-        ) = exon_helper.retrieve_exon(
-            Path(self.fasta_file), self.CONFIG.MIN_EXON_LENGTH, Path(self.out_dir)
+            self.max_exon_length,  # Takes minor differences into account
+            self.max_sequence_length,
+        ) = exon_helper.add_exon_info_to_regions(
+            Path(self.fasta_file),
+            self.CONFIG.REGIONS,
+            self.CONFIG.MIN_EXON_LENGTH,
+            Path(self.out_dir),
         )
+        ################
+        # TODO: is this still correct aka how does it behave for single (cassette) exon? in this case exon_found was
+        #  usually false - maybe should be renamed to alternative_exon_found
+        self.exon_found = (~self.CONFIG.REGIONS["exon_id"].isna()).any()
+        if self.exon_found:
+            self.exon_1_isoforms = self.CONFIG.REGIONS[self.CONFIG.REGIONS["exon_id"] == 1]["isoforms"].values[0]
+            self.exon_2_isoforms = self.CONFIG.REGIONS[self.CONFIG.REGIONS["exon_id"] == 2]["isoforms"].values[0]
 
         remapped_evidence_df = self._remap_isoforms_in_evidence(evidence_df)
         self.process_max_quant_file(remapped_evidence_df)
@@ -120,11 +142,14 @@ class MaxQuantPreprocessor:
     @staticmethod
     def _remap_isoforms_in_evidence(evidence_df: pd.DataFrame) -> pd.DataFrame:
         """Remap isoform IDs in the evidence DataFrame to match those in the fasta file."""
+
         def remap_protein_id(protein_id: str) -> str:
             protein_ids = protein_id.split(";")
             remapped_ids = []
             for protein_id in protein_ids:
-                new_protein_id = f"{protein_id}-1" if "-" not in protein_id else protein_id
+                new_protein_id = (
+                    f"{protein_id}-1" if "-" not in protein_id else protein_id
+                )
                 remapped_ids.append(new_protein_id)
 
             return ";".join(remapped_ids)
@@ -166,11 +191,17 @@ class MaxQuantPreprocessor:
                 elif mod_type == "de":
                     mod_type = "Deamidated"
 
-            if mod_site == "Protein N-term" or mod_site == "Protein C-term" or indices[counter] == 0:
+            if (
+                mod_site == "Protein N-term"
+                or mod_site == "Protein C-term"
+                or indices[counter] == 0
+            ):
                 # We skip these modifications because they are not as relevant
                 continue
 
-            assert indices[counter] > 0, "Modification site index should be greater than 0"
+            assert (
+                indices[counter] > 0
+            ), "Modification site index should be greater than 0"
             mod_site_index = indices[counter] - 1
             aa = peptide[mod_site_index]
             aa_offset = indices[counter]
@@ -196,7 +227,7 @@ class MaxQuantPreprocessor:
                 self.exon_2_isoforms,
                 self.exon_1_length,
                 self.exon_2_length,
-                self.exon_length,
+                self.max_exon_length,
             )
             assert offset < len(aligned_sequence)
             if aligned_sequence[offset - 1] != aa:
@@ -258,7 +289,7 @@ class MaxQuantPreprocessor:
                 self.exon_2_isoforms,
                 self.exon_1_length,
                 self.exon_2_length,
-                self.exon_length,
+                self.max_exon_length,
             )
             if cleavage != "":
                 all_cleavages.append(cleavage)
@@ -276,7 +307,7 @@ class MaxQuantPreprocessor:
                 self.exon_2_isoforms,
                 self.exon_1_length,
                 self.exon_2_length,
-                self.exon_length,
+                self.max_exon_length,
             )
             if cleavage != "":
                 all_cleavages.append(cleavage)

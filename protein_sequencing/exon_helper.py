@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pandas as pd
+
 from protein_sequencing import uniprot_align
 
 
@@ -35,15 +37,18 @@ def levenshtein_distance(str1: str, str2: str, min_exon_length: int) -> bool:
     return matrix[-1][-1] <= min_exon_length
 
 
-def retrieve_exon(input_file: Path, min_exon_length: int, out_dir: Path) -> tuple:
+def add_exon_info_to_regions(
+    fasta_file: Path, regions_df: pd.DataFrame, min_exon_length: int, out_dir: Path
+) -> tuple[pd.DataFrame, int | None, int | None, int | None, int | None, int | None, int]:
     """Retrieve exon from protein sequence."""
-    alignments = list(uniprot_align.get_alignment(input_file, out_dir))
+    alignments = list(uniprot_align.get_alignment(fasta_file, out_dir))
     max_sequence_length = 0
     for alignment in alignments:
         max_sequence_length = max(max_sequence_length, len(alignment.seq))
 
     assert all(len(alignment.seq) == max_sequence_length for alignment in alignments)
 
+    # TODO: would be nice to replace the -1 with None
     different_possibilities = [-1] * max_sequence_length
     for i in range(max_sequence_length):
         amino_acids = dict(list())
@@ -66,7 +71,7 @@ def retrieve_exon(input_file: Path, min_exon_length: int, out_dir: Path) -> tupl
                 different_possibilities[i] = 1
 
     i = 0
-    exon_start_index = -1
+    exon_start_index = None
     max_exon_length = 0
     exon_found = False
     while i < len(different_possibilities):
@@ -129,6 +134,7 @@ def retrieve_exon(input_file: Path, min_exon_length: int, out_dir: Path) -> tupl
                 exon_none_isoforms = []
                 exon_1_length = 0
                 exon_2_length = 0
+                # TODO: could also be calculated outside
                 max_sequence_length = (
                     max_sequence_length
                     - (exon_end_index - exon_start_index)
@@ -160,41 +166,118 @@ def retrieve_exon(input_file: Path, min_exon_length: int, out_dir: Path) -> tupl
                         exon_none_isoforms.append(isoform)
         i += 1
 
+    new_regions_df = regions_df.copy()
+    new_regions_df["exon_id"] = None
+    # TODO: maybe change this to sth. else? Empty lists?
+    new_regions_df["isoforms"] = None
+
     # the additional length checks ensure that we don't count small differences in the sequence as an exon, which can
     # happen for example with cassette exons where one isoform has a single amino acid more than the other isoform.
     if exon_found and exon_1_length > 0 and exon_2_length > 0:
-        # TODO: is there a problen with how (casette) exons with single substituion are handled, e.g. one exon length
+        # TODO: is there a problem with how (casette) exons with single substituion are handled, e.g. one exon length
         #  is 0 while there is one substitution
         # TODO: maybe verify this by mocking an exon at the beginning of the sequence
         # exon_start_index points to the first amino acid of the exon and exon_end_index points to the last amino acid
         # of the exon
-        return (
-            True,
-            # TODO: could still be incorrect because cleavages are usually before the actual amino acid, so we might need to do -1 here
-            # TODO: add oxidation in settings because there's one at position 1 (or in general add mock PTMs at
-            #  beginning of cleavages as a validation)
-            exon_start_index,
-            exon_end_index,  # TODO: could be correct if end is always +1
-            max_exon_length,
-            exon_1_isoforms,
-            exon_1_length,
-            exon_2_isoforms,
-            exon_2_length,
-            exon_none_isoforms,
-            max_sequence_length,
-        )
+
+        exon_1_end_index = exon_start_index + exon_1_length
+        exon_1 = new_regions_df[
+            # TODO: we have to find a way to deal with these fucking +1
+            # TODO: is exon_1_end_index correct here? be also +1? - double check against data later
+            (new_regions_df["region_start"] == exon_start_index + 1)
+            & (new_regions_df["region_end"] == exon_1_end_index)
+        ]
+        if len(exon_1) != 1:
+            # TODO: write/adapt test
+            raise ValueError(
+                "Could not find a unique exon 1 in regions file. Expected to find exactly one exon with start "
+                f"{exon_start_index + 1} and end {exon_1_end_index} but found {len(exon_1)} exon(s)"
+            )
+        exon_2_end_index = exon_start_index + exon_2_length
+        exon_2 = new_regions_df[
+            (new_regions_df["region_start"] == exon_start_index + 1)
+            & (new_regions_df["region_end"] == exon_2_end_index)
+        ]
+        if len(exon_2) != 1:
+            # TODO: write/adapt test
+            raise ValueError(
+                "Could not find a unique exon 2 in regions file. Expected to find exactly one exon with start "
+                f"{exon_start_index + 1} and end {exon_2_end_index} but found {len(exon_1)} exon(s)"
+            )
+
+        new_regions_df.loc[exon_1.index, "exon_id"] = 1
+        new_regions_df.loc[exon_2.index, "exon_id"] = 2
+
+        # TODO: maybe we have to add none_isoforms here
+        new_regions_df.loc[exon_1.index, "isoforms"] = exon_1_isoforms
+        new_regions_df.loc[exon_2.index, "isoforms"] = exon_2_isoforms
+
+        # TODO: check what isoforms are actually used for (outside exons) - might not be relevant at all
+        # new_regions_df["isoforms"] = [
+        #     alignment.id.split("|")[1] for alignment in alignments
+        # ]
+
+        # Sanity checks
+        for i, region in new_regions_df.iterrows():
+            current_region_end = region["region_end"]
+            if current_region_end == exon_start_index:
+                # We first check that there are actually two exons after the current region to account for
+                # potential exons at the end of the sequence
+                if exon_1_length > 0 and exon_2_length > 0 and len(new_regions_df) <= i + 2:
+                    raise ValueError(
+                        f"Exon start {exon_start_index} matches a region end for region {region}, but "
+                        "there are not enough regions after it, please check your supplied region "
+                        "list."
+                    )
+
+                raise ValueError(
+                    f"Exon start {exon_start_index} does not match any region end, please check your supplied region "
+                    "list - maybe it is missing some regions or it doesn't match the provided fasta sequence."
+                )
+    else:
+        exon_start_index = None
+        exon_end_index = None
+        exon_1_length = None
+        exon_2_length = None
+        max_exon_length = None
+
+
+    return (
+        new_regions_df,
+        exon_start_index,
+        exon_end_index,
+        exon_1_length,
+        exon_2_length,
+        max_exon_length,
+        max_sequence_length,
+    )
+
+    # TODO: remove
+    # return (
+    #     True, # can probably also be checked by looking at regions
+    #     exon_start_index,  #
+    #     exon_end_index,
+    #     max_exon_length,  # calc
+    #     exon_1_isoforms,  #
+    #     exon_1_length,   # calc
+    #     exon_2_isoforms,  #
+    #     exon_2_length,  # calc
+    #     exon_none_isoforms,  # return?
+    #     max_sequence_length,  # return
+    # )
 
     # TODO: all these -1 here and also above is just desaster waiting to happen. Ideally, these should be None and
     #  there would be code in place that checks for it.
-    return (
-        False,
-        -1,
-        -1,
-        -1,
-        [],
-        -1,
-        [],
-        -1,
-        [alignment.id.split("|")[1] for alignment in alignments],
-        max_sequence_length,
-    )
+    # TODO: remove
+    # return (
+    #     False,
+    #     -1,
+    #     -1,
+    #     -1,
+    #     [],
+    #     -1,
+    #     [],
+    #     -1,
+    #     [alignment.id.split("|")[1] for alignment in alignments],
+    #     max_sequence_length,
+    # )

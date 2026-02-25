@@ -29,7 +29,6 @@ class Plotter:
         }
 
         # TODO: maybe lower case these
-        # TODO: REGIONS is a duplicate
         self.MODIFICATIONS = config.MODIFICATIONS
         self.MODIFICATION_LEGEND_TITLE = config.MODIFICATION_LEGEND_TITLE
         self.FIGURE_ORIENTATION = config.FIGURE_ORIENTATION
@@ -159,6 +158,7 @@ class Plotter:
     def offset_line_for_exon(self, line_position, aa_position, orientation):
         """Offset the line position based on the exon boundaries."""
         if (
+            # TODO: was this an intentional change from >= to >?
             aa_position > self.EXON_1_OFFSET["index_start"]
             and self.EXON_1_OFFSET["index_start"] != -1
         ):
@@ -199,21 +199,24 @@ class Plotter:
     ) -> go.Figure:
         """Create the plot with main sequence and all additional information."""
 
-        (
-            exon_found,
-            exon_start_index,
-            _,
-            max_exon_length,
-            _,
-            exon_1_length,
-            _,
-            exon_2_length,
-            _,
-            max_sequence_length,
-        ) = exon_helper.retrieve_exon(
-            Path(input_file), self.min_exon_length, out_dir=Path(out_dir)
-        )
+        # TODO: get straight from config and not redo here
+        # (
+        #     exon_found,
+        #     exon_start_index,
+        #     _,
+        #     max_exon_length,
+        #     _,
+        #     exon_1_length,
+        #     _,
+        #     exon_2_length,
+        #     _,
+        #     max_sequence_length,
+        # ) = exon_helper.add_exon_info_to_regions(
+        #     Path(input_file), self.regions, self.min_exon_length, out_dir=Path(out_dir)
+        # )
 
+        # TODO: maybe extract directly from MaxQuantPreprocessor
+        exon_found = (~self.regions["exon_id"].isna()).any()
         # exon checks
         if exon_found:
             # get exon lengths
@@ -228,6 +231,8 @@ class Plotter:
             )
 
             # check if exon lengths match with regions
+            # TODO: do we have to have stricter enforcements of regions in user files (so that they match the found
+            #  exons) or is it already enough? - Maybe double check and extend test cases
             region_end_matches_exon = False
             for i, region in self.regions.iterrows():
                 current_region_end = region["region_end"]
@@ -261,7 +266,6 @@ class Plotter:
                         exon_1_length, exon_2_length = exon_2_length, exon_1_length
 
             if not region_end_matches_exon:
-                # TODO: still off-by-one?
                 raise ValueError(
                     f"Exon start {exon_start_index} does not match any region end, please check your supplied region "
                     "list - maybe it is missing some regions or it doesn't match the provided fasta sequence."
@@ -289,6 +293,7 @@ class Plotter:
             self.SEQUENCE_OFFSET = self.get_top_margin()
 
         # calculate region boundaries in pixels
+        # TODO: should probably also become a DF
         region_boundaries = []
         region_end_pixel = self.SEQUENCE_OFFSET
         region_start = 1
@@ -297,6 +302,12 @@ class Plotter:
         # 0 = normal region, 1 = region before exon, 2 = region after start exon
         # 3 = end exon/ region after exon, 4 = start exon, 5 = middle exon
         region_plot_type = 0
+        # TODO: we should probably get rid of these region indices and instead assign each region an exon number for
+        #  clear identification
+
+        # TODO: remove - only for now to restore old state
+        self.regions = self.regions.sort_index()
+
         while region_index < len(self.regions):
             region = self.regions.iloc[region_index]
             region_name = region["name"]
@@ -307,8 +318,9 @@ class Plotter:
             region_end_pixel = (
                 region_end * self.PIXELS_PER_AA + 1 + self.SEQUENCE_OFFSET
             )
+            # TODO: doesn't work with new code because we sort exons by their end_positions
             if exon_found:
-                if region_end == exon_1_region[1]:
+                if region_end == exon_1_region["region_end"]:
                     # alter last boundary to include exon
                     if region_index > 0:
                         last_boundary = region_boundaries[-1]
@@ -327,6 +339,7 @@ class Plotter:
                     # add current exon
                     # if next region is also last region
                     if region_index + 1 == len(self.regions) - 1:
+                        # TODO: moving these region_plot_types into an enum would be cleaner
                         region_plot_type = 3
                     # if next region is not last region and also not start exon
                     elif region_index > 0:

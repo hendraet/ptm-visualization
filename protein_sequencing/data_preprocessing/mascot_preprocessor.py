@@ -38,7 +38,7 @@ class MascotPreprocessor:
             self.exon_2_length,
             self.exon_none_isoforms,
             self.max_sequence_length,
-        ) = exon_helper.retrieve_exon(self.fasta_file, self.CONFIG.MIN_EXON_LENGTH)
+        ) = exon_helper.add_exon_info_to_regions(self.fasta_file, self.CONFIG.MIN_EXON_LENGTH)
 
         self.process_mascot_dir()
 
