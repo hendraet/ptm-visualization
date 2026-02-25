@@ -14,8 +14,6 @@ from protein_sequencing.plotter import Plotter
 class DetailsPlotter(Plotter):
     """Class to plot cleavages and PTMs on the sequence plot."""
 
-    # TODO: this function would probably profit from some refactoring and splitting up the code across multiple files
-
     def __init__(self, config, plot_config, input_file, output_path):
         super().__init__(config, plot_config)
 
@@ -36,7 +34,7 @@ class DetailsPlotter(Plotter):
 
         region_ranges = []
         region_start = 1
-        for region_end in self.regions["region_end"]:
+        for _, region_end, _, _ in self.REGIONS:
             region_ranges.append((region_start, region_end))
             region_start = region_end + 1
 
@@ -44,23 +42,21 @@ class DetailsPlotter(Plotter):
         region_index = 0
         for i, position_range in enumerate(ranges):
             if isoforms[i] == "exon1":
-                # TODO: this can probably become nicer if we use the filtering of the df
                 index = next(
                     (
                         index
-                        for index, region in self.regions.iterrows()
-                        if region["region_end"] == self.EXON_1_OFFSET["index_end"]
+                        for index, region in enumerate(self.REGIONS)
+                        if region[1] == self.EXON_1_OFFSET["index_end"]
                     ),
                     None,
                 )
                 if index:
                     regions_present[index] = True
             elif isoforms[i] == "exon2":
-                # TODO: this can probably become nicer if we use the filtering of the df
                 index = next(
                     (
                         index
-                        for index, region in self.regions.iterrows()
+                        for index, region in enumerate(self.REGIONS)
                         if region[1] == self.EXON_2_OFFSET["index_end"]
                     ),
                     None,
@@ -345,7 +341,7 @@ class DetailsPlotter(Plotter):
             x=x_label - self.get_label_height() * group_dircetion,
             y=y_label
             - int((8 / self.offset_region_label_from_angle()) * group_dircetion),
-            text=self.regions.iloc[last_region]["short_name"],
+            text=self.REGIONS[last_region][3],
             showarrow=False,
             textangle=-self.plot_config.REGION_LABEL_ANGLE_GROUPS,
             xanchor=xanchor,
@@ -417,7 +413,7 @@ class DetailsPlotter(Plotter):
         fig.add_annotation(
             x=x_label,
             y=y_label,
-            text=self.regions.iloc[last_region]["short_name"],
+            text=self.REGIONS[last_region][3],
             showarrow=False,
             textangle=-self.plot_config.REGION_LABEL_ANGLE_GROUPS + 90,
             xanchor=xanchor,
@@ -525,7 +521,7 @@ class DetailsPlotter(Plotter):
 
     def offset_region_label_from_angle(self):
         longest_label = ""
-        for region_label_short in self.regions["short_name"]:
+        for _, _, _, region_label_short in self.REGIONS:
             if self.get_label_length(region_label_short) > self.get_label_length(
                 longest_label
             ):
@@ -636,7 +632,7 @@ class DetailsPlotter(Plotter):
         dy: int,
         mean_values: pd.DataFrame,
         y_0_groups: int,
-        last_region_idx: int | None,
+        last_region: int,
         group_direction: int,
         is_ptm: bool,
     ):
@@ -659,7 +655,7 @@ class DetailsPlotter(Plotter):
             dy,
             x_label,
             y_label,
-            last_region_idx,
+            last_region,
             group_direction,
             is_ptm,
         )
@@ -1087,12 +1083,11 @@ class DetailsPlotter(Plotter):
         # Initialize tracking variables
         first_cleavage_in_region = 0
         cleavage_idx = 0
-        last_end = self.regions.iloc[0]["region_end"]
+        last_end = self.REGIONS[0][1]
         last_region_idx = 0
         previous_index = 0
         previous_region_type = None
         last_i = 0
-        first_cleavage_plotted = False
 
         # Process each cleavage
         for i, (cleavage, region_type) in enumerate(cleavage_region_type_map):
@@ -1102,16 +1097,10 @@ class DetailsPlotter(Plotter):
                 start = end = int(cleavage)
 
             # Check if we're entering a new region
-            # TODO: we have to refactor how region names are mapped to PTMs otherwise the region tracking will continue
-            #  to produce bugs
-            if first_cleavage_plotted and (
+            if (
                 start > last_end
                 or start < previous_index
-                # additional check to handle exons properly
-                or (
-                    previous_region_type is not None
-                    and region_type != previous_region_type
-                )
+                or (previous_region_type is not None and region_type != previous_region_type)
             ):
                 # Plot groups for the previous region and add divider
                 if self.FIGURE_ORIENTATION == 0:
@@ -1145,9 +1134,14 @@ class DetailsPlotter(Plotter):
                         False,
                     )
 
-                last_end, last_region_idx = self._update_region_tracking(
-                    start, previous_index, last_end, last_region_idx
-                )
+                # Update region tracking
+                if start < previous_index:
+                    last_region_idx += 1
+                    last_end = self.REGIONS[last_region_idx][1]
+                else:
+                    while start > last_end:
+                        last_region_idx += 1
+                        last_end = self.REGIONS[last_region_idx][1]
                 cleavage_idx += 1
                 first_cleavage_in_region = i
 
@@ -1187,10 +1181,9 @@ class DetailsPlotter(Plotter):
             previous_index = start
             previous_region_type = region_type
             last_i = i
-            first_cleavage_plotted = True
 
         # Finalize region tracking
-        last_region_idx = len(self.regions) - 1
+        last_region_idx = len(self.REGIONS) - 1
 
         # Plot groups for the final region
         if self.FIGURE_ORIENTATION == 0:
@@ -1349,17 +1342,15 @@ class DetailsPlotter(Plotter):
         return dx, dy, x_0_groups, horizontal_space_left
 
     def _update_region_tracking(
-        self, current_position: int, previous_position: int, last_end: int, last_region: int | None
+        self, ptm_position: int, previous_ptm: int, last_end: int, last_region: int
     ):
-        if last_region is None:
-            last_region = 0
-        if current_position < previous_position:
+        if ptm_position < previous_ptm:
             last_region += 1
-            last_end = self.regions.iloc[last_region]["region_end"]
+            last_end = self.REGIONS[last_region][1]
         else:
-            while current_position > last_end:
+            while ptm_position > last_end:
                 last_region += 1
-                last_end = self.regions.iloc[last_region]["region_end"]
+                last_end = self.REGIONS[last_region][1]
         return last_end, last_region
 
     def _plot_single_ptm_horizontal(
@@ -1381,11 +1372,6 @@ class DetailsPlotter(Plotter):
         group_direction: int,
         ptm_df: pd.DataFrame,
     ):
-        # TODO:
-        #  - figure out how protein x coords are calculated
-        #  - figure out how the gap in the exon itself is plotted
-        #    - configured via EXONS_GAP
-        #    - probably even easier to access via self.EXON_1_OFFSET/self.EXON_2_OFFSET
         position = self.get_position_with_offset(ptm_position, isoform)
         x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
         x_0_line = self.offset_line_for_exon(
@@ -1498,6 +1484,7 @@ class DetailsPlotter(Plotter):
         above: str,
         second_row: bool,
     ):
+        # TODO: figure out why last region is mislabeled (and why this is not the case for cleavages)
         # TODO: fix problem that gap is nor properly accounted for - also for cleavages
         # Validate and preprocess data
         group_direction = 1 if above == "A" else -1
@@ -1553,28 +1540,20 @@ class DetailsPlotter(Plotter):
             self.plot_group_labels_vertical(fig, mean_values, x_0_groups, dx)
 
         # Initialize tracking variables
-        last_end = self.regions.iloc[0]["region_end"]
+        last_end = self.REGIONS[0][1]
         first_ptm_in_region = 0
         ptm_idx = 0
         last_region_idx = 0
         previous_region_type_label = None
         previous_ptm_idx = 0
         last_i = 0
-        first_ptm_plotted = False
 
         for i, (ptm, region_type_label) in enumerate(ptm_region_type_map):
             ptm_position = int(ptm[1:])
-            # TODO: this is a check that is a bit messy. Ideally we would have a single point of truth for every PTM
-            #  that details position, amino acid, region type, region name, etc. Then we could easily check this by
-            #  comparing the previous region against the current one.
             # Check if we're entering a new region
-            if first_ptm_plotted and (
-                # Region change based on position
+            if (
                 ptm_position > last_end
-                # Indicator that we are an in an alternative exon now
                 or ptm_position < previous_ptm_idx
-                # additional check to handle exons properly because the exon check above fails if the PTMs in both
-                # exons are at the same position
                 or (
                     previous_region_type_label is not None
                     and region_type_label != previous_region_type_label
@@ -1663,10 +1642,9 @@ class DetailsPlotter(Plotter):
             previous_ptm_idx = ptm_position
             previous_region_type_label = region_type_label
             last_i = i
-            first_ptm_plotted = True
 
         # Finalize region tracking
-        last_region_idx = len(self.regions) - 1
+        last_region_idx = len(self.REGIONS) - 1
 
         # Plot groups for the final region
         if self.FIGURE_ORIENTATION == 0:

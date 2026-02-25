@@ -29,7 +29,7 @@ class Plotter:
         }
 
         # TODO: maybe lower case these
-        # TODO: REGIONS is a duplicate
+        self.REGIONS = config.REGIONS
         self.MODIFICATIONS = config.MODIFICATIONS
         self.MODIFICATION_LEGEND_TITLE = config.MODIFICATION_LEGEND_TITLE
         self.FIGURE_ORIENTATION = config.FIGURE_ORIENTATION
@@ -156,13 +156,13 @@ class Plotter:
 
         return position
 
-    def offset_line_for_exon(self, line_position, aa_position, orientation):
+    def offset_line_for_exon(self, line_position, aa_position, oritentation):
         """Offset the line position based on the exon boundaries."""
         if (
-            aa_position > self.EXON_1_OFFSET["index_start"]
+            aa_position >= self.EXON_1_OFFSET["index_start"]
             and self.EXON_1_OFFSET["index_start"] != -1
         ):
-            if orientation == 0:
+            if oritentation == 0:
                 line_position += self.EXONS_GAP
             else:
                 line_position -= self.EXONS_GAP
@@ -170,7 +170,7 @@ class Plotter:
             aa_position > self.EXON_1_OFFSET["index_end"]
             and self.EXON_1_OFFSET["index_start"] != -1
         ):
-            if orientation == 0:
+            if oritentation == 0:
                 line_position += self.EXONS_GAP
             else:
                 line_position -= self.EXONS_GAP
@@ -229,8 +229,9 @@ class Plotter:
 
             # check if exon lengths match with regions
             region_end_matches_exon = False
-            for i, region in self.regions.iterrows():
-                current_region_end = region["region_end"]
+            for i, region in enumerate(self.regions):
+                region = self.regions[i]
+                current_region_end = region[1]
                 if current_region_end == exon_start_index:
                     region_end_matches_exon = True
                     # We first check that there are actually two exons after the current region to account for
@@ -242,18 +243,18 @@ class Plotter:
                             "list."
                         )
 
-                    exon_1_region = self.regions.iloc[i + 1]
-                    exon_2_region = self.regions.iloc[i + 2]
-                    if (exon_1_region["region_end"] - current_region_end != exon_1_length) or (
-                        exon_2_region["region_end"] - current_region_end != exon_2_length
+                    exon_1_region = self.regions[i + 1]
+                    exon_2_region = self.regions[i + 2]
+                    if (exon_1_region[1] - current_region_end != exon_1_length) or (
+                        exon_2_region[1] - current_region_end != exon_2_length
                     ):
                         # Double check if exon regions are maybe swapped or if it is an actual mismatch between exon
                         # and region lengths
-                        if exon_2_region["region_end"] - current_region_end != exon_1_length:
+                        if exon_2_region[1] - current_region_end != exon_1_length:
                             raise ValueError(
                                 f"Exon 2 length {exon_2_length} does not match with end for region {exon_2_region}."
                             )
-                        if exon_1_region["region_end"] - current_region_end != exon_2_length:
+                        if exon_1_region[1] - current_region_end != exon_2_length:
                             raise ValueError(
                                 f"Exon 1 length {exon_1_length} does not match with end for region {exon_1_region}."
                             )
@@ -298,11 +299,7 @@ class Plotter:
         # 3 = end exon/ region after exon, 4 = start exon, 5 = middle exon
         region_plot_type = 0
         while region_index < len(self.regions):
-            region = self.regions.iloc[region_index]
-            region_name = region["name"]
-            region_end = region["region_end"]
-            region_group = region["group"]
-
+            region_name, region_end, region_group, _ = self.regions[region_index]
             region_start_pixel = region_end_pixel
             region_end_pixel = (
                 region_end * self.PIXELS_PER_AA + 1 + self.SEQUENCE_OFFSET
@@ -353,11 +350,9 @@ class Plotter:
                     exon_1_region_end = region_end
                     # process next exon
                     region_index += 1
-                    region = self.regions.iloc[region_index]
-                    region_name = region["name"]
-                    region_end = region["region_end"]
-                    region_group = region["group"]
-
+                    region_name, region_end, region_group, _ = self.regions[
+                        region_index
+                    ]
                     region_start_pixel = region_end_pixel + self.EXONS_GAP * 2
                     region_end_pixel = (
                         region_end * self.PIXELS_PER_AA
@@ -679,7 +674,7 @@ class Plotter:
         fig.add_annotation(
             x=x,
             y=y,
-            text=str(max(last_region_end, region_boundaries[last_i - 1][5])),
+            text=max(last_region_end, region_boundaries[last_i - 1][5]),
             showarrow=False,
             font=dict(size=self.sequence_plot_font_size, color="gray"),
             textangle=0,
