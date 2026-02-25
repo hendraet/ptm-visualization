@@ -159,7 +159,7 @@ class Plotter:
     def offset_line_for_exon(self, line_position, aa_position, oritentation):
         """Offset the line position based on the exon boundaries."""
         if (
-            aa_position >= self.EXON_1_OFFSET["index_start"]
+            aa_position > self.EXON_1_OFFSET["index_start"]
             and self.EXON_1_OFFSET["index_start"] != -1
         ):
             if oritentation == 0:
