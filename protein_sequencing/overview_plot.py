@@ -101,7 +101,7 @@ class OverviewPlotter(Plotter):
         label_offsets_with_orientation = self.get_label_offsets_with_orientation(
             modifications_by_position
         )
-        for aa_position in label_offsets_with_orientation.keys():
+        for aa_position, label_dict in label_offsets_with_orientation.items():
             line_plotted_a, line_plotted_b = False, False
             for (
                 height_offset,
@@ -109,13 +109,14 @@ class OverviewPlotter(Plotter):
                 label,
                 modification_type,
                 orientation,
-            ) in label_offsets_with_orientation[aa_position]:
+                isoform,
+            ) in label_dict:
                 if self.FIGURE_ORIENTATION == 0:
                     x_position_line = (
                         aa_position * self.PIXELS_PER_AA
                     ) + self.SEQUENCE_OFFSET
                     x_position_line = self.offset_line_for_exon(
-                        x_position_line, int(label[1:]), self.FIGURE_ORIENTATION
+                        x_position_line, int(label[1:]), self.FIGURE_ORIENTATION, isoform
                     )
                     y_length = (
                         self.plot_config.SEQUENCE_MIN_LINE_LENGTH
@@ -168,7 +169,7 @@ class OverviewPlotter(Plotter):
                         - self.SEQUENCE_OFFSET
                     )
                     y_position_line = self.offset_line_for_exon(
-                        y_position_line, int(label[1:]), self.FIGURE_ORIENTATION
+                        y_position_line, int(label[1:]), self.FIGURE_ORIENTATION, isoform
                     )
                     x_length = (
                         self.plot_config.SEQUENCE_MIN_LINE_LENGTH
@@ -294,7 +295,7 @@ class OverviewPlotter(Plotter):
                 orientation = "left"
                 additional_offset += 1
                 label_offsets_with_orientation[position].append(
-                    (offset, group_label, mod[0], mod[1], orientation)
+                    (offset, group_label, mod[0], mod[1], orientation, mod[3])
                 )
                 left_offset = max(left_offset, offset)
             additional_offset -= 1
@@ -310,7 +311,7 @@ class OverviewPlotter(Plotter):
                 orientation = "right"
                 additional_offset += 1
                 label_offsets_with_orientation[position].append(
-                    (offset, group_label, mod[0], mod[1], orientation)
+                    (offset, group_label, mod[0], mod[1], orientation, mod[3])
                 )
                 right_offset = max(right_offset, offset)
             additional_offset -= 1
@@ -340,7 +341,7 @@ class OverviewPlotter(Plotter):
                     offset = min(offsets) + additional_offset + 1
             additional_offset += 1
             label_offsets_with_orientation[mid_position].append(
-                (offset, group_label, mod[0], mod[1], orientation)
+                (offset, group_label, mod[0], mod[1], orientation, mod[3])
             )
 
         return label_offsets_with_orientation
@@ -407,6 +408,7 @@ class OverviewPlotter(Plotter):
     def get_label_offsets_with_orientation(self, groups_by_position_and_isoform):
         """Get label offsets with orientation for modifications."""
         group_a, group_b = self.separate_by_group(groups_by_position_and_isoform)
+        # These dicts contain mapping from index to height_offset, group, label, modification_type, orientation, isoform
         label_offsets_with_orientation_a = defaultdict(list)
         label_offsets_with_orientation_b = defaultdict(list)
 
@@ -424,6 +426,7 @@ class OverviewPlotter(Plotter):
                 nearest_left, nearest_right = self.find_nearest_positions(
                     label_offsets_with_orientation, distance_group
                 )
+                # TODO: returns stuff, but technically only does in-place operations
                 self.get_offsets_with_orientations(
                     distance_group,
                     label_offsets_with_orientation,

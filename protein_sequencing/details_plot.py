@@ -749,7 +749,7 @@ class DetailsPlotter(Plotter):
             position = self.get_position_with_offset(start, isoform)
             x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
             x_0_line = self.offset_line_for_exon(
-                x_0_line, start, self.FIGURE_ORIENTATION
+                x_0_line, start, self.FIGURE_ORIENTATION, isoform
             )
             x_1_line = cleavage_idx * pixels_per_cleavage + self.get_horizontal_offset(
                 dx
@@ -783,10 +783,10 @@ class DetailsPlotter(Plotter):
             x_0_start_line = start_position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
             x_0_end_line = end_position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
             x_0_start_line = self.offset_line_for_exon(
-                x_0_start_line, start, self.FIGURE_ORIENTATION
+                x_0_start_line, start, self.FIGURE_ORIENTATION, isoform
             )
             x_0_end_line = self.offset_line_for_exon(
-                x_0_end_line, end, self.FIGURE_ORIENTATION
+                x_0_end_line, end, self.FIGURE_ORIENTATION, isoform
             )
             x_1_line = cleavage_idx * pixels_per_cleavage + self.get_horizontal_offset(
                 dx
@@ -834,7 +834,7 @@ class DetailsPlotter(Plotter):
                 self.get_height() - position * self.PIXELS_PER_AA - self.SEQUENCE_OFFSET
             )
             y_0_line = self.offset_line_for_exon(
-                y_0_line, start, self.FIGURE_ORIENTATION
+                y_0_line, start, self.FIGURE_ORIENTATION, isoform
             )
             y_1_line = (
                 self.get_height()
@@ -878,10 +878,10 @@ class DetailsPlotter(Plotter):
                 - self.SEQUENCE_OFFSET
             )
             y_0_start_line = self.offset_line_for_exon(
-                y_0_start_line, start, self.FIGURE_ORIENTATION
+                y_0_start_line, start, self.FIGURE_ORIENTATION, isoform
             )
             y_0_end_line = self.offset_line_for_exon(
-                y_0_end_line, end, self.FIGURE_ORIENTATION
+                y_0_end_line, end, self.FIGURE_ORIENTATION, isoform
             )
             y_1_line = (
                 self.get_height()
@@ -1375,7 +1375,7 @@ class DetailsPlotter(Plotter):
         position = self.get_position_with_offset(ptm_position, isoform)
         x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
         x_0_line = self.offset_line_for_exon(
-            x_0_line, ptm_position, self.FIGURE_ORIENTATION
+            x_0_line, ptm_position, self.FIGURE_ORIENTATION, isoform
         )
         x_1_line = ptm_idx * pixels_per_ptm + self.get_horizontal_offset(dx)
         y_3_line = y_2_line + 10 * group_direction
@@ -1436,7 +1436,7 @@ class DetailsPlotter(Plotter):
             self.get_height() - position * self.PIXELS_PER_AA - self.SEQUENCE_OFFSET
         )
         y_0_line = self.offset_line_for_exon(
-            y_0_line, ptm_position, self.FIGURE_ORIENTATION
+            y_0_line, ptm_position, self.FIGURE_ORIENTATION, isoform
         )
         y_1_line = (
             self.get_height() - ptm_idx * pixels_per_ptm - self.get_vertical_offset(dy)

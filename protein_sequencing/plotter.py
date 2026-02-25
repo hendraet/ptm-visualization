@@ -156,21 +156,29 @@ class Plotter:
 
         return position
 
-    def offset_line_for_exon(self, line_position, aa_position, oritentation):
+    def offset_line_for_exon(
+        self,
+        line_position: int,
+        aa_position: int,
+        orientation: int,
+        isoform: str,
+    ):
         """Offset the line position based on the exon boundaries."""
         if (
             aa_position > self.EXON_1_OFFSET["index_start"]
             and self.EXON_1_OFFSET["index_start"] != -1
         ):
-            if oritentation == 0:
+            if orientation == 0:
                 line_position += self.EXONS_GAP
             else:
                 line_position -= self.EXONS_GAP
+        # Checks if we are after the first exon and if the first exon is present, or if we are in the second exon,
+        # which is sequence-wise not really after the first exon, but needs another EXONS_GAP anyway.
         if (
             aa_position > self.EXON_1_OFFSET["index_end"]
             and self.EXON_1_OFFSET["index_start"] != -1
-        ):
-            if oritentation == 0:
+        ) or isoform == "exon2":
+            if orientation == 0:
                 line_position += self.EXONS_GAP
             else:
                 line_position -= self.EXONS_GAP
@@ -236,7 +244,11 @@ class Plotter:
                     region_end_matches_exon = True
                     # We first check that there are actually two exons after the current region to account for
                     # potential exons at the end of the sequence
-                    if exon_1_length > 0 and exon_2_length > 0 and len(self.regions) <= i + 2:
+                    if (
+                        exon_1_length > 0
+                        and exon_2_length > 0
+                        and len(self.regions) <= i + 2
+                    ):
                         raise ValueError(
                             f"Exon start {exon_start_index} matches a region end for region {region}, but "
                             "there are not enough regions after it, please check your supplied region "

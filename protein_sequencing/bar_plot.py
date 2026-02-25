@@ -102,7 +102,7 @@ class BarPlotter(Plotter):
                     position = self.get_position_with_offset(aa_position, isoform)
                     x_0_line = position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
                     x_0_line = self.offset_line_for_exon(
-                        x_0_line, aa_position, self.FIGURE_ORIENTATION
+                        x_0_line, aa_position, self.FIGURE_ORIENTATION, isoform
                     )
                     # x position for bar plot
                     x_1_line = self.get_width() - (
@@ -192,7 +192,7 @@ class BarPlotter(Plotter):
                         position * self.PIXELS_PER_AA + self.SEQUENCE_OFFSET
                     )
                     y_0_line = self.offset_line_for_exon(
-                        y_0_line, aa_position, self.FIGURE_ORIENTATION
+                        y_0_line, aa_position, self.FIGURE_ORIENTATION, isoform
                     )
                     y_1_line = modifications_visited * bar_width + bar_width // 2
                     x_0_line = (
