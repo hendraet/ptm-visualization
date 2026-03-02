@@ -152,8 +152,10 @@ def count_missing_amino_acids(
     missing = 0
     stop_count = False
     for i in range(peptide_offset):
+        # I guess this is done in the case of casette exons to skip that exon completely.
         # -1 because of 1 based index for exon_start_index and exon_end_index
         if exon_start_index - 1 <= i < exon_end_index:
+            # TODO: is this properly tested/handled in case of cassette exons?
             continue
         if aligned_sequence[i] == "-":
             missing += 1

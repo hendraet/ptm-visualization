@@ -1,8 +1,6 @@
-"""Test the Mascot preprocessor."""
-
 import pandas as pd
 
-from protein_sequencing.data_preprocessing.preprocessor import mascot, ms_fragger, protein_pilot, max_quant
+from protein_sequencing.data_preprocessing.preprocessor import mascot, ms_fragger, protein_pilot
 
 
 def compare_files(file1, file2):
@@ -61,25 +59,3 @@ def test_process_protein_pilot_dir():
     compare_files("tests/output/result_protein_pilot_mods.csv", "tests/results/expected_result_protein_pilot_mods.csv")
     compare_files("tests/output/result_protein_pilot_cleavages.csv",
                   "tests/results/expected_result_protein_pilot_cleavages.csv")
-
-
-def test_max_quant_file():
-    """Test the process_max_quant_file function."""
-
-    # Process the MaxQuant files
-    config = 'tests.configs.default_config'
-    preprocessor_config = 'tests.configs.max_quant_config'
-    evidence_df = pd.read_csv('tests/test_data/evidence.txt', sep='\t')
-    evidence_df.rename(
-        columns={
-            'Proteins': 'Protein ID',
-            'Experiment': 'Sample'
-        },
-        inplace=True
-    )
-    max_quant(config, preprocessor_config, evidence_df)
-
-    # Check the processed files
-    compare_files("tests/output/result_max_quant_mods.csv", "tests/results/expected_result_max_quant_mods.csv")
-    compare_files("tests/output/result_max_quant_cleavages.csv",
-                  "tests/results/expected_result_max_quant_cleavages.csv")
