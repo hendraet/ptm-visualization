@@ -48,9 +48,7 @@ class MaxQuantPreprocessor:
 
         # Makes sure that groups are correctly extracted from the metadata file if provided
         assert (
-            metadata_column is None
-            and metadata_df is None
-            or not self.groups_df.empty
+            metadata_column is None and metadata_df is None or not self.groups_df.empty
         ), (
             "Metadata was provided but no valid groups could be extracted. Please check the metadata file and the "
             "specified metadata column."
@@ -120,11 +118,14 @@ class MaxQuantPreprocessor:
     @staticmethod
     def _remap_isoforms_in_evidence(evidence_df: pd.DataFrame) -> pd.DataFrame:
         """Remap isoform IDs in the evidence DataFrame to match those in the fasta file."""
+
         def remap_protein_id(protein_id: str) -> str:
             protein_ids = protein_id.split(";")
             remapped_ids = []
             for protein_id in protein_ids:
-                new_protein_id = f"{protein_id}-1" if "-" not in protein_id else protein_id
+                new_protein_id = (
+                    f"{protein_id}-1" if "-" not in protein_id else protein_id
+                )
                 remapped_ids.append(new_protein_id)
 
             return ";".join(remapped_ids)
@@ -166,11 +167,17 @@ class MaxQuantPreprocessor:
                 elif mod_type == "de":
                     mod_type = "Deamidated"
 
-            if mod_site == "Protein N-term" or mod_site == "Protein C-term" or indices[counter] == 0:
+            if (
+                mod_site == "Protein N-term"
+                or mod_site == "Protein C-term"
+                or indices[counter] == 0
+            ):
                 # We skip these modifications because they are not as relevant
                 continue
 
-            assert indices[counter] > 0, "Modification site index should be greater than 0"
+            assert (
+                indices[counter] > 0
+            ), "Modification site index should be greater than 0"
             mod_site_index = indices[counter] - 1
             aa = peptide[mod_site_index]
             aa_offset = indices[counter]
@@ -199,9 +206,20 @@ class MaxQuantPreprocessor:
                 self.exon_length,
             )
             assert offset < len(aligned_sequence)
-            if aligned_sequence[offset - 1] != aa:
+            # TODO: we should also probably write some tests for the preprocessor (maybe clean up the old ones and
+            #  extend similarly to the ones we have in PROTzilla)
+
+            # missing_aa > 0 is an indicator that we have a cassette exon. In this case, we need to test against the
+            # aligned sequence because the location of the modification actually changes in the plot (shifted by length
+            # of casette exon/missing_aa). With alternative exons it stays the same and is only plotted differently,
+            # which is why we test against the original sequence in that case.
+            if (
+                    (missing_aa > 0 and aligned_sequence[offset - 1] != aa)
+                    or (missing_aa == 0 and sequence[offset - 1] != aa)
+            ):
                 raise ValueError(
-                    f"Amino acid doesn't match for {aa} for peptide {peptide} in sequence {sequence} with offset {offset}"
+                    f"Amino acid doesn't match for {aa} for peptide {peptide} in sequence {sequence} with offset "
+                    f"{offset}"
                 )
             iso = preprocessor_helper.get_isoform_for_offset(
                 isoform,
