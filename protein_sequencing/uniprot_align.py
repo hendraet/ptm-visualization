@@ -28,7 +28,7 @@ def get_alignment(
         SeqIO.write(records, f, "fasta")
 
     if len(records) == 1:
-        aligned_sequence = records
+        aligned_sequence = AlignIO.read(f"{input_file}", "fasta")
     else:
         if platform == "linux" or platform == "linux2":
             clustal_omega_path = (
