@@ -1,0 +1,9 @@
+ID,Group,Citrullination(M)@1_general,Phospho(S)@8_general,Phospho(S)@13_general,Phospho(T)@35_general,Citrullination(R)@152_general,GG(K)@154_general,Acetyl(K)@154_general,GG(Q)@388_general,GG(I)@389_general,GG(R)@390_exon1,Citrullination(E)@391_exon1,Citrullination(G)@402_exon1,Citrullination(H)@403_exon1,Citrullination(M)@432_exon1,Citrullination(G)@391_exon2,Citrullination(G)@392_exon2,Phospho(S)@409_exon2,Phospho(T)@411_exon2,Citrullination(R)@413_exon2,Citrullination(G)@431_exon2
+,,Citrullination,Phospho,Phospho,Phospho,Citrullination,GG,Acetyl,GG,GG,GG,Citrullination,Citrullination,Citrullination,Citrullination,Citrullination,Citrullination,Phospho,Phospho,Citrullination,Citrullination
+,,M1,S8,S13,T35,R152,K154,K154,Q388,I389,R390,E391,G402,H403,M432,G391,G392,S409,T411,R413,G431
+,,general,general,general,general,general,general,general,general,general,exon1,exon1,exon1,exon1,exon1,exon2,exon2,exon2,exon2,exon2,exon2
+clean_1,clean,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0
+clean_2,clean,1,0,0,0,0,1,0,1,1,1,1,1,1,1,1,1,0,0,0,1
+exon_1,exon,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0
+old_1,old,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+old_2,old,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

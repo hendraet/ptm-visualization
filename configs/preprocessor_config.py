@@ -1,4 +1,6 @@
 # General
+# TODO: so many hardcoded paths here - can probs be removed
+
 #FASTA_FILE = 'data/uniprot_data/P14136_a_e.fasta'
 FASTA_FILE = '/home/talnawa/Desktop/protein_sequencing/data/experiment/test.fasta'
 #GROUPS_CSV = 'data/groups.csv'

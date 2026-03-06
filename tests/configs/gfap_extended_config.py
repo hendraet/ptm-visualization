@@ -14,3 +14,12 @@ REGIONS = [
     ("alpha", 432, "B", "α"),
     ("epsilon", 431, "A", "ε"),
 ]
+
+INCLUDED_MODIFICATIONS = {
+    "Phospho": ["S", "T", "Y"],
+    "Acetyl": ["K"],
+    "Methyl": ["K", "R"],
+    "GG": ["K", "Q", "I", "R"],
+    "Citrullination": ["R", "H", "G", "M", "E"],
+    "Deamidated": ["N", "Q", "R"],
+}
