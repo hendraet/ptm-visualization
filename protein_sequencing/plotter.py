@@ -51,6 +51,7 @@ class Plotter:
 
     def get_width(self):
         """Return width of the plot, based on user settings in default_config.py."""
+        # TODO: why can this return non-int values?
         if self.FIGURE_ORIENTATION == 0:
             return self.FIGURE_WIDTH
         return self.FIGURE_HEIGHT
@@ -358,13 +359,15 @@ class Plotter:
                             region_plot_type,
                         )
                     )
-                    exon_offset = exon_1_length * self.PIXELS_PER_AA + self.EXONS_GAP
+                    exon_offset = exon_1_length * self.PIXELS_PER_AA + self.EXONS_GAP * 2
                     exon_1_region_end = region_end
                     # process next exon
                     region_index += 1
                     region_name, region_end, region_group, _ = self.regions[
                         region_index
                     ]
+                    # We have to add the exons gap twice because there's a gap before the first exon and after the
+                    # first exon
                     region_start_pixel = region_end_pixel + self.EXONS_GAP * 2
                     region_end_pixel = (
                         region_end * self.PIXELS_PER_AA
