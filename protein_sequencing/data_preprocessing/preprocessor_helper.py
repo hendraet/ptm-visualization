@@ -127,6 +127,7 @@ def get_accession(
     offset = 0
     sequence = None
     aligned_sequence = ""
+    # TODO: It could be helpful to have dedicated handling what hapens, if it matches both isoforms
     for header in sorted_isoform_headers:
         if peptide in header[1]:
             isoform = header[0]

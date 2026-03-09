@@ -213,9 +213,8 @@ class MaxQuantPreprocessor:
             # aligned sequence because the location of the modification actually changes in the plot (shifted by length
             # of casette exon/missing_aa). With alternative exons it stays the same and is only plotted differently,
             # which is why we test against the original sequence in that case.
-            if (
-                    (missing_aa > 0 and aligned_sequence[offset - 1] != aa)
-                    or (missing_aa == 0 and sequence[offset - 1] != aa)
+            if (missing_aa > 0 and aligned_sequence[offset - 1] != aa) or (
+                missing_aa == 0 and sequence[offset - 1] != aa
             ):
                 raise ValueError(
                     f"Amino acid doesn't match for {aa} for peptide {peptide} in sequence {sequence} with offset "
@@ -242,12 +241,10 @@ class MaxQuantPreprocessor:
         group_names = self.groups_df["file_name"].values
 
         isoforms_from_fasta = [i for (i, _, _) in self.sorted_isoform_headers]
+
+        canonical = isoforms_from_fasta[0].split("-")[0]
         filtered_evidence_df = evidence_df[
-            evidence_df["Protein ID"].apply(
-                lambda x: any(
-                    isoform in x.split(";") for isoform in isoforms_from_fasta
-                )
-            )
+            evidence_df["Protein ID"].str.contains(canonical)
         ]
 
         if len(filtered_evidence_df) == 0:

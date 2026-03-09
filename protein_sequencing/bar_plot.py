@@ -597,6 +597,8 @@ class BarPlotter(Plotter):
 
     def create_bar_plot(self):
         """Main function to create bar plot."""
+        # TODO: there is an issue somewhere here that label line look misplaced because parts of them are hidden behind
+        #  the sequence. This seems to happen when there are too a lot of modifications to plot (e.g. for Tau5 vs Tau8)
         messages = []
 
         all_positions, relevant_positions, df = self.filter_relevant_modification_sites(
