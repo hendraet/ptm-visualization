@@ -1916,12 +1916,10 @@ class DetailsPlotter(Plotter):
             len(relevant_groups) > 0
         ), "No relevant groups found in the provided data."
         # Since we are using only the relevant parts of the metadata, we have to filter the groups here. The original
-        # tool was not developed with variable metadata in mind, so this
-        self.plot_config.GROUPS = {
-            group: self.plot_config.GROUPS[group]
-            for group in relevant_groups
-            if group in self.plot_config.GROUPS
-        }
+        # tool was not developed with variable metadata in mind, so this has to be corrected for
+        for group in self.plot_config.GROUPS:
+            if group not in relevant_groups:
+                self.plot_config.GROUPS.pop(group)
 
         if self.FIGURE_ORIENTATION == 0:
             plot_space = self.get_width() - self.SEQUENCE_BOUNDARIES["x0"]

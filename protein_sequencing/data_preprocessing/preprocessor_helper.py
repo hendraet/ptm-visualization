@@ -272,6 +272,7 @@ def check_N_term_cleavage(
     exon_length: int,
 ) -> str:
     """Check if the N-term cleavage is possible for the given peptide and accession."""
+    # TODO: maybe remove if protein N-Term cleavage
     isoform, sequence, offset, aligned_sequence = get_accession(
         accession, peptide, sorted_isoform_headers
     )
@@ -297,7 +298,7 @@ def check_N_term_cleavage(
             exon_2_length,
             exon_length,
         )
-        assert offset < len(aligned_sequence)
+        assert offset <= len(aligned_sequence)
         iso = get_isoform_for_offset(
             isoform,
             offset,
@@ -337,7 +338,7 @@ def check_C_term_cleavage(
     amino_acid_last = peptide[-1]
     # TODO: ideally double check all usages of exon_1_isoforms and exon_2_isoforms
     if amino_acid_last not in ["K", "R"]:
-        offset = calculate_exon_offset(
+        offset_after_peptide = calculate_exon_offset(
             offset + len(peptide) + missing_aa,
             isoform,
             exon_found,
@@ -348,17 +349,17 @@ def check_C_term_cleavage(
             exon_2_length,
             exon_length,
         )
-        assert offset < len(aligned_sequence)
+        assert offset_after_peptide <= len(aligned_sequence)
         iso = get_isoform_for_offset(
             isoform,
-            offset,
+            offset_after_peptide,
             exon_start_index,
             exon_1_isoforms,
             exon_1_length,
             exon_2_isoforms,
             exon_2_length,
         )
-        return f"{amino_acid_last}@{offset}_{iso}"
+        return f"{amino_acid_last}@{offset_after_peptide}_{iso}"
 
     return ""
 

@@ -1,8 +1,8 @@
 """Module to create bar plots for protein sequences"""
 
-import logging
 from collections import defaultdict
 
+import logging
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -76,6 +76,7 @@ class BarPlotter(Plotter):
         label_plot_height: int,
     ) -> go.Figure:
         """Add bar plot to sequence plot."""
+        # TODO: when plotting complex figures, most time is spent in this function (not even sub-functions)
         group_direction = 1 if above == "A" else -1
         bar_width = bar_plot_width // len(group_positions)
         assert (
@@ -86,7 +87,7 @@ class BarPlotter(Plotter):
         height_offset = 0
         modifications_visited = 0
         positions_visited = 0
-        relevant_groups = df["Group"].dropna().unique()
+        relevant_groups = [g for g in self.plot_config.BAR_GROUPS.keys() if g in df["Group"].dropna().unique()]
         bar_percentages = {group: [] for group in relevant_groups}
 
         for aa_position in sorted(modification_sites_all.keys(), reverse=True):
@@ -645,6 +646,7 @@ class BarPlotter(Plotter):
         positions_a, positions_b = self.get_bar_positions(above_all, below_all)
         group_size_a = len(positions_a)
         group_size_b = len(positions_b)
+        # TODO: this code fails if both group sizes are 0
         bar_plot_width = self.get_bar_plot_width(group_size_a, group_size_b)
         highest_position = (
             positions_a[-1] if group_size_a > group_size_b else positions_b[-1]

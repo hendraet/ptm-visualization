@@ -275,7 +275,6 @@ class Plotter:
                         exon_1_length, exon_2_length = exon_2_length, exon_1_length
 
             if not region_end_matches_exon:
-                # TODO: still off-by-one?
                 raise ValueError(
                     f"Exon start {exon_start_index} does not match any region end, please check your supplied region "
                     "list - maybe it is missing some regions or it doesn't match the provided fasta sequence."
