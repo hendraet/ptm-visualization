@@ -20,12 +20,7 @@ def get_alignment(
 
     """Align protein sequences using Clustal Omega."""
     records = list(SeqIO.parse(input_file, "fasta"))
-
-    padded_sequences_path = out_dir / f"{input_file.stem}_padded{input_file.suffix}"
     aligned_fasta_path = out_dir / f"{input_file.stem}_aligned{input_file.suffix}"
-    # write to temporary file and do alignment
-    with padded_sequences_path.open("w", encoding="utf-8") as f:
-        SeqIO.write(records, f, "fasta")
 
     if len(records) == 1:
         aligned_sequence = AlignIO.read(f"{input_file}", "fasta")
@@ -50,7 +45,7 @@ def get_alignment(
         assert clustal_omega_path.exists()
 
         cmd = f"{clustal_omega_path} \
-                --infile={padded_sequences_path} \
+                --infile={input_file} \
                 --outfile={aligned_fasta_path} \
                 --outfmt=fasta \
                 --iter=0 \
@@ -64,8 +59,6 @@ def get_alignment(
         SeqIO.write(aligned_sequence, f, "fasta")
 
     # clean up temporary files
-    if padded_sequences_path.exists():
-        padded_sequences_path.unlink()
     if aligned_fasta_path.exists():
         aligned_fasta_path.unlink()
 

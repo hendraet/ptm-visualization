@@ -1917,7 +1917,7 @@ class DetailsPlotter(Plotter):
         ), "No relevant groups found in the provided data."
         # Since we are using only the relevant parts of the metadata, we have to filter the groups here. The original
         # tool was not developed with variable metadata in mind, so this has to be corrected for
-        for group in self.plot_config.GROUPS:
+        for group in self.plot_config.GROUPS.copy():
             if group not in relevant_groups:
                 self.plot_config.GROUPS.pop(group)
 
