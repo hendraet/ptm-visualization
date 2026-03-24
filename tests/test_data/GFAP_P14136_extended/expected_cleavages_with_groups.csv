@@ -1,0 +1,9 @@
+ID,Group,1_general,7-9_general,14_general,35_general,148_general,156_general,383_general,395-396_exon1,402-403_exon1,425_exon1,432_exon1,395_exon2,417_exon2,425_exon2,431_exon2
+,,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic,Non-Tryptic
+,,1,7-9,14,35,148,156,383,395-396,402-403,425,432,395,417,425,431
+,,general,general,general,general,general,general,general,exon1,exon1,exon1,exon1,exon2,exon2,exon2,exon2
+clean_1,clean,0,0.3333333333333333,1,1,0,1,0,0,0,0,0,0,0,0,0
+clean_2,clean,1,0.3333333333333333,0,0,0,1,1,1,1,1,1,1,0,1,1
+exon_1,exon,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0
+old_1,old,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0
+old_2,old,0,0.3333333333333333,1,0,0,0,0,0,0,0,0,0,0,0,0

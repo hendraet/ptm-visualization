@@ -1,4 +1,5 @@
 """Helper functions for the preprocessor module"""
+
 import csv
 from collections import defaultdict
 from typing import Tuple
@@ -16,39 +17,46 @@ def process_fasta_files(fasta_file, aligned_fasta_file):
         try:
             with fasta.read(str(f), parser=fasta.parse) as reader:
                 for item in reader:
+                    # Make sure that canonical form explicitly ends with "-1"
                     protein_id = (
-                        item.description['id'][:-2]  # reduce to canonical form without isoform number
-                        if item.description['id'].endswith('-1') or item.description['id'].endswith('.1')
-                        else item.description['id']
+                        item.description["id"]
+                        if "-" in item.description["id"]
+                        else f"{item.description['id']}-1"
                     )
                     headers[protein_id].append(item.sequence)
         except PyteomicsError:
-            raise ValueError('Error parsing fasta file. Please check the format of the fasta file. Uniprot style is '
-                             'recommended.')
+            raise ValueError(
+                "Error parsing fasta file. Please check the format of the fasta file. Uniprot style is "
+                "recommended."
+            )
     headers = {(k, *v) for k, v in headers.items() if len(v) == 2}
     sorted_headers = sorted(headers, key=lambda x: -len(x[1]))
 
     canonical_forms = {header[0].split("-")[0] for header in sorted_headers}
     if len(canonical_forms) > 1:
-        raise ValueError("There seem to be isoforms of different proteins in the fasta file. Found canonical forms: "
-                         f"{', '.join(canonical_forms)}. Please check the fasta file.")
+        raise ValueError(
+            "There seem to be isoforms of different proteins in the fasta file. Found canonical forms: "
+            f"{', '.join(canonical_forms)}. Please check the fasta file."
+        )
 
     return sorted_headers
 
 
 def extract_index(string):
     """Extracts the index from a string."""
-    return int(string.split('@')[1].split('_')[0])
+    return int(string.split("@")[1].split("_")[0])
 
 
 def extract_mod_location(mod_string):
     """Extracts the location of the modification from the modification string."""
-    return mod_string.split('(')[1].split(')')[0] + mod_string.split('@')[1].split('_')[0]
+    return (
+        mod_string.split("(")[1].split(")")[0] + mod_string.split("@")[1].split("_")[0]
+    )
 
 
 def extract_cleavage_location(cleavage_string):
     """Extracts the location of the cleavage from the cleavage string."""
-    return int(cleavage_string.split('@')[1].split('_')[0])
+    return int(cleavage_string.split("@")[1].split("_")[0])
 
 
 def extract_cleavages_ranges(all_cleavages):
@@ -57,19 +65,28 @@ def extract_cleavages_ranges(all_cleavages):
     i = 0
     while i < len(all_cleavages):
         first_cleavage = all_cleavages[i]
-        isoform = first_cleavage.split('_')[1]
+        isoform = first_cleavage.split("_")[1]
         cleavage = all_cleavages[i]
-        while i < len(all_cleavages) - 1 and int(extract_cleavage_location(cleavage)) + 1 == int(
-                extract_cleavage_location(all_cleavages[i + 1])) and isoform == all_cleavages[i + 1].split('_')[1]:
+        while (
+            i < len(all_cleavages) - 1
+            and int(extract_cleavage_location(cleavage)) + 1
+            == int(extract_cleavage_location(all_cleavages[i + 1]))
+            and isoform == all_cleavages[i + 1].split("_")[1]
+        ):
             i += 1
             cleavage = all_cleavages[i]
-        if int(extract_cleavage_location(first_cleavage)) != int(extract_cleavage_location(cleavage)):
-            cleavage_range = str(extract_cleavage_location(first_cleavage)) + '-' + str(
-                extract_cleavage_location(cleavage))
-            cleavages_with_ranges.append(f'{cleavage_range}_{isoform}')
+        if int(extract_cleavage_location(first_cleavage)) != int(
+            extract_cleavage_location(cleavage)
+        ):
+            cleavage_range = (
+                str(extract_cleavage_location(first_cleavage))
+                + "-"
+                + str(extract_cleavage_location(cleavage))
+            )
+            cleavages_with_ranges.append(f"{cleavage_range}_{isoform}")
         else:
             location = extract_cleavage_location(first_cleavage)
-            cleavages_with_ranges.append(f'{location}_{isoform}')
+            cleavages_with_ranges.append(f"{location}_{isoform}")
         i += 1
     return cleavages_with_ranges
 
@@ -78,9 +95,9 @@ def parse_ranges(ranges_list):
     """Parses the ranges list and returns a list of ranges."""
     ranges = []
     for part in ranges_list:
-        part = part.split('_')[0]
-        if '-' in part:
-            start, end = map(int, part.split('-'))
+        part = part.split("_")[0]
+        if "-" in part:
+            start, end = map(int, part.split("-"))
             ranges.append(list(range(start, end + 1)))
         else:
             ranges.append([int(part)])
@@ -103,11 +120,14 @@ def cleavage_score(ranges, cleavages):
     return results
 
 
-def get_accession(accession: str, peptide: str, sorted_isoform_headers) -> Tuple[str, str, int, str]:
+def get_accession(
+    accession: str, peptide: str, sorted_isoform_headers
+) -> Tuple[str, str, int, str]:
     """Get the isoform, sequence, offset and aligned sequence for the given accession and peptide."""
     offset = 0
     sequence = None
     aligned_sequence = ""
+    # TODO: It could be helpful to have dedicated handling what hapens, if it matches both isoforms
     for header in sorted_isoform_headers:
         if peptide in header[1]:
             isoform = header[0]
@@ -117,26 +137,35 @@ def get_accession(accession: str, peptide: str, sorted_isoform_headers) -> Tuple
             break
     if sequence is not None:
         return isoform, sequence, offset, aligned_sequence
-    raise ValueError(f"Peptide {peptide} with accession {accession} not found in fasta file")
+    raise ValueError(
+        f"Peptide {peptide} with accession {accession} not found in fasta file"
+    )
 
 
-def count_missing_amino_acids(peptide: str, aligned_sequence: str, peptide_offset: int, exon_start_index: int,
-                              exon_end_index: int) -> int:
+def count_missing_amino_acids(
+    peptide: str,
+    aligned_sequence: str,
+    peptide_offset: int,
+    exon_start_index: int,
+    exon_end_index: int,
+) -> int:
     """Count the missing amino acids in the aligned sequence."""
     missing = 0
     stop_count = False
     for i in range(peptide_offset):
-        # -1 beacuse of 1 based index for exon_start_index and exon_end_index
+        # I guess this is done in the case of casette exons to skip that exon completely.
+        # -1 because of 1 based index for exon_start_index and exon_end_index
         if exon_start_index - 1 <= i < exon_end_index:
+            # TODO: is this properly tested/handled in case of cassette exons?
             continue
-        if aligned_sequence[i] == '-':
+        if aligned_sequence[i] == "-":
             missing += 1
 
     j = 0
     if len(peptide) > 0:
         for i in range(peptide_offset, len(aligned_sequence)):
             stop_count = exon_start_index - 1 <= i < exon_end_index
-            if aligned_sequence[i] == '-':
+            if aligned_sequence[i] == "-":
                 if not stop_count:
                     missing += 1
             elif peptide[j] == aligned_sequence[i]:
@@ -146,39 +175,59 @@ def count_missing_amino_acids(peptide: str, aligned_sequence: str, peptide_offse
     return missing
 
 
-def write_results(all_mods, mods_for_exp, cleavages_with_ranges, cleavages_for_exp, output_folder, groups_df):
+def write_results(
+    all_mods,
+    mods_for_exp,
+    cleavages_with_ranges,
+    cleavages_for_exp,
+    output_folder,
+    groups_df,
+):
     """Write modification and cleavage strings to csv files."""
-    with open(f"{output_folder}_mods.csv", 'w', newline='', encoding="utf-8") as f:
+    with open(f"{output_folder}_mods.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', 'Group'] + all_mods)
-        writer.writerow(['', ''] + [mod.split('(')[0] for mod in all_mods])
-        writer.writerow(['', ''] + [extract_mod_location(mod) for mod in all_mods])
-        writer.writerow(['', ''] + [mod.split('_')[1] for mod in all_mods])
+        writer.writerow(["ID", "Group"] + all_mods)
+        writer.writerow(["", ""] + [mod.split("(")[0] for mod in all_mods])
+        writer.writerow(["", ""] + [extract_mod_location(mod) for mod in all_mods])
+        writer.writerow(["", ""] + [mod.split("_")[1] for mod in all_mods])
         for key, value in mods_for_exp.items():
             row = [1 if mod in value else 0 for mod in all_mods]
-            if key not in groups_df['file_name'].values:
-                raise ValueError(f"Group {key} not found in provided groups file")
-            group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
+            if key not in groups_df["file_name"].values:
+                raise ValueError(f"File name {key} not found in provided groups file")
+            group = groups_df.loc[groups_df["file_name"] == key]["group_name"].values[0]
             writer.writerow([key, group] + row)
 
-    with open(f"{output_folder}_cleavages.csv", 'w', newline='', encoding="utf-8") as f:
+    with open(f"{output_folder}_cleavages.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(['ID', 'Group'] + cleavages_with_ranges)
-        writer.writerow(['', ''] + ['Non-Tryptic' for _ in cleavages_with_ranges])
-        writer.writerow(['', ''] + [cleavage.split('_')[0] for cleavage in cleavages_with_ranges])
-        writer.writerow(['', ''] + [cleavage.split('_')[1] for cleavage in cleavages_with_ranges])
+        writer.writerow(["ID", "Group"] + cleavages_with_ranges)
+        writer.writerow(["", ""] + ["Non-Tryptic" for _ in cleavages_with_ranges])
+        writer.writerow(
+            ["", ""] + [cleavage.split("_")[0] for cleavage in cleavages_with_ranges]
+        )
+        writer.writerow(
+            ["", ""] + [cleavage.split("_")[1] for cleavage in cleavages_with_ranges]
+        )
         ranges = parse_ranges(cleavages_with_ranges)
         for key, value in cleavages_for_exp.items():
             indexes = [extract_index(cleavage) for cleavage in value]
             row = cleavage_score(ranges, indexes)
-            if key not in groups_df['file_name'].values:
-                raise ValueError(f"Group {key} not found in provided groups file")
-            group = groups_df.loc[groups_df['file_name'] == key]['group_name'].values[0]
+            if key not in groups_df["file_name"].values:
+                raise ValueError(f"File name '{key}' not found in provided groups file")
+            group = groups_df.loc[groups_df["file_name"] == key]["group_name"].values[0]
             writer.writerow([key, group] + row)
 
 
-def calculate_exon_offset(offset: int, isoform: str, exon_found: bool, exon_end_index: int, exon_1_isoforms: list,
-                          exon_2_isoforms: list, exon_1_length: int, exon_2_length: int, exon_length: int) -> int:
+def calculate_exon_offset(
+    offset: int,
+    isoform: str,
+    exon_found: bool,
+    exon_end_index: int,
+    exon_1_isoforms: list,
+    exon_2_isoforms: list,
+    exon_1_length: int,
+    exon_2_length: int,
+    exon_length: int,
+) -> int:
     """Calculate the exon offset. Starting index is 1."""
     if exon_found:
         if isoform in exon_1_isoforms:
@@ -197,68 +246,141 @@ def calculate_exon_offset(offset: int, isoform: str, exon_found: bool, exon_end_
         return offset
 
 
-def count_missing_aa_in_exon(aligned_sequence: str, exon_start_index: int, exon_end_index: int, offset: int) -> int:
+def count_missing_aa_in_exon(
+    aligned_sequence: str, exon_start_index: int, exon_end_index: int, offset: int
+) -> int:
     """Count the missing amino acids in the exon."""
     missing = 0
     for i in range(offset):
         if i >= exon_start_index - 1 and i < exon_end_index:
-            if aligned_sequence[i] == '-':
+            if aligned_sequence[i] == "-":
                 missing += 1
     return missing
 
 
-def check_N_term_cleavage(peptide: str, accession: str, sorted_isoform_headers, exon_found: bool, exon_start_index: int,
-                          exon_end_index: int, exon_1_isoforms: list, exon_2_isoforms: list, exon_1_length: int,
-                          exon_2_length: int, exon_length: int) -> str:
+def check_N_term_cleavage(
+    peptide: str,
+    accession: str,
+    sorted_isoform_headers,
+    exon_found: bool,
+    exon_start_index: int,
+    exon_end_index: int,
+    exon_1_isoforms: list,
+    exon_2_isoforms: list,
+    exon_1_length: int,
+    exon_2_length: int,
+    exon_length: int,
+) -> str:
     """Check if the N-term cleavage is possible for the given peptide and accession."""
-    isoform, sequence, offset, aligned_sequence = get_accession(accession, peptide, sorted_isoform_headers)
+    # TODO: maybe remove if protein N-Term cleavage
+    isoform, sequence, offset, aligned_sequence = get_accession(
+        accession, peptide, sorted_isoform_headers
+    )
     amino_acid_first = peptide[0]
     amino_acid_before = ""
     missing_aa = 0
     if len(sequence) != len(aligned_sequence):
-        missing_aa = count_missing_amino_acids(peptide, aligned_sequence, offset, exon_start_index, exon_end_index)
+        missing_aa = count_missing_amino_acids(
+            peptide, aligned_sequence, offset, exon_start_index, exon_end_index
+        )
 
     if offset > 0:
         amino_acid_before = sequence[offset - 1]
     if amino_acid_before != "K" and amino_acid_before != "R":
-        offset = calculate_exon_offset(offset + missing_aa, isoform, exon_found, exon_end_index, exon_1_isoforms,
-                                       exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
-        iso = get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms,
-                                     exon_2_length)
+        offset = calculate_exon_offset(
+            offset + missing_aa,
+            isoform,
+            exon_found,
+            exon_end_index,
+            exon_1_isoforms,
+            exon_2_isoforms,
+            exon_1_length,
+            exon_2_length,
+            exon_length,
+        )
+        assert offset <= len(aligned_sequence)
+        iso = get_isoform_for_offset(
+            isoform,
+            offset,
+            exon_start_index,
+            exon_1_isoforms,
+            exon_1_length,
+            exon_2_isoforms,
+            exon_2_length,
+        )
         return f"{amino_acid_first}@{offset + 1}_{iso}"
 
     return ""
 
 
-def check_C_term_cleavage(peptide: str, accession: str, sorted_isoform_headers, exon_found: bool, exon_start_index: int,
-                          exon_end_index: int, exon_1_isoforms: list, exon_2_isoforms: list, exon_1_length: int,
-                          exon_2_length: int, exon_length: int) -> str:
+def check_C_term_cleavage(
+    peptide: str,
+    accession: str,
+    sorted_isoform_headers,
+    exon_found: bool,
+    exon_start_index: int,
+    exon_end_index: int,
+    exon_1_isoforms: list,
+    exon_2_isoforms: list,
+    exon_1_length: int,
+    exon_2_length: int,
+    exon_length: int,
+) -> str:
     """Check if the C-term cleavage is possible for the given peptide and accession."""
-    isoform, sequence, offset, aligned_sequence = get_accession(accession, peptide, sorted_isoform_headers)
+    isoform, sequence, offset, aligned_sequence = get_accession(
+        accession, peptide, sorted_isoform_headers
+    )
     missing_aa = 0
     if len(sequence) != len(aligned_sequence):
-        missing_aa = count_missing_amino_acids(peptide, aligned_sequence, offset, exon_start_index, exon_end_index)
+        missing_aa = count_missing_amino_acids(
+            peptide, aligned_sequence, offset, exon_start_index, exon_end_index
+        )
     amino_acid_last = peptide[-1]
+    # TODO: ideally double check all usages of exon_1_isoforms and exon_2_isoforms
     if amino_acid_last not in ["K", "R"]:
-        offset = calculate_exon_offset(offset + len(peptide) + missing_aa, isoform, exon_found, exon_end_index,
-                                       exon_1_isoforms, exon_2_isoforms, exon_1_length, exon_2_length, exon_length)
-        iso = get_isoform_for_offset(isoform, offset, exon_start_index, exon_1_isoforms, exon_1_length, exon_2_isoforms,
-                                     exon_2_length)
-        return f"{amino_acid_last}@{offset}_{iso}"
+        offset_after_peptide = calculate_exon_offset(
+            offset + len(peptide) + missing_aa,
+            isoform,
+            exon_found,
+            exon_end_index,
+            exon_1_isoforms,
+            exon_2_isoforms,
+            exon_1_length,
+            exon_2_length,
+            exon_length,
+        )
+        assert offset_after_peptide <= len(aligned_sequence)
+        iso = get_isoform_for_offset(
+            isoform,
+            offset_after_peptide,
+            exon_start_index,
+            exon_1_isoforms,
+            exon_1_length,
+            exon_2_isoforms,
+            exon_2_length,
+        )
+        return f"{amino_acid_last}@{offset_after_peptide}_{iso}"
 
     return ""
 
 
-def get_isoform_for_offset(isoform: str, offset: int, exon_start_index: int, exon_1_isoforms: list, exon_1_length: int,
-                           exon_2_isoforms: list, exon_2_length: int) -> str:
+def get_isoform_for_offset(
+    isoform: str,
+    offset: int,
+    exon_start_index: int,
+    exon_1_isoforms: list,
+    exon_1_length: int,
+    exon_2_isoforms: list,
+    exon_2_length: int,
+) -> str:
     """Get the isoform for the given offset."""
-    iso = 'general'
+    iso = "general"
     if isoform in exon_1_isoforms:
         if offset >= exon_start_index and offset <= exon_start_index + exon_1_length:
-            iso = 'exon1'
+            iso = "exon1"
     elif isoform in exon_2_isoforms:
         if offset >= exon_start_index and offset <= exon_start_index + exon_2_length:
-            iso = 'exon2'
+            iso = "exon2"
     return iso
 
 
@@ -283,7 +405,7 @@ def sort_by_index_and_exons(entries):
             after.append(entry)
 
     def sort_key(x):
-        return int(x.split('@')[1].split('_')[0])
+        return int(x.split("@")[1].split("_")[0])
 
     before.sort(key=sort_key)
     exon1.sort(key=sort_key)
