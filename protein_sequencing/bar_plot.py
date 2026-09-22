@@ -8,6 +8,10 @@ import plotly.graph_objects as go
 
 from protein_sequencing.plotter import Plotter
 
+# Number of metadata rows (modification type, label, isoform) preceding the per-sample rows in the
+# modification file written by data_preprocessing.preprocessor_helper.write_results.
+MOD_FILE_HEADER_ROWS = 3
+
 
 class BarPlotter(Plotter):
     """Class to create bar plots for protein sequences."""
@@ -52,6 +56,7 @@ class BarPlotter(Plotter):
         )
         if self.FIGURE_ORIENTATION == 0:
             legend_height += self.get_label_length("100%")
+            # TODO: can run into division by zero
             bar_width = (self.get_width() - legend_height) // max(
                 group_size_a, group_size_b
             )
@@ -545,12 +550,13 @@ class BarPlotter(Plotter):
             )
 
         # remove rows where groups is not in self.plot_config.BAR_GROUPS
-        header_rows = df.iloc[:4, :]
+        # the first three rows hold the modification type, label and isoform, not sample data
+        header_rows = df.iloc[:MOD_FILE_HEADER_ROWS, :]
         df = df[df["Group"].isin(self.plot_config.BAR_GROUPS.keys())]
         df = pd.concat([header_rows, df], ignore_index=True)
 
         # filter out columns that have no modifications observed for relevant groups
-        data_to_filter = df.iloc[4:, 2:]
+        data_to_filter = df.iloc[MOD_FILE_HEADER_ROWS:, 2:]
         header_columns = df.iloc[:, :2]
         for col in data_to_filter.columns:
             data_to_filter[col] = data_to_filter[col].astype(int)
