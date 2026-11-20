@@ -11,6 +11,8 @@ from protein_sequencing.plotter import Plotter
 # Number of metadata rows (modification type, label, isoform) preceding the per-sample rows in the
 # modification file written by data_preprocessing.preprocessor_helper.write_results.
 MOD_FILE_HEADER_ROWS = 3
+# Space between the percentage tick labels and the rotated group label left of them.
+GROUP_LABEL_GAP = 4  # TODO: questionable if a constant like this should be the way to go
 
 
 class BarPlotter(Plotter):
@@ -46,6 +48,10 @@ class BarPlotter(Plotter):
 
         return positions_a, positions_b
 
+    def get_tick_label_space(self) -> int:
+        """Width taken up left of the bars by the percentage tick labels of the y-axis."""
+        return self.get_label_length("100%") + 5
+
     def get_bar_plot_width(self, group_size_a: int, group_size_b: int) -> int:
         """Get width of bar plot."""
         legend_height = self.get_label_height() * (
@@ -55,7 +61,7 @@ class BarPlotter(Plotter):
             )
         )
         if self.FIGURE_ORIENTATION == 0:
-            legend_height += self.get_label_length("100%")
+            legend_height += self.get_tick_label_space() + GROUP_LABEL_GAP
             # TODO: can run into division by zero
             bar_width = (self.get_width() - legend_height) // max(
                 group_size_a, group_size_b
@@ -291,13 +297,12 @@ class BarPlotter(Plotter):
             for i, group in enumerate(relevant_groups):
                 y_group = y_bar + (i * space_per_group + 5) * group_direction
                 x_line_start = self.get_width() - bar_plot_width
+                # Left of the tick labels, with the same budget get_bar_plot_width reserved.
                 fig.add_annotation(
                     x=x_line_start
-                    - self.get_label_length(
-                        "100%",
-                    )
-                    - max_lines * self.get_label_height()
-                    + 3,
+                    - self.get_tick_label_space()
+                    - GROUP_LABEL_GAP
+                    - max_lines * self.get_label_height() / 2,
                     y=y_group + space_per_group // 2 * group_direction,
                     width=space_per_group,
                     text=group,
@@ -328,21 +333,27 @@ class BarPlotter(Plotter):
                             hoverinfo="none",
                         )
                     )
-                if j % 2 == 0:
-                    text = str(j * 25) + "%"
-                    if self.plot_config.INVERT_AXIS_GROUP_B and above == "B":
-                        text = str(100 - j * 25) + "%"
-                    fig.add_annotation(
-                        x=x_line_start - self.get_label_length(text) // 2 - 5,
-                        y=y_trace,
-                        text=text,
-                        font={
-                            "size": self.sequence_plot_font_size,
-                            "family": self.FONT,
-                            "color": "black",
-                        },
-                        showarrow=False,
+                    # Have to check if bars are large enough to display all three tick labels
+                    # on the y-axis, i.e., 0%, 50% and 100%. If bars aree too short the 50%
+                    # label is left out to save space
+                    has_room_for_mid_label = (
+                        max_bar_height >= 3 * self.get_label_height()
                     )
+                    if j % 4 == 0 or (j == 2 and has_room_for_mid_label):
+                        text = str(j * 25) + "%"
+                        if self.plot_config.INVERT_AXIS_GROUP_B and above == "B":
+                            text = str(100 - j * 25) + "%"
+                        fig.add_annotation(
+                            x=x_line_start - self.get_label_length(text) // 2 - 5,
+                            y=y_trace,
+                            text=text,
+                            font={
+                                "size": self.sequence_plot_font_size,
+                                "family": self.FONT,
+                                "color": "black",
+                            },
+                            showarrow=False,
+                        )
         else:
             for i, group in enumerate(relevant_groups):
                 x_group = x_bar + (i * space_per_group + 5) * group_direction

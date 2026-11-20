@@ -80,6 +80,14 @@ class Plotter:
         legend_height = (len(self.MODIFICATIONS) + 3) * self.get_label_height()
         return int((legend_height / self.get_height() * 1.05) * self.get_height())
 
+    def get_sequence_end_margin(self, sequence_length: int):
+        """Return the space kept free after the end of the sequence.
+
+        _plot_sequence centres the label with the last residue number one label length past
+        the end of the sequence, so the label reaches 1.5 label lengths beyond it.
+        """
+        return int(1.5 * self.get_label_length(str(sequence_length))) + 2
+
     def get_label_length(self, label):
         """Approximate the length of a label in pixels based on font size and label length."""
         return int(self.FONT_SIZE / 1.5 * len(label))
@@ -287,18 +295,28 @@ class Plotter:
             else max_sequence_length
         )
         if self.FIGURE_ORIENTATION == 0:
-            max_sequence_length_pixels = self.get_width() - self.get_left_margin()
-            self.PIXELS_PER_AA = int(
-                (max_sequence_length_pixels - self.EXONS_GAP * exon_found * 2)
-                // max_sequence_length_with_exons
+            max_sequence_length_pixels = (
+                self.get_width()
+                - self.get_left_margin()
+                - self.get_sequence_end_margin(max_sequence_length)
             )
+            # The number is kept fractional so that proteins with more residues than the canvas has pixels are not
+            # collapsed to 0 px/aa.
+            self.PIXELS_PER_AA = (
+                max_sequence_length_pixels - self.EXONS_GAP * exon_found * 2
+            ) / max_sequence_length_with_exons
             self.SEQUENCE_OFFSET = self.get_left_margin()
         else:
-            max_sequence_length_pixels = self.get_height() - self.get_top_margin()
-            self.PIXELS_PER_AA = int(
-                (max_sequence_length_pixels - self.EXONS_GAP * exon_found * 2)
-                // max_sequence_length_with_exons
+            max_sequence_length_pixels = (
+                self.get_height()
+                - self.get_top_margin()
+                - self.get_sequence_end_margin(max_sequence_length)
             )
+            # Kept fractional: proteins with more residues than the canvas has pixels (e.g.
+            # ~1000 aa on a 90-200 mm figure at 96 dpi) would otherwise collapse to 0 px/aa.
+            self.PIXELS_PER_AA = (
+                max_sequence_length_pixels - self.EXONS_GAP * exon_found * 2
+            ) / max_sequence_length_with_exons
             self.SEQUENCE_OFFSET = self.get_top_margin()
 
         # calculate region boundaries in pixels

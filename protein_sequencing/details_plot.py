@@ -10,6 +10,10 @@ import plotly.graph_objects as go
 
 from protein_sequencing.plotter import Plotter
 
+# Maximum distance (pixels, i.e. 1/96 inch on the exported figure) between the sequence and the group heatmap, which
+# holds the PTM/cleavage lines and labels. Kept from the original layout so tall figures don't stretch the lines; short
+# figures shrink it, see get_ptm_label_plot_height.
+MAX_LABEL_PLOT_HEIGHT = 150
 
 class DetailsPlotter(Plotter):
     """Class to plot cleavages and PTMs on the sequence plot."""
@@ -1804,6 +1808,50 @@ class DetailsPlotter(Plotter):
 
         return result_df
 
+    def get_ptm_label_plot_height(
+        self, ptm_df: pd.DataFrame, above: str, second_row: bool
+    ) -> int:
+        """Return the space between sequence and heatmap that holds the PTM lines and labels.
+
+        The space is capped at MAX_LABEL_PLOT_HEIGHT, but on short figures it shrinks so that
+        the heatmap rows still fit next to the sequence instead of being pushed off the
+        canvas. Only the slanted part of the lines is shortened; the labels and the PTM
+        rectangles always keep their full size.
+        """
+        # same reference label that plot_ptms uses for its line coordinates
+        label_length = self.get_label_length(str(ptm_df.iloc[1, -1]))
+        # stub (10) + upright stub (10) + label (label_length + 10) + PTM rectangle,
+        # see _calculate_ptm_line_coordinates_* and _plot_single_ptm_*
+        fixed_part = label_length + self.plot_config.PTM_RECT_LENGTH + 30
+        if second_row:
+            fixed_part = 2 * label_length + self.plot_config.PTM_RECT_LENGTH + 45
+        min_label_plot_height = fixed_part + 2 * self.get_label_height()
+
+        if self.FIGURE_ORIENTATION == 0:
+            space = (
+                self.get_height() - self.SEQUENCE_BOUNDARIES["y1"]
+                if above == "A"
+                else self.SEQUENCE_BOUNDARIES["y0"]
+            )
+        else:
+            space = (
+                self.get_width() - self.SEQUENCE_BOUNDARIES["x1"]
+                if above == "A"
+                else self.SEQUENCE_BOUNDARIES["x0"]
+            )
+        # gap before the heatmap, region label above/below it, one readable row per group
+        heatmap_space = (
+            10
+            + 2 * self.offset_region_label_from_angle()
+            + len(self.plot_config.GROUPS) * (self.get_label_height() + 4)
+        )
+        return int(
+            max(
+                min_label_plot_height,
+                min(MAX_LABEL_PLOT_HEIGHT, space - heatmap_space),
+            )
+        )
+
     def calculate_group_space(self):
         longest_label = ""
         for key in self.plot_config.GROUPS.keys():
@@ -1929,7 +1977,7 @@ class DetailsPlotter(Plotter):
                 self.get_height() - self.SEQUENCE_BOUNDARIES["y0"]
             )
 
-        label_plot_height = 150
+        label_plot_height = MAX_LABEL_PLOT_HEIGHT
 
         if cleavage_df is not None:
             present_regions = self.get_present_regions_cleavage(cleavage_df)
@@ -1970,7 +2018,12 @@ class DetailsPlotter(Plotter):
                 second_row = True
 
             self.plot_ptms(
-                fig, ptm_df, pixels_per_ptm, label_plot_height, ptm_above, second_row
+                fig,
+                ptm_df,
+                pixels_per_ptm,
+                self.get_ptm_label_plot_height(ptm_df, ptm_above, second_row),
+                ptm_above,
+                second_row,
             )
 
         self.finalize_plotting(

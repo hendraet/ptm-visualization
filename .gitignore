@@ -6,4 +6,6 @@ data
 output
 plot_outputs
 *__pycache__
+.cache
+zilla
 
