@@ -376,7 +376,9 @@ class Plotter:
                             region_plot_type,
                         )
                     )
-                    exon_offset = exon_1_length * self.PIXELS_PER_AA + self.EXONS_GAP * 2
+                    exon_offset = (
+                        exon_1_length * self.PIXELS_PER_AA + self.EXONS_GAP * 2
+                    )
                     exon_1_region_end = region_end
                     # process next exon
                     region_index += 1

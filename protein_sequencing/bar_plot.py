@@ -12,7 +12,7 @@ from protein_sequencing.plotter import Plotter
 # modification file written by data_preprocessing.preprocessor_helper.write_results.
 MOD_FILE_HEADER_ROWS = 3
 # Space between the percentage tick labels and the rotated group label left of them.
-GROUP_LABEL_GAP = 4  # TODO: questionable if a constant like this should be the way to go
+GROUP_LABEL_GAP = 4
 
 
 class BarPlotter(Plotter):
@@ -98,7 +98,11 @@ class BarPlotter(Plotter):
         height_offset = 0
         modifications_visited = 0
         positions_visited = 0
-        relevant_groups = [g for g in self.plot_config.BAR_GROUPS.keys() if g in df["Group"].dropna().unique()]
+        relevant_groups = [
+            g
+            for g in self.plot_config.BAR_GROUPS.keys()
+            if g in df["Group"].dropna().unique()
+        ]
         bar_percentages = {group: [] for group in relevant_groups}
 
         for aa_position in sorted(modification_sites_all.keys(), reverse=True):

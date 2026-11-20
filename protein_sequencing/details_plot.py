@@ -15,6 +15,7 @@ from protein_sequencing.plotter import Plotter
 # figures shrink it, see get_ptm_label_plot_height.
 MAX_LABEL_PLOT_HEIGHT = 150
 
+
 class DetailsPlotter(Plotter):
     """Class to plot cleavages and PTMs on the sequence plot."""
 
@@ -1104,7 +1105,10 @@ class DetailsPlotter(Plotter):
             if (
                 start > last_end
                 or start < previous_index
-                or (previous_region_type is not None and region_type != previous_region_type)
+                or (
+                    previous_region_type is not None
+                    and region_type != previous_region_type
+                )
             ):
                 # Plot groups for the previous region and add divider
                 if self.FIGURE_ORIENTATION == 0:

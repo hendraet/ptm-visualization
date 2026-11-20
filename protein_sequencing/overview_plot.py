@@ -116,7 +116,10 @@ class OverviewPlotter(Plotter):
                         aa_position * self.PIXELS_PER_AA
                     ) + self.SEQUENCE_OFFSET
                     x_position_line = self.offset_line_for_exon(
-                        x_position_line, int(label[1:]), self.FIGURE_ORIENTATION, isoform
+                        x_position_line,
+                        int(label[1:]),
+                        self.FIGURE_ORIENTATION,
+                        isoform,
                     )
                     y_length = (
                         self.plot_config.SEQUENCE_MIN_LINE_LENGTH
@@ -169,7 +172,10 @@ class OverviewPlotter(Plotter):
                         - self.SEQUENCE_OFFSET
                     )
                     y_position_line = self.offset_line_for_exon(
-                        y_position_line, int(label[1:]), self.FIGURE_ORIENTATION, isoform
+                        y_position_line,
+                        int(label[1:]),
+                        self.FIGURE_ORIENTATION,
+                        isoform,
                     )
                     x_length = (
                         self.plot_config.SEQUENCE_MIN_LINE_LENGTH
